@@ -1,0 +1,7 @@
+Analyzing frontend...                                           
+
+warning - Unused import: 'package:frontend/features/workshop/data/models/work_order_model.dart' - lib\features\fleet\presentation\screens\vehicle_resume_screen.dart:5:8 - unused_import
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fleet\presentation\screens\vehicle_resume_screen.dart:158:24 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fleet\presentation\screens\vehicle_resume_screen.dart:160:43 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\fleet\presentation\screens\vehicle_resume_screen.dart:212:22 - deprecated_member_use
+

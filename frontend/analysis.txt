@@ -1,0 +1,7 @@
+Analyzing frontend...                                           
+
+   info - Don't invoke 'print' in production code - lib\features\auth\data\repositories\auth_repository.dart:34:7 - avoid_print
+   info - Don't use 'BuildContext's across async gaps - lib\features\auth\presentation\screens\login_screen.dart:123:54 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\features\auth\presentation\screens\login_screen.dart:129:54 - use_build_context_synchronously
+
+3 issues found. (ran in 1.3s)
