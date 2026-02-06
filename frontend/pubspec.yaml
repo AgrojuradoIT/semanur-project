@@ -51,6 +51,8 @@ dependencies:
   flutter_dotenv: ^5.2.1
   cached_network_image: ^3.4.1
   mobile_scanner: ^5.1.0
+  uuid: ^4.2.1
+  timeago: ^3.5.0
 
 dev_dependencies:
   flutter_test:

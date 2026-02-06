@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:frontend/features/analytics/presentation/providers/analytics_provider.dart';
 import 'package:frontend/core/theme/app_theme.dart';
+import 'package:frontend/core/widgets/custom_loader.dart';
 import 'package:intl/intl.dart';
 
 class AnalyticsDashboardScreen extends StatefulWidget {
@@ -52,12 +53,56 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
       ),
       body: provider.isLoading
           ? const Center(
-              child: CircularProgressIndicator(color: AppTheme.primaryYellow),
+              child: CustomLoader(
+                message: 'Generando reportes...',
+                color: AppTheme.primaryYellow,
+              ),
+            )
+          : provider.error != null
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.error_outline,
+                    size: 48,
+                    color: Colors.orange,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Error al cargar analítica',
+                    style: GoogleFonts.oswald(
+                      fontSize: 18,
+                      color: Colors.white,
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 30,
+                      vertical: 10,
+                    ),
+                    child: Text(
+                      provider.error!,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: AppTheme.textGray),
+                    ),
+                  ),
+                  ElevatedButton(
+                    onPressed: provider.fetchAll,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryYellow,
+                      foregroundColor: Colors.black,
+                    ),
+                    child: const Text('Reintentar'),
+                  ),
+                ],
+              ),
             )
           : RefreshIndicator(
               onRefresh: provider.fetchAll,
               color: AppTheme.primaryYellow,
               child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -188,6 +233,17 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
       return _buildEmptyState('No hay datos de combustible disponibles');
     }
 
+    // Safety: ensure values are not all zero to prevent maxY = 0 issues if needed
+    // And handle potential string/number mismatch safely
+    double maxVal = 0;
+    try {
+      maxVal = stats
+          .map((e) => (num.tryParse(e['cost'].toString()) ?? 0).toDouble())
+          .reduce((a, b) => a > b ? a : b);
+    } catch (_) {}
+
+    if (maxVal <= 0) maxVal = 1000; // Default fallback to avoid chart crash
+
     return Container(
       height: 250,
       padding: const EdgeInsets.all(20),
@@ -199,17 +255,13 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
       child: BarChart(
         BarChartData(
           alignment: BarChartAlignment.spaceAround,
-          maxY:
-              stats
-                  .map((e) => (e['cost'] as num).toDouble())
-                  .reduce((a, b) => a > b ? a : b) *
-              1.2,
+          maxY: maxVal * 1.2,
           barTouchData: BarTouchData(
             touchTooltipData: BarTouchTooltipData(
               tooltipBgColor: AppTheme.surfaceDark2,
               getTooltipItem: (group, groupIndex, rod, rodIndex) {
                 return BarTooltipItem(
-                  '${rod.toY.toInt()}',
+                  '\$${NumberFormat.compact().format(rod.toY)}',
                   const TextStyle(
                     color: AppTheme.primaryYellow,
                     fontWeight: FontWeight.bold,
@@ -254,11 +306,13 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
           gridData: const FlGridData(show: false),
           borderData: FlBorderData(show: false),
           barGroups: stats.asMap().entries.map((entry) {
+            final val = (num.tryParse(entry.value['cost'].toString()) ?? 0)
+                .toDouble();
             return BarChartGroupData(
               x: entry.key,
               barRods: [
                 BarChartRodData(
-                  toY: (entry.value['cost'] as num).toDouble(),
+                  toY: val,
                   color: AppTheme.primaryYellow,
                   width: 16,
                   borderRadius: const BorderRadius.vertical(
@@ -278,6 +332,13 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
       return _buildEmptyState('No hay datos de mantenimiento disponibles');
     }
 
+    // Safety: Find max for relative bar calculation
+    double maxTotal = 1;
+    for (var item in stats) {
+      final val = (num.tryParse(item['total_cost'].toString()) ?? 0).toDouble();
+      if (val > maxTotal) maxTotal = val;
+    }
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -286,9 +347,11 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
         border: Border.all(color: AppTheme.surfaceDark2),
       ),
       child: Column(
-        children: stats.map((item) {
-          final double total = (item['total_cost'] as num).toDouble();
-          final String placa = item['placa'];
+        children: stats.take(5).map((item) {
+          // Limit to top 5 to avoid overflow
+          final double total =
+              (num.tryParse(item['total_cost'].toString()) ?? 0).toDouble();
+          final String placa = item['placa'] ?? 'N/A';
 
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 10),
@@ -321,7 +384,7 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(10),
                   child: LinearProgressIndicator(
-                    value: total / (stats[0]['total_cost'] as num).toDouble(),
+                    value: total / maxTotal,
                     backgroundColor: AppTheme.surfaceDark2,
                     valueColor: const AlwaysStoppedAnimation(Colors.blue),
                     minHeight: 10,
@@ -334,6 +397,8 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
       ),
     );
   }
+
+  // ... (keep _buildEmptyState and _getMonthName as is)
 
   Widget _buildEmptyState(String message) {
     return Container(

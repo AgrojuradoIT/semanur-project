@@ -52,11 +52,16 @@ class ChecklistPreoperacional {
 
   Map<String, dynamic> toJson() {
     return {
+      'id': id,
       'vehiculo_id': vehiculoId,
+      'usuario_id': usuarioId,
+      'fecha': fecha.toIso8601String(),
       'horometro_actual': horometroActual,
       'checklist_data': checklistData,
       'observaciones': observaciones,
       'estado': estado,
+      'vehiculo': vehiculoPlaca != null ? {'placa': vehiculoPlaca} : null,
+      'usuario': usuarioNombre != null ? {'name': usuarioNombre} : null,
     };
   }
 

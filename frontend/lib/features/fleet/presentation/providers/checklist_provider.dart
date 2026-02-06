@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:frontend/features/fleet/data/models/checklist_model.dart';
 import 'package:frontend/features/fleet/data/repositories/checklist_repository.dart';
 import 'package:frontend/core/providers/sync_provider.dart';
+import 'package:frontend/core/database/database_helper.dart';
 
 class ChecklistProvider extends ChangeNotifier {
   final ChecklistRepository _repository;
@@ -26,9 +27,46 @@ class ChecklistProvider extends ChangeNotifier {
       _checklists = await _repository.getChecklists(vehiculoId: vehiculoId);
       _isLoading = false;
       notifyListeners();
+
+      // Cachear localmente
+      try {
+        final checklistsMap = _checklists.map((c) => c.toJson()).toList();
+        await DatabaseHelper().saveChecklists(checklistsMap);
+      } catch (cacheError) {
+        debugPrint('Error cacheando checklists: $cacheError');
+      }
     } catch (e) {
+      debugPrint('Error obteniendo checklists: $e. Intentando local...');
+      // Fallback local
+      try {
+        final localData = await DatabaseHelper().getChecklists(
+          vehiculoId: vehiculoId,
+        );
+        if (localData.isNotEmpty) {
+          _checklists = localData
+              .map((json) {
+                try {
+                  return ChecklistPreoperacional.fromJson(json);
+                } catch (parseError) {
+                  debugPrint('Error parseando checklist local: $parseError');
+                  return null;
+                }
+              })
+              .whereType<ChecklistPreoperacional>()
+              .toList();
+
+          if (_checklists.isNotEmpty) {
+            _isLoading = false;
+            notifyListeners();
+            return;
+          }
+        }
+      } catch (dbError) {
+        debugPrint('Error leyendo DB local checklists: $dbError');
+      }
+
       _isLoading = false;
-      _error = e.toString();
+      _error = 'No se pudo conectar y no hay datos locales.';
       notifyListeners();
     }
   }
@@ -56,7 +94,7 @@ class ChecklistProvider extends ChangeNotifier {
           e.toString().toLowerCase().contains('connection') ||
           e.toString().toLowerCase().contains('socket')) {
         await _syncProvider.addToQueue(
-          endpoint: '/api/checklist-preoperacional',
+          endpoint: '/checklists', // Corrected from /checklist-preoperacional
           method: 'POST',
           payload: checklist.toJson(),
           imagePath: localImagePath,

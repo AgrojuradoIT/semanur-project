@@ -75,19 +75,35 @@ class FleetProvider extends ChangeNotifier {
         final localData = await DatabaseHelper().getVehiculos();
         if (localData.isNotEmpty) {
           _vehiculos = localData
-              .map((json) => Vehiculo.fromJson(json))
+              .map((json) {
+                try {
+                  return Vehiculo.fromJson(json);
+                } catch (e) {
+                  debugPrint('Error parseando vehículo local: $e');
+                  return null;
+                }
+              })
+              .whereType<Vehiculo>()
               .toList();
-          _isLoading = false;
-          _checkExpirations();
-          notifyListeners();
-          return;
+
+          if (_vehiculos.isNotEmpty) {
+            _isLoading = false;
+            // Verificar expiraciones con datos locales
+            try {
+              _checkExpirations();
+            } catch (expError) {
+              debugPrint('Error verificando expiraciones locales: $expError');
+            }
+            notifyListeners();
+            return;
+          }
         }
       } catch (dbError) {
         debugPrint('Error leyendo DB local: $dbError');
       }
 
       _isLoading = false;
-      _error = e.toString();
+      _error = 'No se pudo conectar y no hay datos locales.';
       notifyListeners();
     }
   }

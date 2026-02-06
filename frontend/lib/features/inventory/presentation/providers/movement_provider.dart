@@ -65,16 +65,17 @@ class MovementProvider extends ChangeNotifier {
           e.toString().toLowerCase().contains('connection') ||
           e.toString().toLowerCase().contains('socket')) {
         await _syncProvider.addToQueue(
-          endpoint: '/api/movimientos-inventario',
+          endpoint: '/movimientos-inventario',
           method: 'POST',
           payload: {
             'producto_id': productoId,
-            'tipo': tipo,
-            'cantidad': cantidad,
-            'motivo': motivo, // 'entrada' | 'salida' | 'ajuste'
-            'referencia_id': referenciaId,
-            'referencia_type': referenciaType,
-            'notas': notas,
+            // Usar los mismos nombres de campos que la API backend
+            'transaccion_tipo': tipo,
+            'transaccion_cantidad': cantidad,
+            'transaccion_motivo': motivo, // 'ingreso' | 'salida'
+            'transaccion_referencia_id': referenciaId,
+            'transaccion_referencia_type': referenciaType,
+            'transaccion_notas': notas,
           },
         );
 

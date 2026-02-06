@@ -12,6 +12,8 @@ import 'package:frontend/features/fleet/presentation/screens/checklist_list_scre
 import 'package:frontend/features/profile/presentation/screens/profile_screen.dart';
 import 'package:frontend/features/inventory/presentation/screens/scanner_screen.dart';
 import 'package:frontend/features/home/presentation/widgets/sync_status_widget.dart';
+import 'package:frontend/features/notifications/presentation/providers/notification_provider.dart';
+import 'package:frontend/features/notifications/presentation/screens/notification_list_screen.dart';
 
 // import 'package:frontend/core/widgets/sync_status_indicator.dart';
 
@@ -211,42 +213,48 @@ class _HomeDashboardState extends State<HomeDashboard> {
             children: [
               // const SyncStatusIndicator(), // Moved to Daily Summary
               const SizedBox(width: 8),
-              Stack(
-                children: [
-                  IconButton(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Sin notificaciones nuevas'),
+              Consumer<NotificationProvider>(
+                builder: (context, provider, _) {
+                  return Stack(
+                    children: [
+                      IconButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const NotificationListScreen(),
+                            ),
+                          );
+                        },
+                        icon: const Icon(
+                          Icons.notifications_outlined,
+                          color: AppTheme.textGray,
                         ),
-                      );
-                    },
-                    icon: const Icon(
-                      Icons.notifications_outlined,
-                      color: AppTheme.textGray,
-                    ),
-                    style: IconButton.styleFrom(
-                      backgroundColor: AppTheme.surfaceDark,
-                      shape: const CircleBorder(),
-                    ),
-                  ),
-                  Positioned(
-                    right: 12,
-                    top: 12,
-                    child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: AppTheme.surfaceDark,
-                          width: 1,
+                        style: IconButton.styleFrom(
+                          backgroundColor: AppTheme.surfaceDark,
+                          shape: const CircleBorder(),
                         ),
                       ),
-                    ),
-                  ),
-                ],
+                      if (provider.unreadCount > 0)
+                        Positioned(
+                          right: 12,
+                          top: 12,
+                          child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: AppTheme.surfaceDark,
+                                width: 1,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
               ),
             ],
           ),
@@ -278,13 +286,74 @@ class _HomeDashboardState extends State<HomeDashboard> {
           scrollDirection: Axis.horizontal,
           child: Row(
             children: [
-              _buildSummaryCard(
-                title: 'NIVEL COMBUSTIBLE',
-                subtitle: 'Promedio Flota',
-                icon: Icons.local_gas_station_rounded,
-                value: '78%',
-                progress: 0.78,
-                warning: '2 Vehículos Bajos',
+              Consumer<InventoryProvider>(
+                builder: (context, inventory, _) {
+                  // Buscar productos de combustible por nombre.
+                  final productos = inventory.productos;
+
+                  final gasolina = _firstWhereOrNull(
+                    productos,
+                    (p) =>
+                        (p.categoria?.tipo == 'combustible') &&
+                        p.nombre.toLowerCase().contains('gasolina'),
+                  );
+
+                  final acpm = _firstWhereOrNull(
+                    productos,
+                    (p) =>
+                        (p.categoria?.tipo == 'combustible') &&
+                        (p.nombre.toLowerCase().contains('acpm') ||
+                            p.nombre.toLowerCase().contains('diesel')),
+                  );
+
+                  const double capacidadGasolina = 300; // galones
+                  const double capacidadAcpm = 3000; // galones
+
+                  final double nivelGasolina = gasolina?.stockActual ?? 0;
+                  final double nivelAcpm = acpm?.stockActual ?? 0;
+
+                  final double pctGasolina = capacidadGasolina > 0
+                      ? (nivelGasolina / capacidadGasolina)
+                            .clamp(0.0, 1.0)
+                            .toDouble()
+                      : 0;
+                  final double pctAcpm = capacidadAcpm > 0
+                      ? (nivelAcpm / capacidadAcpm).clamp(0.0, 1.0).toDouble()
+                      : 0;
+
+                  String formatPct(double pct) =>
+                      '${(pct * 100).clamp(0, 999).toStringAsFixed(0)}%';
+
+                  return Row(
+                    children: [
+                      _buildSummaryCard(
+                        title: 'GASOLINA - NIVEL TANQUE',
+                        subtitle: 'Capacidad 300 gal',
+                        icon: Icons.local_gas_station_rounded,
+                        value: gasolina == null && inventory.isLoading
+                            ? '...'
+                            : formatPct(pctGasolina),
+                        progress: pctGasolina,
+                        warning: gasolina == null
+                            ? 'Configura producto Gasolina'
+                            : '${nivelGasolina.toStringAsFixed(1)} gal restantes',
+                      ),
+                      const SizedBox(width: 15),
+                      _buildSummaryCard(
+                        title: 'ACPM / DIESEL - NIVEL',
+                        subtitle: 'Capacidad 3000 gal',
+                        icon: Icons.local_gas_station,
+                        value: acpm == null && inventory.isLoading
+                            ? '...'
+                            : formatPct(pctAcpm),
+                        progress: pctAcpm,
+                        warning: acpm == null
+                            ? 'Configura producto ACPM'
+                            : '${nivelAcpm.toStringAsFixed(1)} gal restantes',
+                      ),
+                    ],
+                  );
+                },
               ),
               const SizedBox(width: 15),
               _buildActivityCard(),
@@ -362,12 +431,18 @@ class _HomeDashboardState extends State<HomeDashboard> {
           const SizedBox(height: 12),
           Row(
             children: [
-              const Icon(Icons.warning_rounded, color: Colors.red, size: 14),
+              Icon(
+                progress > 0.4
+                    ? Icons.check_circle_outline
+                    : Icons.warning_rounded,
+                color: progress > 0.4 ? Colors.green : Colors.red,
+                size: 14,
+              ),
               const SizedBox(width: 5),
               Text(
                 warning,
-                style: const TextStyle(
-                  color: Colors.red,
+                style: TextStyle(
+                  color: progress > 0.4 ? Colors.green : Colors.red,
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
                 ),
@@ -377,6 +452,14 @@ class _HomeDashboardState extends State<HomeDashboard> {
         ],
       ),
     );
+  }
+
+  // Utilidad simple para evitar dependencias externas.
+  T? _firstWhereOrNull<T>(Iterable<T> iterable, bool Function(T element) test) {
+    for (final element in iterable) {
+      if (test(element)) return element;
+    }
+    return null;
   }
 
   Widget _buildActivityCard() {

@@ -1,14 +1,18 @@
 import 'package:flutter/foundation.dart';
 import 'package:frontend/features/workshop/data/models/work_order_model.dart';
 import 'package:frontend/features/workshop/data/repositories/workshop_repository.dart';
+import 'package:frontend/core/providers/sync_provider.dart';
+import 'package:frontend/core/database/database_helper.dart';
 
 class WorkshopProvider extends ChangeNotifier {
   final WorkOrderRepository _repository;
+  final SyncProvider _syncProvider;
+
   List<OrdenTrabajo> _ordenes = [];
   bool _isLoading = false;
   String? _error;
 
-  WorkshopProvider(this._repository);
+  WorkshopProvider(this._repository, this._syncProvider);
 
   List<OrdenTrabajo> get ordenes => _ordenes;
   bool get isLoading => _isLoading;
@@ -39,9 +43,44 @@ class WorkshopProvider extends ChangeNotifier {
 
       _isLoading = false;
       notifyListeners();
+
+      // Cachear localmente
+      try {
+        final ordenesMap = _ordenes.map((o) => o.toJson()).toList();
+        await DatabaseHelper().saveOrdenesTrabajo(ordenesMap);
+      } catch (cacheError) {
+        debugPrint('Error cacheando ordenes: $cacheError');
+      }
     } catch (e) {
+      debugPrint('Error obteniendo órdenes: $e. Intentando local...');
+      // Fallback local
+      try {
+        final localData = await DatabaseHelper().getOrdenesTrabajo();
+        if (localData.isNotEmpty) {
+          _ordenes = localData
+              .map((json) {
+                try {
+                  return OrdenTrabajo.fromJson(json);
+                } catch (parseError) {
+                  debugPrint('Error parseando orden local: $parseError');
+                  return null;
+                }
+              })
+              .whereType<OrdenTrabajo>()
+              .toList();
+
+          if (_ordenes.isNotEmpty) {
+            _isLoading = false;
+            notifyListeners();
+            return;
+          }
+        }
+      } catch (dbError) {
+        debugPrint('Error leyendo DB local ordenes: $dbError');
+      }
+
       _isLoading = false;
-      _error = e.toString();
+      _error = 'No se pudo conectar y no hay datos locales.';
       notifyListeners();
     }
   }
@@ -128,6 +167,30 @@ class WorkshopProvider extends ChangeNotifier {
       }
       return success;
     } catch (e) {
+      // Offline implementation
+      if (_syncProvider.status == SyncStatus.offline ||
+          e.toString().toLowerCase().contains('connection') ||
+          e.toString().toLowerCase().contains('socket')) {
+        await _syncProvider.addToQueue(
+          endpoint: '/ordenes-trabajo',
+          method: 'POST',
+          payload: {
+            'vehiculo_id': vehiculoId,
+            'prioridad': prioridad,
+            'descripcion': descripcion,
+            'repuestos': repuestos,
+            'herramientas': herramientas,
+          },
+          imagePath: localImagePath,
+        );
+
+        // Optimistic UI handled by reload, or could manually add to list
+        // For now returning true so UI thinks it succeeded
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      }
+
       _error = e.toString();
       _isLoading = false;
       notifyListeners();

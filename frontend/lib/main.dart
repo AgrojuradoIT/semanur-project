@@ -27,6 +27,7 @@ import 'package:frontend/features/fleet/data/repositories/fleet_repository.dart'
 import 'package:frontend/features/fleet/presentation/providers/fleet_provider.dart';
 import 'package:frontend/features/analytics/presentation/providers/analytics_provider.dart';
 import 'package:frontend/core/providers/sync_provider.dart';
+import 'package:frontend/features/notifications/presentation/providers/notification_provider.dart';
 import 'package:frontend/features/auth/presentation/screens/login_screen.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -36,6 +37,43 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
   await NotificationService().init();
+
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    return Material(
+      child: Container(
+        color: Colors.red.shade900,
+        padding: const EdgeInsets.all(20),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.error_outline, color: Colors.yellow, size: 50),
+              const SizedBox(height: 10),
+              const Text(
+                'CRITICAL UI ERROR',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                details.exception.toString(),
+                style: const TextStyle(color: Colors.white70),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                details.stack.toString(),
+                style: const TextStyle(color: Colors.white30, fontSize: 10),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  };
 
   final apiClient = ApiClient(
     onUnauthorized: () {
@@ -60,13 +98,22 @@ void main() async {
   runApp(
     MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ChangeNotifierProvider(create: (_) => AuthProvider(authRepository)),
         ChangeNotifierProvider(create: (_) => SyncProvider(apiClient)),
-        ChangeNotifierProvider(
-          create: (_) => InventoryProvider(inventoryRepository),
+        ChangeNotifierProxyProvider<NotificationProvider, InventoryProvider>(
+          create: (ctx) => InventoryProvider(
+            inventoryRepository,
+            ctx.read<NotificationProvider>(),
+          ),
+          update: (_, notif, prev) =>
+              prev ?? InventoryProvider(inventoryRepository, notif),
         ),
-        ChangeNotifierProvider(
-          create: (_) => WorkshopProvider(workshopRepository),
+        ChangeNotifierProxyProvider<SyncProvider, WorkshopProvider>(
+          create: (ctx) =>
+              WorkshopProvider(workshopRepository, ctx.read<SyncProvider>()),
+          update: (_, sync, prev) =>
+              prev ?? WorkshopProvider(workshopRepository, sync),
         ),
         ChangeNotifierProvider(create: (_) => FleetProvider(fleetRepository)),
         ChangeNotifierProxyProvider<SyncProvider, MovementProvider>(
@@ -76,7 +123,11 @@ void main() async {
               prev ?? MovementProvider(movementRepository, sync),
         ),
         ChangeNotifierProvider(create: (_) => LoanProvider(loanRepository)),
-        ChangeNotifierProvider(create: (_) => FuelProvider(fuelRepository)),
+        ChangeNotifierProxyProvider<SyncProvider, FuelProvider>(
+          create: (ctx) =>
+              FuelProvider(fuelRepository, ctx.read<SyncProvider>()),
+          update: (_, sync, prev) => prev ?? FuelProvider(fuelRepository, sync),
+        ),
         ChangeNotifierProvider(
           create: (_) => HorometroProvider(horometroRepository),
         ),
@@ -87,7 +138,14 @@ void main() async {
           update: (_, sync, prev) =>
               prev ?? ChecklistProvider(checklistRepository, sync),
         ),
-        ChangeNotifierProvider(create: (_) => SessionProvider(apiClient)),
+        ChangeNotifierProxyProvider<SyncProvider, SessionProvider>(
+          create: (ctx) => SessionProvider(
+            apiClient,
+            syncProvider: ctx.read<SyncProvider>(),
+          ),
+          update: (_, sync, prev) =>
+              prev ?? SessionProvider(apiClient, syncProvider: sync),
+        ),
         ChangeNotifierProvider(create: (_) => AnalyticsProvider(apiClient)),
       ],
       child: const MyApp(),

@@ -23,10 +23,9 @@ class DatabaseHelper {
     final documentsDirectory = await getApplicationDocumentsDirectory();
     final path = join(documentsDirectory.path, "semanur_offline.db");
 
-    // Incrementamos a versión 6 para incluir cache de Checklists y Combustible
     return await openDatabase(
       path,
-      version: 6,
+      version: 8,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -63,6 +62,12 @@ class DatabaseHelper {
       await _createChecklistsTable(db);
       await _createCombustibleTable(db);
     }
+    if (oldVersion < 7) {
+      await _createSesionTrabajoLocalTable(db);
+    }
+    if (oldVersion < 8) {
+      await _createAnalyticsTable(db);
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -72,6 +77,8 @@ class DatabaseHelper {
     await _createOrdenesTrabajoTable(db);
     await _createChecklistsTable(db);
     await _createCombustibleTable(db);
+    await _createSesionTrabajoLocalTable(db);
+    await _createAnalyticsTable(db);
   }
 
   Future<void> _createVehiculosTable(Database db) async {
@@ -395,5 +402,98 @@ class DatabaseHelper {
       final String jsonStr = row['full_json'] as String;
       return jsonDecode(jsonStr) as Map<String, dynamic>;
     }).toList();
+  }
+
+  // Métodos de utilidad: Sesiones Offline
+  Future<void> _createSesionTrabajoLocalTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE sesion_trabajo_local (
+        local_id INTEGER PRIMARY KEY AUTOINCREMENT, -- ID local si no ha sincronizado
+        server_id INTEGER, -- ID servidor si ya sincronizó pero sigue activa
+        user_id INTEGER,
+        orden_trabajo_id INTEGER,
+        fecha_inicio TEXT,
+        fecha_fin TEXT, -- Null si activa
+        notas TEXT,
+        is_synced INTEGER DEFAULT 1 -- 1 si ya está en servidor, 0 si pendiente
+      )
+    ''');
+  }
+
+  Future<void> saveActiveSessionLocal(
+    Map<String, dynamic> session, {
+    bool isSynced = true,
+  }) async {
+    final db = await database;
+    // Solo puede haber una activa, limpiamos cualquier otra activa por si acaso
+    // O asumimos que la app maneja una sola sesión por usuario
+    // Borrar sesiones activas previas para garantizar consistencia local
+    await db.delete('sesion_trabajo_local', where: 'fecha_fin IS NULL');
+
+    await db.insert('sesion_trabajo_local', {
+      'server_id': session['sesion_id'], // Puede ser null o provisional
+      'user_id': session['user_id'],
+      'orden_trabajo_id': session['orden_trabajo_id'],
+      'fecha_inicio': session['fecha_inicio'],
+      'fecha_fin': null,
+      'notas': null,
+      'is_synced': isSynced ? 1 : 0,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<Map<String, dynamic>?> getActiveSessionLocal() async {
+    final db = await database;
+    final results = await db.query(
+      'sesion_trabajo_local',
+      where: 'fecha_fin IS NULL',
+      limit: 1,
+    );
+
+    if (results.isNotEmpty) {
+      return results.first;
+    }
+    return null;
+  }
+
+  Future<void> closeActiveSessionLocal(String fechaFin, {String? notas}) async {
+    final db = await database;
+    await db.update('sesion_trabajo_local', {
+      'fecha_fin': fechaFin,
+      'notas': notas,
+    }, where: 'fecha_fin IS NULL');
+  }
+
+  // Métodos de utilidad: Analytics Cache
+  Future<void> _createAnalyticsTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE analytics_cache (
+        key TEXT PRIMARY KEY,
+        data TEXT,
+        last_updated TEXT
+      )
+    ''');
+  }
+
+  Future<void> saveAnalyticsCache(String key, dynamic data) async {
+    final db = await database;
+    await db.insert('analytics_cache', {
+      'key': key,
+      'data': jsonEncode(data),
+      'last_updated': DateTime.now().toIso8601String(),
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<dynamic> getAnalyticsCache(String key) async {
+    final db = await database;
+    final results = await db.query(
+      'analytics_cache',
+      where: 'key = ?',
+      whereArgs: [key],
+    );
+
+    if (results.isNotEmpty) {
+      return jsonDecode(results.first['data'] as String);
+    }
+    return null;
   }
 }

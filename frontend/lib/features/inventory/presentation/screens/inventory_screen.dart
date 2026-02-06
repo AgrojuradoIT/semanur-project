@@ -410,14 +410,20 @@ class _InventoryScreenState extends State<InventoryScreen> {
     }
 
     var filteredProducts = provider.productos;
-    if (_selectedCategory != 'Todos') {
-      filteredProducts = filteredProducts
-          .where(
-            (p) =>
-                (p.categoria?.nombre ?? '').toLowerCase() ==
-                _selectedCategory.toLowerCase(),
-          )
-          .toList();
+    try {
+      if (_selectedCategory != 'Todos') {
+        filteredProducts = filteredProducts
+            .where(
+              (p) =>
+                  (p.categoria?.nombre ?? '').toLowerCase() ==
+                  _selectedCategory.toLowerCase(),
+            )
+            .toList();
+      }
+    } catch (e) {
+      debugPrint('Error filtrando productos: $e');
+      // En caso de error, mostramos lista vacía o lista completa, mejor completa para no bloquear
+      // Pero si el filtro falla, mejor no filtrar
     }
 
     if (filteredProducts.isEmpty) {
@@ -455,212 +461,229 @@ class _InventoryScreenState extends State<InventoryScreen> {
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
         itemCount: filteredProducts.length,
         itemBuilder: (context, index) {
-          final producto = filteredProducts[index];
-          final bool lowStock =
-              producto.stockActual <= producto.alertaStockMinimo;
+          try {
+            final producto = filteredProducts[index];
+            final bool lowStock =
+                producto.stockActual <= producto.alertaStockMinimo;
 
-          return GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ProductDetailScreen(producto: producto),
+            return GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        ProductDetailScreen(producto: producto),
+                  ),
+                );
+              },
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 15),
+                decoration: BoxDecoration(
+                  color: AppTheme.surfaceDark,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppTheme.surfaceDark2),
                 ),
-              );
-            },
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 15),
-              decoration: BoxDecoration(
-                color: AppTheme.surfaceDark,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppTheme.surfaceDark2),
-              ),
-              child: Stack(
-                children: [
-                  if (lowStock)
-                    Positioned(
-                      left: 0,
-                      top: 0,
-                      bottom: 0,
-                      width: 4,
-                      child: Container(color: AppTheme.primaryYellow),
-                    ),
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              width: 48,
-                              height: 48,
-                              decoration: BoxDecoration(
-                                color: AppTheme.backgroundDark,
-                                borderRadius: BorderRadius.circular(12),
+                child: Stack(
+                  children: [
+                    if (lowStock)
+                      Positioned(
+                        left: 0,
+                        top: 0,
+                        bottom: 0,
+                        width: 4,
+                        child: Container(color: AppTheme.primaryYellow),
+                      ),
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  color: AppTheme.backgroundDark,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Icon(
+                                  _getCategoryIcon(producto.categoria?.nombre),
+                                  color: AppTheme.textGray,
+                                ),
                               ),
-                              child: Icon(
-                                _getCategoryIcon(producto.categoria?.nombre),
-                                color: AppTheme.textGray,
+                              const SizedBox(width: 15),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      producto.nombre.toUpperCase(),
+                                      style: GoogleFonts.oswald(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    Text(
+                                      'SKU: ${producto.sku} • ${producto.categoria?.nombre ?? 'General'}',
+                                      style: const TextStyle(
+                                        color: AppTheme.textGray,
+                                        fontSize: 10,
+                                      ),
+                                    ),
+                                    if (lowStock)
+                                      Container(
+                                        margin: const EdgeInsets.only(top: 8),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.primaryYellow
+                                              .withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(
+                                            4,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Container(
+                                              width: 6,
+                                              height: 6,
+                                              decoration: const BoxDecoration(
+                                                color: AppTheme.primaryYellow,
+                                                shape: BoxShape.circle,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            const Text(
+                                              'STOCK BAJO',
+                                              style: TextStyle(
+                                                color: AppTheme.primaryYellow,
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                  ],
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 15),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
                                   Text(
-                                    producto.nombre.toUpperCase(),
+                                    producto.stockActual.toString(),
                                     style: GoogleFonts.oswald(
-                                      fontSize: 16,
+                                      fontSize: 22,
                                       fontWeight: FontWeight.bold,
-                                      color: Colors.white,
+                                      color: lowStock
+                                          ? AppTheme.primaryYellow
+                                          : Colors.white,
                                     ),
                                   ),
                                   Text(
-                                    'SKU: ${producto.sku} • ${producto.categoria?.nombre ?? 'General'}',
+                                    producto.unidadMedida ?? 'UNID',
                                     style: const TextStyle(
                                       color: AppTheme.textGray,
-                                      fontSize: 10,
+                                      fontSize: 8,
+                                      fontWeight: FontWeight.bold,
                                     ),
                                   ),
-                                  if (lowStock)
-                                    Container(
-                                      margin: const EdgeInsets.only(top: 8),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 2,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: AppTheme.primaryYellow
-                                            .withValues(alpha: 0.1),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Container(
-                                            width: 6,
-                                            height: 6,
-                                            decoration: const BoxDecoration(
-                                              color: AppTheme.primaryYellow,
-                                              shape: BoxShape.circle,
-                                            ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          if (producto.categoria?.nombre.toLowerCase() ==
+                              'combustible')
+                            Padding(
+                              padding: const EdgeInsets.only(top: 12),
+                              child: Column(
+                                children: [
+                                  Container(
+                                    height: 6,
+                                    width: double.infinity,
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.surfaceDark2,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: FractionallySizedBox(
+                                      alignment: Alignment.centerLeft,
+                                      widthFactor: 0.75, // Placeholder level
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: Colors.green,
+                                          borderRadius: BorderRadius.circular(
+                                            10,
                                           ),
-                                          const SizedBox(width: 6),
-                                          const Text(
-                                            'STOCK BAJO',
-                                            style: TextStyle(
-                                              color: AppTheme.primaryYellow,
-                                              fontSize: 9,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ],
+                                        ),
                                       ),
                                     ),
+                                  ),
                                 ],
                               ),
                             ),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  producto.stockActual.toString(),
-                                  style: GoogleFonts.oswald(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold,
-                                    color: lowStock
-                                        ? AppTheme.primaryYellow
-                                        : Colors.white,
-                                  ),
-                                ),
-                                Text(
-                                  producto.unidadMedida ?? 'UNID',
-                                  style: const TextStyle(
-                                    color: AppTheme.textGray,
-                                    fontSize: 8,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        if (producto.categoria?.nombre.toLowerCase() ==
-                            'combustible')
-                          Padding(
-                            padding: const EdgeInsets.only(top: 12),
-                            child: Column(
-                              children: [
-                                Container(
-                                  height: 6,
-                                  width: double.infinity,
-                                  decoration: BoxDecoration(
-                                    color: AppTheme.surfaceDark2,
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: FractionallySizedBox(
-                                    alignment: Alignment.centerLeft,
-                                    widthFactor: 0.75, // Placeholder level
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        color: Colors.green,
-                                        borderRadius: BorderRadius.circular(10),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: widget.buildMiniButton(
+                                  'Historial',
+                                  Icons.history,
+                                  () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            const MovementListScreen(),
                                       ),
-                                    ),
-                                  ),
+                                    );
+                                  },
                                 ),
-                              ],
-                            ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: widget.buildMiniButton(
+                                  'Reordenar',
+                                  Icons.refresh,
+                                  () {
+                                    final provider = context
+                                        .read<InventoryProvider>();
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            const AddMovementScreen(),
+                                      ),
+                                    ).then((_) {
+                                      if (!mounted) return;
+                                      provider.fetchProductos();
+                                    });
+                                  },
+                                ),
+                              ),
+                            ],
                           ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: widget.buildMiniButton(
-                                'Historial',
-                                Icons.history,
-                                () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                          const MovementListScreen(),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: widget.buildMiniButton(
-                                'Reordenar',
-                                Icons.refresh,
-                                () {
-                                  final provider = context
-                                      .read<InventoryProvider>();
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                          const AddMovementScreen(),
-                                    ),
-                                  ).then((_) {
-                                    if (!mounted) return;
-                                    provider.fetchProductos();
-                                  });
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          );
+            );
+          } catch (e) {
+            return Container(
+              height: 80,
+              color: Colors.red.withValues(alpha: 0.1),
+              alignment: Alignment.center,
+              child: Text(
+                'Error item: $e',
+                style: const TextStyle(color: Colors.red),
+              ),
+            );
+          }
         },
       ),
     );

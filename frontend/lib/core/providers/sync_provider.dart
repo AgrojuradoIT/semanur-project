@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../database/database_helper.dart';
 import '../network/api_client.dart';
+import '../services/notification_service.dart';
 import 'package:dio/dio.dart';
 
 enum SyncStatus { online, offline, syncing }
@@ -26,7 +27,16 @@ class SyncProvider extends ChangeNotifier {
 
   SyncProvider(this._apiClient) {
     _initConnectivityListener();
+    _checkInitialConnectivity();
     _updatePendingCount();
+  }
+
+  Future<void> _checkInitialConnectivity() async {
+    final result = await Connectivity().checkConnectivity();
+    if (result == ConnectivityResult.none) {
+      _status = SyncStatus.offline;
+      notifyListeners();
+    }
   }
 
   void _initConnectivityListener() {
@@ -47,6 +57,15 @@ class SyncProvider extends ChangeNotifier {
   Future<void> _updatePendingCount() async {
     final queue = await _dbHelper.getSyncQueue();
     _pendingCount = queue.length;
+
+    if (_pendingCount > 0) {
+      // Si hay pendientes, asegurar recordatorios diarios
+      NotificationService().scheduleDailyReminders();
+    } else {
+      // Si no hay pendientes, cancelar recordatorios innecesarios
+      NotificationService().cancelDailyReminders();
+    }
+
     notifyListeners();
   }
 
@@ -99,8 +118,39 @@ class SyncProvider extends ChangeNotifier {
   Future<bool> _processQueueItem(Map<String, dynamic> item) async {
     try {
       final String method = item['method'];
-      final String endpoint = item['endpoint'];
-      final dynamic payload = jsonDecode(item['payload']);
+      String endpoint = item['endpoint'];
+
+      // SANITIZATION & REWRITE:
+      // 1. Remove prefixes /api or api/
+      endpoint = endpoint.replaceAll(RegExp(r'^/?api/'), '/');
+      if (!endpoint.startsWith('/')) endpoint = '/$endpoint';
+
+      // 2. Fix Legacy Incorrect Endpoint Names
+      if (endpoint.contains('movimientos-inventario')) {
+        endpoint = '/movimientos';
+      } else if (endpoint.contains('checklist-preoperacional')) {
+        endpoint = '/checklists';
+      }
+
+      // Decode payload and normalize legacy field names.
+      final dynamic decoded = jsonDecode(item['payload']);
+      final Map<String, dynamic> payload =
+          decoded is Map<String, dynamic> ? Map<String, dynamic>.from(decoded) : {};
+
+      // Backwards compatibility for older offline records of inventory movements.
+      // Old payload used: tipo, cantidad, motivo, referencia_id, referencia_type, notas.
+      // Backend expects: transaccion_tipo, transaccion_cantidad, transaccion_motivo, etc.
+      if (endpoint == '/movimientos') {
+        payload.putIfAbsent('transaccion_tipo', () => payload['tipo']);
+        payload.putIfAbsent('transaccion_cantidad', () => payload['cantidad']);
+        payload.putIfAbsent('transaccion_motivo', () => payload['motivo']);
+        payload.putIfAbsent(
+            'transaccion_referencia_id', () => payload['referencia_id']);
+        payload.putIfAbsent(
+            'transaccion_referencia_type', () => payload['referencia_type']);
+        payload.putIfAbsent('transaccion_notas', () => payload['notas']);
+      }
+
       final String? imagePath = item['image_path'];
 
       Response response;
@@ -125,7 +175,14 @@ class SyncProvider extends ChangeNotifier {
       }
 
       return response.statusCode == 200 || response.statusCode == 201;
+    } on DioException catch (e) {
+      final msg =
+          e.response?.data?['message'] ?? e.message ?? 'Error de conexión';
+      _lastSyncError = 'Falló subida: $msg';
+      debugPrint('Sync Error (Dio): $e');
+      return false;
     } catch (e) {
+      _lastSyncError = 'Error inesperado: $e';
       debugPrint('Sync Error: $e');
       return false;
     }

@@ -63,4 +63,20 @@ class RegistroCombustible {
       usuarioNombre: json['usuario'] != null ? json['usuario']['name'] : null,
     );
   }
+  Map<String, dynamic> toJson() {
+    return {
+      'registro_id': id,
+      'vehiculo_id': vehiculoId,
+      'usuario_id': usuarioId,
+      'fecha': fecha.toIso8601String(),
+      'cantidad_galones': cantidadGalones,
+      'valor_total': valorTotal,
+      'horometro_actual': horometroActual,
+      'kilometraje_actual': kilometrajeActual,
+      'estacion_servicio': estacionServicio,
+      'notas': notas,
+      'vehiculo': vehiculoPlaca != null ? {'placa': vehiculoPlaca} : null,
+      'usuario': usuarioNombre != null ? {'name': usuarioNombre} : null,
+    };
+  }
 }

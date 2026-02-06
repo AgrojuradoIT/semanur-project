@@ -76,7 +76,8 @@ class ChecklistRepository {
       final response = await _apiClient.dio.post('/checklists', data: formData);
       return response.statusCode == 200 || response.statusCode == 201;
     } catch (e) {
-      throw Exception('Error al enviar checklist: $e');
+      // Offline implementation handled by Provider usually, but repository can throw specific error
+      rethrow;
     }
   }
 }

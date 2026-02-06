@@ -27,7 +27,7 @@ class _AddFuelScreenState extends State<AddFuelScreen> {
   final _estacionController = TextEditingController();
   final _notasController = TextEditingController();
 
-  bool _isInternal = false;
+  bool _isInternal = true;
   Producto? _selectedProduct;
 
   @override
@@ -35,6 +35,10 @@ class _AddFuelScreenState extends State<AddFuelScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<InventoryProvider>().fetchProductos();
+      // Initialize text for internal mode
+      if (_isInternal) {
+        _estacionController.text = 'Inventario Interno';
+      }
     });
   }
 
@@ -127,18 +131,22 @@ class _AddFuelScreenState extends State<AddFuelScreen> {
               },
             ),
             const SizedBox(height: 20),
-            TextFormField(
-              controller: _valorController,
-              decoration: const InputDecoration(
-                labelText: 'Valor Total (\$)',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.payments),
+            if (!_isInternal) ...[
+              TextFormField(
+                controller: _valorController,
+                decoration: const InputDecoration(
+                  labelText: 'Valor Total (\$)',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.payments),
+                ),
+                keyboardType: TextInputType.number,
+                validator: (val) =>
+                    (!_isInternal && (val == null || val.isEmpty))
+                    ? 'Ingrese valor total'
+                    : null,
               ),
-              keyboardType: TextInputType.number,
-              validator: (val) =>
-                  (val == null || val.isEmpty) ? 'Ingrese valor total' : null,
-            ),
-            const SizedBox(height: 20),
+              const SizedBox(height: 20),
+            ],
             const Text(
               'SEGUIMIENTO (OPCIONAL)',
               style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
@@ -224,7 +232,7 @@ class _AddFuelScreenState extends State<AddFuelScreen> {
       final success = await context.read<FuelProvider>().registrarTanqueo(
         vehiculoId: widget.vehiculoId,
         cantidad: double.parse(_cantidadController.text),
-        valor: double.parse(_valorController.text),
+        valor: _isInternal ? 0.0 : double.parse(_valorController.text),
         horometro: _horometroController.text.isNotEmpty
             ? double.parse(_horometroController.text)
             : null,
