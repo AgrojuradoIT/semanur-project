@@ -29,8 +29,19 @@ class AuthProvider extends ChangeNotifier {
       return _user != null;
     } catch (e) {
       _isLoading = false;
+      debugPrint('AuthProvider: Login error: $e');
       if (e is DioException) {
-        _error = e.response?.data['message'] ?? e.message;
+        debugPrint(
+          'AuthProvider: DioError details: ${e.response?.statusCode} - ${e.response?.data}',
+        );
+        final data = e.response?.data;
+        if (data is Map && data.containsKey('message')) {
+          _error = data['message'];
+        } else if (data is String) {
+          _error = data; // If it's a plain string response
+        } else {
+          _error = e.message ?? 'Error desconocido';
+        }
       } else {
         _error = e.toString();
       }

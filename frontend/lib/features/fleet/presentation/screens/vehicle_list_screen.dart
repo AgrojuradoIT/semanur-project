@@ -5,6 +5,8 @@ import 'package:frontend/features/fleet/presentation/providers/fleet_provider.da
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:frontend/core/theme/app_theme.dart';
 import 'package:frontend/features/fleet/presentation/screens/vehicle_category_list_screen.dart';
+import 'package:frontend/features/profile/presentation/screens/profile_screen.dart';
+import 'package:frontend/features/fleet/presentation/screens/add_vehicle_screen.dart';
 
 class VehicleListScreen extends StatefulWidget {
   const VehicleListScreen({super.key});
@@ -102,17 +104,27 @@ class _VehicleListScreenState extends State<VehicleListScreen> {
                   ),
                 ],
               ),
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppTheme.primaryYellow, width: 2),
-                  image: const DecorationImage(
-                    image: CachedNetworkImageProvider(
-                      'https://lh3.googleusercontent.com/aida-public/AB6AXuA7ZGiX11ZluyucCbCQSmImd7kM5havTRh4F_k1p-qFbTlt5x2Ts_9Q83vpoOnSncqkszslaVyjPpp3V5TdD5I1BYLtru7U1h0LMTrFnPQwRU7sNcKRgAt74Ix_HteaBqZnRqvMputW76aNsr60ZJlZP0M9rsTbiFrL_RUh3bsGhSIPLT_6QwAhZuFZohGPRYJe_u9lt9-YZwlEN_AGeAVt9sbbdrrlW1SIeOThtywAq6FxLO0A-B0L0xE6u2ESzrsi4F1sjAav7Ms',
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ProfileScreen(),
                     ),
-                    fit: BoxFit.cover,
+                  );
+                },
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppTheme.primaryYellow, width: 2),
+                    image: const DecorationImage(
+                      image: CachedNetworkImageProvider(
+                        'https://ui-avatars.com/api/?name=Veh&background=random',
+                      ),
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
               ),
@@ -286,6 +298,7 @@ class _VehicleListScreenState extends State<VehicleListScreen> {
               ),
             ],
           ),
+
           const SizedBox(height: 15),
           _buildWideCategoryCard(
             'Maquinaria Amarilla',
@@ -547,10 +560,9 @@ class _VehicleListScreenState extends State<VehicleListScreen> {
   Widget _buildFAB(BuildContext context) {
     return FloatingActionButton(
       onPressed: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Funcionalidad de agregar vehículos próximamente'),
-          ),
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const AddVehicleScreen()),
         );
       },
       backgroundColor: AppTheme.primaryYellow,

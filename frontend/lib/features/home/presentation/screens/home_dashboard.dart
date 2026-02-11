@@ -8,12 +8,15 @@ import 'package:frontend/features/inventory/presentation/screens/loan_list_scree
 import 'package:frontend/features/analytics/presentation/screens/analytics_dashboard_screen.dart';
 import 'package:frontend/features/auth/presentation/providers/auth_provider.dart';
 import 'package:frontend/core/theme/app_theme.dart';
-import 'package:frontend/features/fleet/presentation/screens/checklist_list_screen.dart';
+
 import 'package:frontend/features/profile/presentation/screens/profile_screen.dart';
 import 'package:frontend/features/inventory/presentation/screens/scanner_screen.dart';
 import 'package:frontend/features/home/presentation/widgets/sync_status_widget.dart';
 import 'package:frontend/features/notifications/presentation/providers/notification_provider.dart';
 import 'package:frontend/features/notifications/presentation/screens/notification_list_screen.dart';
+import 'package:frontend/features/auth/presentation/screens/employee_list_screen.dart';
+import 'package:frontend/features/fleet/presentation/screens/add_fuel_screen.dart';
+import 'package:frontend/features/fleet/presentation/screens/checklist_dashboard_screen.dart';
 
 // import 'package:frontend/core/widgets/sync_status_indicator.dart';
 
@@ -22,6 +25,8 @@ import 'package:frontend/features/workshop/presentation/providers/workshop_provi
 import 'package:frontend/features/fleet/presentation/providers/fleet_provider.dart';
 import 'package:frontend/features/inventory/presentation/providers/inventory_provider.dart';
 import 'package:frontend/core/providers/sync_provider.dart';
+import 'package:frontend/features/scheduler/presentation/screens/weekly_calendar_screen.dart';
+import 'package:frontend/features/scheduler/presentation/screens/incident_report_screen.dart';
 
 class HomeDashboard extends StatefulWidget {
   const HomeDashboard({super.key});
@@ -628,7 +633,29 @@ class _HomeDashboardState extends State<HomeDashboard> {
               'Historial & Alertas',
               () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const ChecklistListScreen()),
+                MaterialPageRoute(
+                  builder: (_) => const ChecklistDashboardScreen(),
+                ),
+              ),
+            ),
+            _buildIndustrialButton(
+              context,
+              'Empleados',
+              Icons.people_alt_outlined,
+              'Gestión de Personal',
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const EmployeeListScreen()),
+              ),
+            ),
+            _buildIndustrialButton(
+              context,
+              'Programación',
+              Icons.calendar_month_outlined,
+              'Actividades & Novedades',
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const WeeklyCalendarScreen()),
               ),
             ),
           ],
@@ -647,44 +674,75 @@ class _HomeDashboardState extends State<HomeDashboard> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(16),
+        clipBehavior: Clip.hardEdge,
         decoration: BoxDecoration(
-          color: AppTheme.surfaceDark,
-          borderRadius: BorderRadius.circular(15),
-          border: const Border(
-            bottom: BorderSide(color: Colors.transparent, width: 4),
-          ),
+          color: const Color(0xFF1E1E1E),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.2),
+              color: Colors.black.withValues(alpha: 0.3),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
           ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Stack(
           children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: AppTheme.surfaceDark2,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: Colors.white, size: 28),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              style: GoogleFonts.oswald(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
+            // Watermark Icon
+            Positioned(
+              right: -15,
+              bottom: -15,
+              child: Opacity(
+                opacity: 0.05,
+                child: Icon(icon, size: 100, color: Colors.white),
               ),
             ),
-            Text(
-              subtitle,
-              style: const TextStyle(fontSize: 10, color: AppTheme.textGray),
+            // Content
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryYellow.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(icon, color: AppTheme.primaryYellow, size: 24),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.oswald(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          height: 1.1,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey[500],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -794,8 +852,8 @@ class _HomeDashboardState extends State<HomeDashboard> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => const VehicleListScreen(),
-                  ), // Mejor ir a lista para seleccionar vehiculo
+                    builder: (_) => const ChecklistDashboardScreen(),
+                  ),
                 );
               },
             ),
@@ -809,9 +867,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
                 Navigator.pop(context);
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => const VehicleListScreen(),
-                  ), // Flujo: Seleccionar vehiculo -> Tanquear
+                  MaterialPageRoute(builder: (_) => const AddFuelScreen()),
                 );
               },
             ),
@@ -823,11 +879,10 @@ class _HomeDashboardState extends State<HomeDashboard> {
               Colors.red,
               () {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Módulo de reporte de novedades próximamente',
-                    ),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const IncidentReportScreen(),
                   ),
                 );
               },

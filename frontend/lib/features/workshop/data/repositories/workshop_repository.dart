@@ -93,6 +93,7 @@ class WorkOrderRepository {
     required int vehiculoId,
     required String prioridad,
     required String descripcion,
+    int? mecanicoId,
     List<Map<String, dynamic>>? repuestos,
     List<Map<String, dynamic>>? herramientas,
     String? localImagePath,
@@ -103,6 +104,7 @@ class WorkOrderRepository {
         'prioridad': prioridad,
         'descripcion': descripcion,
         'estado': 'Abierta',
+        'mecanico_asignado_id': mecanicoId,
       };
 
       if (repuestos != null && repuestos.isNotEmpty) {

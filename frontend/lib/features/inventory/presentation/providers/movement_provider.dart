@@ -40,6 +40,9 @@ class MovementProvider extends ChangeNotifier {
     int? referenciaId,
     String? referenciaType,
     String? notas,
+    int? bodegaId,
+    int? bodegaOrigenId,
+    int? bodegaDestinoId,
   }) async {
     _isLoading = true;
     notifyListeners();
@@ -53,6 +56,9 @@ class MovementProvider extends ChangeNotifier {
         referenciaId: referenciaId,
         referenciaType: referenciaType,
         notas: notas,
+        bodegaId: bodegaId,
+        bodegaOrigenId: bodegaOrigenId,
+        bodegaDestinoId: bodegaDestinoId,
       );
 
       if (success) {
@@ -76,6 +82,9 @@ class MovementProvider extends ChangeNotifier {
             'transaccion_referencia_id': referenciaId,
             'transaccion_referencia_type': referenciaType,
             'transaccion_notas': notas,
+            'bodega_id': bodegaId,
+            'bodega_origen_id': bodegaOrigenId,
+            'bodega_destino_id': bodegaDestinoId,
           },
         );
 

@@ -46,7 +46,7 @@ class FuelRepository {
   }
 
   Future<bool> crearRegistro({
-    required int vehiculoId,
+    required int? vehiculoId,
     required double cantidadGalones,
     required double valorTotal,
     double? horometro,
@@ -54,12 +54,20 @@ class FuelRepository {
     String? estacion,
     String? notas,
     int? productoId,
+    int? empleadoId,
+    String? terceroNombre,
+    String? placaManual,
+    String tipoDestino = 'vehiculo',
   }) async {
     try {
       final response = await _apiClient.dio.post(
         '/combustible',
         data: {
           'vehiculo_id': vehiculoId,
+          'empleado_id': empleadoId,
+          'tercero_nombre': terceroNombre,
+          'placa_manual': placaManual,
+          'tipo_destino': tipoDestino,
           'cantidad_galones': cantidadGalones,
           'valor_total': valorTotal,
           'horometro_actual': horometro,

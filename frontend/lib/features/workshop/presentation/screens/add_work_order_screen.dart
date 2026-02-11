@@ -10,6 +10,8 @@ import 'package:frontend/features/fleet/data/models/vehicle_model.dart';
 import 'package:frontend/core/theme/app_theme.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'package:frontend/features/auth/data/models/empleado_model.dart';
+import 'package:frontend/features/auth/presentation/providers/employee_provider.dart';
 
 class AddWorkOrderScreen extends StatefulWidget {
   const AddWorkOrderScreen({super.key});
@@ -25,6 +27,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
   final _descriptionController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
   File? _imageFile;
+  Empleado? _selectedMechanic;
 
   final List<String> _priorities = ['Baja', 'Media', 'Alta'];
 
@@ -43,7 +46,15 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<FleetProvider>().fetchVehiculos();
       context.read<InventoryProvider>().fetchProductos();
+      context.read<EmployeeProvider>().loadEmployees();
     });
+  }
+
+  @override
+  void dispose() {
+    _descriptionController.dispose();
+    _spareQtyController.dispose();
+    super.dispose();
   }
 
   Future<void> _takePhoto() async {
@@ -63,6 +74,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
   Widget build(BuildContext context) {
     final fleetProvider = context.watch<FleetProvider>();
     final workshopProvider = context.watch<WorkshopProvider>();
+    final employeeProvider = context.watch<EmployeeProvider>();
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundDark,
@@ -100,6 +112,11 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
 
               _buildSectionTitle('PRIORIDAD DE LA ORDEN'),
               _buildPrioritySelector(),
+
+              const SizedBox(height: 25),
+
+              _buildSectionTitle('MECÁNICO ASIGNADO (OPCIONAL)'),
+              _buildMechanicDropdown(employeeProvider),
               const SizedBox(height: 25),
 
               _buildSectionTitle('DESCRIPCIÓN DEL TRABAJO / FALLA'),
@@ -306,6 +323,46 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     );
   }
 
+  Widget _buildMechanicDropdown(EmployeeProvider provider) {
+    // Filtrar solo mecánicos si es necesario
+    final mechanics = provider.employees
+        .where((e) => e.cargo?.toLowerCase().contains('mecanico') ?? false)
+        .toList();
+    // If no mechanics found (maybe cargo name mismatches), show all or handle?
+    // Let's show all for now if list is empty, or better, just show mechanics.
+    // If mechanics list is empty, maybe fallback to all or empty list.
+    // To be safe, let's just use provider.employees but maybe sort/filter.
+    // Ideally we want only mechanics.
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceDark,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: AppTheme.surfaceDark2),
+      ),
+      child: DropdownButtonFormField<Empleado>(
+        key: ValueKey(_selectedMechanic),
+        initialValue: _selectedMechanic,
+        dropdownColor: AppTheme.surfaceDark,
+        style: const TextStyle(color: Colors.white),
+        decoration: const InputDecoration(
+          contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+          border: InputBorder.none,
+          hintText: 'Seleccionar mecánico...',
+          hintStyle: TextStyle(color: AppTheme.textGray, fontSize: 14),
+        ),
+        items: mechanics.map((e) {
+          return DropdownMenuItem(
+            value: e,
+            child: Text(e.nombreCompleto, style: const TextStyle(fontSize: 14)),
+          );
+        }).toList(),
+        onChanged: (val) => setState(() => _selectedMechanic = val),
+        validator: (val) => null, // Optional
+      ),
+    );
+  }
+
   Widget _buildSubmitButton(WorkshopProvider provider) {
     return SizedBox(
       width: double.infinity,
@@ -368,8 +425,6 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                 ),
               ),
               const SizedBox(height: 10),
-              // Usando async implementation para compatibilidad
-              // Usando sintaxis compatible con v5/Legacy
               DropdownSearch<Producto>(
                 key: ValueKey('spare_${_tempSpare?.id}'),
                 items: (filter, loadProps) => Future.value(
@@ -598,7 +653,9 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     final success = await provider.crearOrden(
       vehiculoId: _selectedVehicle!.id,
       prioridad: _priority,
+
       descripcion: _descriptionController.text,
+      mecanicoId: _selectedMechanic?.id, // Ahora envia ID de empleado
       repuestos: _selectedSpares,
       herramientas: _selectedTools,
       localImagePath: _imageFile?.path,

@@ -1,5 +1,6 @@
 import 'package:frontend/features/workshop/data/models/work_order_model.dart';
 import 'package:frontend/features/inventory/data/models/movement_model.dart';
+import 'package:frontend/features/auth/data/models/empleado_model.dart';
 
 class Vehiculo {
   final int id;
@@ -15,6 +16,8 @@ class Vehiculo {
   final DateTime? fechaVencimientoTecnomecanica;
   final List<OrdenTrabajo>? ordenesTrabajo;
   final List<MovimientoInventario>? movimientosDirectos;
+  final Empleado? operadorAsignado;
+  final Empleado? mecanicoAsignado;
 
   Vehiculo({
     required this.id,
@@ -30,6 +33,8 @@ class Vehiculo {
     this.fechaVencimientoTecnomecanica,
     this.ordenesTrabajo,
     this.movimientosDirectos,
+    this.operadorAsignado,
+    this.mecanicoAsignado,
   });
 
   factory Vehiculo.fromJson(Map<String, dynamic> json) {
@@ -85,6 +90,12 @@ class Vehiculo {
                 .map((m) => MovimientoInventario.fromJson(m))
                 .toList()
           : null,
+      operadorAsignado: json['operador'] != null
+          ? Empleado.fromJson(json['operador'])
+          : null,
+      mecanicoAsignado: json['mecanico'] != null
+          ? Empleado.fromJson(json['mecanico'])
+          : null,
     );
   }
 
@@ -105,6 +116,8 @@ class Vehiculo {
       'fecha_vencimiento_tecnomecanica': fechaVencimientoTecnomecanica
           ?.toIso8601String()
           .split('T')[0],
+      'operador_asignado_id': operadorAsignado?.id,
+      'mecanico_asignado_id': mecanicoAsignado?.id,
     };
   }
 }

@@ -3,66 +3,82 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\ChecklistPreoperacional;
+use App\Models\ListaChequeo;
+use App\Models\RespuestaListaChequeo;
+use App\Models\Vehiculo;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Log;
 
 class ChecklistApiController extends Controller
 {
+    // Obtener listas de chequeo activas con sus items
     public function index(Request $request)
     {
-        $query = ChecklistPreoperacional::with(['vehiculo', 'usuario'])
-            ->orderBy('fecha', 'desc');
+        $query = ListaChequeo::with('items')->where('activo', true);
 
-        if ($request->has('vehiculo_id')) {
-            $query->where('vehiculo_id', $request->vehiculo_id);
+        if ($request->has('tipo_vehiculo')) {
+            $query->where('tipo_vehiculo', $request->tipo_vehiculo);
         }
 
-        return response()->json($query->get());
+        $listas = $query->get();
+
+        return response()->json($listas);
     }
 
+    // Guardar una respuesta de lista de chequeo (preoperacional)
     public function store(Request $request)
     {
         $request->validate([
+            'lista_chequeo_id' => 'required|exists:listas_chequeo,id',
             'vehiculo_id' => 'required|exists:vehiculos,vehiculo_id',
-            'horometro_actual' => 'nullable|numeric',
-            'checklist_data' => 'required', // Can be stringified JSON or array
-            'estado' => 'required|in:aprobado,rechazado,pendiente',
-            'observaciones' => 'nullable|string',
-            'foto_evidencia' => 'nullable|image|max:5120', // Max 5MB
+            'respuestas' => 'required|array', // { item_id: valor }
+            'observaciones_generales' => 'nullable|string',
         ]);
 
-        try {
-            $fotoPath = null;
-            if ($request->hasFile('foto_evidencia')) {
-                $fotoPath = $request->file('foto_evidencia')->store('checklists/fotos', 'public');
+        return DB::transaction(function () use ($request) {
+            $lista = ListaChequeo::with('items')->find($request->lista_chequeo_id);
+            $estado = 'aprobado';
+            
+            // Validar respuestas críticas
+            foreach ($lista->items as $item) {
+                // Si el item es crítico y la respuesta no es "cumple" (suponiendo 'cumple_falla' -> true/false o 'cumple'/'falla')
+                // Ajustar lógica según frontend. Asumiremos que el frontend envía 'cumple' o 'falla'
+                if ($item->es_critico && isset($request->respuestas[$item->id])) {
+                    $respuesta = $request->respuestas[$item->id];
+                    if ($respuesta === 'falla' || $respuesta === false || $respuesta === 0) {
+                        $estado = 'rechazado';
+                    }
+                }
             }
 
-            // If checklist_data is sent as string (Multipart Form-Data)
-            $checklistData = $request->checklist_data;
-            if (is_string($checklistData)) {
-                $checklistData = json_decode($checklistData, true);
-            }
-
-            $checklist = ChecklistPreoperacional::create([
+            $respuesta = RespuestaListaChequeo::create([
+                'lista_chequeo_id' => $request->lista_chequeo_id,
                 'vehiculo_id' => $request->vehiculo_id,
-                'usuario_id' => $request->user()->id,
+                'operador_id' => $request->user()->id,
                 'fecha' => Carbon::now(),
-                'horometro_actual' => $request->horometro_actual,
-                'checklist_data' => $checklistData,
-                'estado' => $request->estado,
-                'observaciones' => $request->observaciones,
-                'foto_evidencia' => $fotoPath,
+                'respuestas' => $request->respuestas,
+                'estado' => $estado,
+                'observaciones_generales' => $request->observaciones_generales,
             ]);
 
             return response()->json([
-                'message' => 'Checklist registrado correctamente',
-                'checklist' => $checklist
+                'message' => 'Lista de chequeo guardada exitosamente',
+                'data' => $respuesta,
+                'estado_final' => $estado
             ], 201);
-        } catch (\Exception $e) {
-            Log::error('Error creating checklist: ' . $e->getMessage());
-            return response()->json(['message' => 'Error al registrar checklist'], 500);
-        }
+        });
+    }
+
+    // Obtener historial de respuestas (opcional, para consultas)
+    public function history(Request $request) {
+         $query = RespuestaListaChequeo::with(['listaChequeo', 'vehiculo', 'operador'])
+                    ->orderBy('fecha', 'desc');
+
+         if ($request->has('vehiculo_id')) {
+             $query->where('vehiculo_id', $request->vehiculo_id);
+         }
+         
+         return response()->json($query->paginate(20));
     }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\OrdenTrabajo;
+use App\Services\MediaService;
 use Illuminate\Http\Request;
 
 class OrdenTrabajoApiController extends Controller
@@ -32,7 +33,7 @@ class OrdenTrabajoApiController extends Controller
         return response()->json($orden);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, MediaService $mediaService)
     {
         $request->validate([
             'vehiculo_id' => 'required|exists:vehiculos,vehiculo_id',
@@ -49,18 +50,13 @@ class OrdenTrabajoApiController extends Controller
         try {
             \Illuminate\Support\Facades\DB::beginTransaction();
 
-            $fotoPath = null;
-            if ($request->hasFile('foto_evidencia')) {
-                $fotoPath = $request->file('foto_evidencia')->store('ordenes/fotos', 'public');
-            }
-
+            // 1. Crear la orden de trabajo base (sin foto aún)
             $orden = new OrdenTrabajo();
             $orden->vehiculo_id = $request->vehiculo_id;
             $orden->prioridad = $request->prioridad;
             $orden->descripcion = $request->descripcion;
             $orden->estado = 'Abierta';
             $orden->fecha_inicio = now();
-            $orden->foto_evidencia = $fotoPath;
             $orden->save();
 
             // Procesar Repuestos (Salidas de Inventario)
@@ -103,6 +99,21 @@ class OrdenTrabajoApiController extends Controller
                          $prod->decrement('producto_stock_actual', 1);
                      }
                 }
+            }
+
+            // 3. Procesar foto de evidencia con el nuevo sistema de media
+            if ($request->hasFile('foto_evidencia')) {
+                $media = $mediaService->storeUploadedFile(
+                    $request->file('foto_evidencia'),
+                    module: 'taller',
+                    entityType: 'orden_trabajo',
+                    entityId: $orden->orden_trabajo_id,
+                    userId: $request->user()->id
+                );
+
+                // Mantener compatibilidad con el campo existente en la tabla
+                $orden->foto_evidencia = $media->path;
+                $orden->save();
             }
 
             \Illuminate\Support\Facades\DB::commit();

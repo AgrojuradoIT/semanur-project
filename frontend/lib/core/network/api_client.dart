@@ -29,6 +29,9 @@ class ApiClient {
           }
           return handler.next(options);
         },
+        onResponse: (response, handler) {
+          return handler.next(response);
+        },
         onError: (DioException e, handler) async {
           if (e.response?.statusCode == 401) {
             await _storage.delete(key: 'auth_token');

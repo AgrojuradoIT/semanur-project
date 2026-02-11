@@ -130,7 +130,7 @@ class _WorkOrderDetailScreenState extends State<WorkOrderDetailScreen> {
                   _buildInfoCard([
                     _buildInfoRow(
                       'ASIGNADO',
-                      orden.mecanico?.name ?? 'Sin asignar',
+                      orden.mecanico?.nombreCompleto ?? 'Sin asignar',
                       isPrimary: true,
                       valueColor: AppTheme.primaryYellow,
                     ),

@@ -22,6 +22,8 @@ class Vehiculo extends Model
         'kilometraje_proximo_mantenimiento',
         'fecha_vencimiento_soat',
         'fecha_vencimiento_tecnomecanica',
+        'operador_asignado_id',
+        'mecanico_asignado_id',
     ];
 
     protected $casts = [
@@ -43,5 +45,15 @@ class Vehiculo extends Model
     {
         return $this->hasMany(TransaccionInventario::class, 'transaccion_referencia_id', 'vehiculo_id')
                     ->where('transaccion_referencia_type', 'Vehiculo');
+    }
+
+    public function operador()
+    {
+        return $this->belongsTo(User::class, 'operador_asignado_id');
+    }
+
+    public function mecanico()
+    {
+        return $this->belongsTo(User::class, 'mecanico_asignado_id');
     }
 }

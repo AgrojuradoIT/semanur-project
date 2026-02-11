@@ -103,4 +103,29 @@ class InventoryRepository {
       throw Exception('Error al cargar detalle del producto: $e');
     }
   }
+
+  Future<Map<String, dynamic>> importProductos(
+    String filePath, {
+    bool skipDuplicates = false,
+  }) async {
+    try {
+      String fileName = filePath.split('/').last;
+      FormData formData = FormData.fromMap({
+        "file": await MultipartFile.fromFile(filePath, filename: fileName),
+        "skip_duplicates": skipDuplicates,
+      });
+
+      final response = await _apiClient.dio.post(
+        ApiConstants.importarProductos,
+        data: formData,
+      );
+
+      return response.data;
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 409) {
+        return e.response?.data; // Return duplicates info
+      }
+      throw Exception('Error importando productos: ${e.message}');
+    }
+  }
 }

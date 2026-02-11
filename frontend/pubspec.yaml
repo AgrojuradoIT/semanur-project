@@ -42,6 +42,7 @@ dependencies:
   dropdown_search: ^6.0.2
   fl_chart: ^0.66.0
   image_picker: ^1.0.4
+  file_picker: ^8.0.0
   flutter_local_notifications: ^20.0.0
   timezone: ^0.10.1
   sqflite: ^2.3.0
@@ -53,6 +54,10 @@ dependencies:
   mobile_scanner: ^5.1.0
   uuid: ^4.2.1
   timeago: ^3.5.0
+  barcode_widget: ^2.0.4
+  linked_scroll_controller: ^0.2.0
+  sqflite_common_ffi: ^2.4.0+2
+  sqlite3_flutter_libs: ^0.5.41
 
 dev_dependencies:
   flutter_test:

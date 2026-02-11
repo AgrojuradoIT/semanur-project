@@ -18,6 +18,8 @@ class RegistroCombustible extends Model
         'horometro_actual',
         'kilometraje_actual',
         'estacion_servicio',
+        'tipo_destino',
+        'placa_manual',
         'notas',
     ];
 

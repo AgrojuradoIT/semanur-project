@@ -39,6 +39,8 @@ class FleetRepository {
             'fecha_vencimiento_soat': json['fecha_vencimiento_soat'],
             'fecha_vencimiento_tecnomecanica':
                 json['fecha_vencimiento_tecnomecanica'],
+            'operador_asignado_id': json['operador_asignado_id'],
+            'mecanico_asignado_id': json['mecanico_asignado_id'],
             'last_updated': DateTime.now().toIso8601String(),
           };
         }).toList();
@@ -122,6 +124,15 @@ class FleetRepository {
       return response.statusCode == 200;
     } catch (e) {
       throw Exception('Error al actualizar vehículo: $e');
+    }
+  }
+
+  Future<bool> createVehicle(Map<String, dynamic> data) async {
+    try {
+      final response = await _apiClient.dio.post('/vehiculos', data: data);
+      return response.statusCode == 201 || response.statusCode == 200;
+    } catch (e) {
+      throw Exception('Error al crear vehículo: $e');
     }
   }
 }

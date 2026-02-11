@@ -75,7 +75,7 @@ class FuelProvider extends ChangeNotifier {
   }
 
   Future<bool> registrarTanqueo({
-    required int vehiculoId,
+    int? vehiculoId,
     required double cantidad,
     required double valor,
     double? horometro,
@@ -83,6 +83,10 @@ class FuelProvider extends ChangeNotifier {
     String? estacion,
     String? notas,
     int? productoId,
+    int? empleadoId,
+    String? terceroNombre,
+    String? placaManual,
+    String tipoDestino = 'vehiculo',
   }) async {
     _isLoading = true;
     notifyListeners();
@@ -90,6 +94,10 @@ class FuelProvider extends ChangeNotifier {
     try {
       final success = await _repository.crearRegistro(
         vehiculoId: vehiculoId,
+        empleadoId: empleadoId,
+        terceroNombre: terceroNombre,
+        placaManual: placaManual,
+        tipoDestino: tipoDestino,
         cantidadGalones: cantidad,
         valorTotal: valor,
         horometro: horometro,
@@ -99,7 +107,9 @@ class FuelProvider extends ChangeNotifier {
         productoId: productoId,
       );
       if (success) {
-        await fetchRegistros(vehiculoId: vehiculoId);
+        if (vehiculoId != null) {
+          await fetchRegistros(vehiculoId: vehiculoId);
+        }
       }
       return success;
     } catch (e) {
@@ -112,6 +122,10 @@ class FuelProvider extends ChangeNotifier {
           method: 'POST',
           payload: {
             'vehiculo_id': vehiculoId,
+            'empleado_id': empleadoId,
+            'tercero_nombre': terceroNombre,
+            'placa_manual': placaManual,
+            'tipo_destino': tipoDestino,
             'cantidad_galones': cantidad,
             'valor_total': valor,
             'horometro_actual': horometro,

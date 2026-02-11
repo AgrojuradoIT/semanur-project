@@ -10,6 +10,7 @@ import 'package:frontend/features/fleet/data/models/vehicle_model.dart';
 import 'package:frontend/features/auth/data/models/user_model.dart';
 import 'package:frontend/features/auth/presentation/providers/user_provider.dart';
 import 'package:dropdown_search/dropdown_search.dart';
+import 'package:frontend/core/database/database_helper.dart';
 
 class AddMovementScreen extends StatefulWidget {
   final OrdenTrabajo? initialOT;
@@ -33,6 +34,11 @@ class _AddMovementScreenState extends State<AddMovementScreen> {
   OrdenTrabajo? _selectedOT;
   Vehiculo? _selectedVehicle;
   User? _selectedMechanic;
+
+  // Bodegas
+  List<Map<String, dynamic>> _bodegas = [];
+  int? _selectedBodegaId; // Para ingreso/salida normal
+  bool _isLoadingBodegas = true;
 
   final List<String> _entryReasons = [
     'Compra',
@@ -61,7 +67,30 @@ class _AddMovementScreenState extends State<AddMovementScreen> {
       context.read<WorkshopProvider>().fetchOrdenes();
       context.read<FleetProvider>().fetchVehiculos();
       context.read<UserProvider>().fetchUsers();
+      _loadBodegas();
     });
+  }
+
+  Future<void> _loadBodegas() async {
+    try {
+      final bodegas = await DatabaseHelper().getBodegas();
+      if (mounted) {
+        setState(() {
+          _bodegas = bodegas;
+          _isLoadingBodegas = false;
+          // Pre-seleccionar "estandar" por defecto
+          final standard = bodegas.firstWhere(
+            (b) => b['tipo'] == 'estandar',
+            orElse: () => bodegas.isNotEmpty ? bodegas.first : {},
+          );
+          if (standard.isNotEmpty) {
+            _selectedBodegaId = standard['bodega_id'];
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading bodegas: $e');
+    }
   }
 
   @override
@@ -99,25 +128,38 @@ class _AddMovementScreenState extends State<AddMovementScreen> {
                       selected: _type == 'salida',
                       selectedColor: Colors.red.shade100,
                       onSelected: widget.initialOT != null
-                          ? null // Deshabilitar si está fijo
+                          ? null
                           : (val) => setState(() {
                               _type = 'salida';
                               _reason = null;
                             }),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: ChoiceChip(
                       label: const Center(child: Text('INGRESO')),
                       selected: _type == 'ingreso',
                       selectedColor: Colors.green.shade100,
-                      // Si hay OT inicial, bloqueamos el ingreso (asumiendo que entregar repuesto siempre es salida)
                       onSelected: widget.initialOT != null
                           ? null
                           : (val) => setState(() {
                               _type = 'ingreso';
                               _reason = null;
+                            }),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ChoiceChip(
+                      label: const Center(child: Text('TRASLADO')),
+                      selected: _type == 'transferencia',
+                      selectedColor: Colors.blue.shade100,
+                      onSelected: widget.initialOT != null
+                          ? null
+                          : (val) => setState(() {
+                              _type = 'transferencia';
+                              _reason = 'Transferencia entre Bodegas';
                             }),
                     ),
                   ),
@@ -155,30 +197,92 @@ class _AddMovementScreenState extends State<AddMovementScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Motivo
-              _buildSectionTitle('MOTIVO'),
-              DropdownButtonFormField<String>(
-                // key removed to prevent rebuilds on change
-                initialValue: _reason,
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  hintText: 'Seleccionar motivo',
+              // Selección de Bodega (Si no es Transferencia)
+              if (_type != 'transferencia' &&
+                  !_isLoadingBodegas &&
+                  _bodegas.isNotEmpty) ...[
+                _buildSectionTitle('BODEGA'),
+                DropdownButtonFormField<int>(
+                  key: ValueKey(_selectedBodegaId),
+                  initialValue: _selectedBodegaId,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    hintText: 'Seleccionar Bodega',
+                  ),
+                  items: _bodegas.map((b) {
+                    return DropdownMenuItem<int>(
+                      value: b['bodega_id'],
+                      child: Text('${b['nombre']} (${b['tipo']})'),
+                    );
+                  }).toList(),
+                  onChanged: (val) => setState(() => _selectedBodegaId = val),
+                  validator: (val) =>
+                      val == null ? 'Seleccione una bodega' : null,
                 ),
-                items: (_type == 'ingreso' ? _entryReasons : _exitReasons).map((
-                  r,
-                ) {
-                  return DropdownMenuItem(value: r, child: Text(r));
-                }).toList(),
-                onChanged: widget.initialOT != null
-                    ? null
-                    : (val) => setState(() {
-                        _reason = val;
-                        _selectedOT = null;
-                        _selectedVehicle = null;
-                        _selectedMechanic = null;
-                      }),
-                validator: (val) => val == null ? 'Seleccione un motivo' : null,
-              ),
+                const SizedBox(height: 24),
+              ],
+
+              // Info de Transferencia (Fijo)
+              if (_type == 'transferencia') ...[
+                _buildSectionTitle('BODEGAS IMPLICADAS'),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: const Column(
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.outbound, color: Colors.red),
+                          SizedBox(width: 8),
+                          Text('Origen: Bodega Principal (Estándar)'),
+                        ],
+                      ),
+                      Divider(),
+                      Row(
+                        children: [
+                          Icon(Icons.input, color: Colors.green),
+                          SizedBox(width: 8),
+                          Text('Destino: Bodega Recuperación'),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
+
+              // Motivo
+              if (_type != 'transferencia') ...[
+                _buildSectionTitle('MOTIVO'),
+                DropdownButtonFormField<String>(
+                  // key removed to prevent rebuilds on change
+                  initialValue: _reason,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    hintText: 'Seleccionar motivo',
+                  ),
+                  items: (_type == 'ingreso' ? _entryReasons : _exitReasons)
+                      .map((r) {
+                        return DropdownMenuItem(value: r, child: Text(r));
+                      })
+                      .toList(),
+                  onChanged: widget.initialOT != null
+                      ? null
+                      : (val) => setState(() {
+                          _reason = val;
+                          _selectedOT = null;
+                          _selectedVehicle = null;
+                          _selectedMechanic = null;
+                        }),
+                  validator: (val) =>
+                      val == null ? 'Seleccione un motivo' : null,
+                ),
+                const SizedBox(height: 24),
+              ],
               const SizedBox(height: 24),
 
               // Campos Dinámicos
@@ -377,6 +481,56 @@ class _AddMovementScreenState extends State<AddMovementScreen> {
       finalNotes += '\nResponsable: ${_selectedMechanic!.name}';
     }
 
+    if (_type == 'transferencia') {
+      // Lógica Fija: Principal -> Recuperación
+      // Buscar IDs
+      final origen = _bodegas.firstWhere(
+        (b) => b['tipo'] == 'estandar',
+        orElse: () => {},
+      );
+      final destino = _bodegas.firstWhere(
+        (b) => b['tipo'] == 'recuperacion',
+        orElse: () => {},
+      );
+
+      if (origen.isEmpty || destino.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Error: No se encontraron las bodegas requeridas (Principal/Recuperación)',
+            ),
+          ),
+        );
+        return;
+      }
+
+      final success = await provider.registrarMovimiento(
+        productoId: _selectedProduct!.id,
+        tipo: 'transferencia',
+        cantidad: double.parse(_quantityController.text),
+        motivo: 'Transferencia a Recuperación',
+        notas: finalNotes,
+        bodegaOrigenId: origen['bodega_id'],
+        bodegaDestinoId: destino['bodega_id'],
+      );
+      if (success) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Transferencia registrada correctamente'),
+          ),
+        );
+        navigator.pop();
+      } else {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Error: ${provider.error}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
     final success = await provider.registrarMovimiento(
       productoId: _selectedProduct!.id,
       tipo: _type,
@@ -385,6 +539,7 @@ class _AddMovementScreenState extends State<AddMovementScreen> {
       referenciaId: refId,
       referenciaType: refType,
       notas: finalNotes,
+      bodegaId: _selectedBodegaId, // Add bodegaId for normal movements
     );
 
     if (success) {

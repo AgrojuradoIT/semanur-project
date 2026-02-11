@@ -165,6 +165,24 @@ class FleetProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> createVehicle(Map<String, dynamic> data) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final success = await _repository.createVehicle(data);
+      if (success) {
+        await fetchVehiculos(); // Recargar lista
+      }
+      return success;
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   void _checkExpirations() {
     final now = DateTime.now();
     final sevenDaysFromNow = now.add(const Duration(days: 7));

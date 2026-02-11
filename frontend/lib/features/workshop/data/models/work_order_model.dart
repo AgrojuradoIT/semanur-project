@@ -1,6 +1,6 @@
 import 'package:frontend/features/fleet/data/models/vehicle_model.dart';
 import 'package:frontend/features/inventory/data/models/movement_model.dart';
-import 'package:frontend/features/auth/data/models/user_model.dart';
+import 'package:frontend/features/auth/data/models/empleado_model.dart';
 import 'session_model.dart';
 
 class OrdenTrabajo {
@@ -15,7 +15,7 @@ class OrdenTrabajo {
   final Vehiculo? vehiculo;
   final List<MovimientoInventario>? movimientosInventario;
   final List<SessionTrabajo>? sesiones;
-  final User? mecanico;
+  final Empleado? mecanico;
   final String? fotoEvidencia;
 
   OrdenTrabajo({
@@ -68,7 +68,7 @@ class OrdenTrabajo {
                 .toList()
           : null,
       mecanico: json['mecanico'] != null
-          ? User.fromJson(json['mecanico'])
+          ? Empleado.fromJson(json['mecanico'])
           : null,
     );
   }

@@ -6,6 +6,7 @@ import 'package:frontend/core/services/notification_service.dart';
 import 'package:frontend/features/auth/data/repositories/auth_repository.dart';
 import 'package:frontend/features/auth/presentation/providers/auth_provider.dart';
 import 'package:frontend/features/auth/presentation/providers/user_provider.dart';
+import 'package:frontend/features/auth/presentation/providers/employee_provider.dart';
 import 'package:frontend/features/auth/data/repositories/user_repository.dart';
 import 'package:frontend/features/auth/presentation/screens/auth_wrapper.dart';
 import 'package:frontend/features/inventory/data/repositories/movement_repository.dart';
@@ -16,8 +17,16 @@ import 'package:frontend/features/fleet/data/repositories/fuel_repository.dart';
 import 'package:frontend/features/fleet/presentation/providers/fuel_provider.dart';
 import 'package:frontend/features/fleet/data/repositories/hour_meter_repository.dart';
 import 'package:frontend/features/fleet/presentation/providers/hour_meter_provider.dart';
-import 'package:frontend/features/fleet/data/repositories/checklist_repository.dart';
-import 'package:frontend/features/fleet/presentation/providers/checklist_provider.dart';
+import 'package:frontend/features/fleet/data/repositories/checklist_repository.dart'
+    as fleet_repo;
+import 'package:frontend/features/fleet/presentation/providers/checklist_provider.dart'
+    as fleet_prov;
+import 'package:frontend/features/checklists/data/repositories/checklist_repository.dart'
+    as checklist_repo;
+import 'package:frontend/features/checklists/presentation/providers/checklist_provider.dart'
+    as checklist_prov;
+import 'package:frontend/features/scheduler/data/repositories/programacion_repository.dart';
+import 'package:frontend/features/scheduler/presentation/providers/programacion_provider.dart';
 import 'package:frontend/features/inventory/data/repositories/inventory_repository.dart';
 import 'package:frontend/features/inventory/presentation/providers/inventory_provider.dart';
 import 'package:frontend/features/workshop/data/repositories/workshop_repository.dart';
@@ -93,7 +102,10 @@ void main() async {
   final fuelRepository = FuelRepository(apiClient);
   final horometroRepository = HorometroRepository(apiClient);
   final userRepository = UserRepository(apiClient);
-  final checklistRepository = ChecklistRepository(apiClient);
+  // Repositories for checklists
+  final fleetChecklistRepo = fleet_repo.ChecklistRepository(apiClient);
+  final globalChecklistRepo = checklist_repo.ChecklistRepository(apiClient);
+  final programacionRepository = ProgramacionRepository(apiClient);
 
   runApp(
     MultiProvider(
@@ -131,12 +143,23 @@ void main() async {
         ChangeNotifierProvider(
           create: (_) => HorometroProvider(horometroRepository),
         ),
+        ChangeNotifierProvider(
+          create: (_) => ProgramacionProvider(programacionRepository),
+        ),
+        ChangeNotifierProvider(create: (_) => EmployeeProvider(apiClient)),
         ChangeNotifierProvider(create: (_) => UserProvider(userRepository)),
-        ChangeNotifierProxyProvider<SyncProvider, ChecklistProvider>(
-          create: (ctx) =>
-              ChecklistProvider(checklistRepository, ctx.read<SyncProvider>()),
+        // Fleet Checklist Provider (with sync)
+        ChangeNotifierProxyProvider<SyncProvider, fleet_prov.ChecklistProvider>(
+          create: (ctx) => fleet_prov.ChecklistProvider(
+            fleetChecklistRepo,
+            ctx.read<SyncProvider>(),
+          ),
           update: (_, sync, prev) =>
-              prev ?? ChecklistProvider(checklistRepository, sync),
+              prev ?? fleet_prov.ChecklistProvider(fleetChecklistRepo, sync),
+        ),
+        // Global Checklist Provider (simple)
+        ChangeNotifierProvider(
+          create: (_) => checklist_prov.ChecklistProvider(globalChecklistRepo),
         ),
         ChangeNotifierProxyProvider<SyncProvider, SessionProvider>(
           create: (ctx) => SessionProvider(

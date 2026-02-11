@@ -8,6 +8,7 @@ import 'package:frontend/features/workshop/presentation/screens/work_order_detai
 import 'package:frontend/features/workshop/presentation/screens/add_work_order_screen.dart';
 import 'package:frontend/core/theme/app_theme.dart';
 import 'package:intl/intl.dart';
+import 'package:frontend/features/profile/presentation/screens/profile_screen.dart';
 
 class WorkOrderListScreen extends StatefulWidget {
   const WorkOrderListScreen({super.key});
@@ -125,17 +126,27 @@ class _WorkOrderListScreenState extends State<WorkOrderListScreen> {
                   ),
                 ],
               ),
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppTheme.primaryYellow, width: 2),
-                  image: const DecorationImage(
-                    image: CachedNetworkImageProvider(
-                      'https://lh3.googleusercontent.com/aida-public/AB6AXuAsi1x-O2AuhuvC7OzTjNUEtbKlKtzgQhTU8QMPvZyiEUsoZ3UaAU-H8zkcQ0nsrDIHf-RXn4eBbuADVkVjnuCoTd9xFojNNSX__ylWfDFCrtjwINbm-eI-0Y4hn5f4BtCmlRmdGJQotU3ma6W-0ZD8gmYa6g3v_IOROUXoVF-8zOVJzx4HRTlTUxCcWc2o37RptKko0tX3Zlx6QgHodaWyQSltYKSgVNloRv-xpqBXHUlmARnv-okoIg06TlmwJuoHHnPybQnsx9E',
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ProfileScreen(),
                     ),
-                    fit: BoxFit.cover,
+                  );
+                },
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppTheme.primaryYellow, width: 2),
+                    image: const DecorationImage(
+                      image: CachedNetworkImageProvider(
+                        'https://ui-avatars.com/api/?name=Orden&background=random',
+                      ),
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
               ),
@@ -527,6 +538,17 @@ class _WorkOrderListScreenState extends State<WorkOrderListScreen> {
                           ],
                         ),
                       ],
+                    ),
+                  ),
+                  Positioned(
+                    right: 16,
+                    top: 0,
+                    bottom: 0,
+                    child: Center(
+                      child: Icon(
+                        Icons.chevron_right,
+                        color: Colors.white.withValues(alpha: 0.3),
+                      ),
                     ),
                   ),
                 ],

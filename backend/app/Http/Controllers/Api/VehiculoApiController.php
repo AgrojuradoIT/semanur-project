@@ -20,7 +20,9 @@ class VehiculoApiController extends Controller
             'ordenesTrabajo' => function($query) {
                 $query->orderBy('created_at', 'desc');
             },
-            'ordenesTrabajo.movimientos_inventario.producto' // Repuestos usados en cada OT
+            'ordenesTrabajo.movimientos_inventario.producto', // Repuestos usados en cada OT
+            'operador',
+            'mecanico'
         ])->find($id);
 
         if (!$vehiculo) {
@@ -50,9 +52,14 @@ class VehiculoApiController extends Controller
             'fecha_vencimiento_tecnomecanica' => 'nullable|date',
             'horometro_proximo_mantenimiento' => 'nullable|numeric|min:0',
             'kilometraje_proximo_mantenimiento' => 'nullable|numeric|min:0',
+            'operador_asignado_id' => 'nullable|exists:users,id',
+            'mecanico_asignado_id' => 'nullable|exists:users,id',
         ]);
 
         $vehiculo->update($validated);
+        
+        // Recargar relaciones para devolver objeto completo
+        $vehiculo->load(['operador', 'mecanico']);
 
         return response()->json([
             'message' => 'Vehículo actualizado correctamente',

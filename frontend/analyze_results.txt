@@ -1,0 +1,9 @@
+Analyzing frontend...                                           
+
+warning - The value of the field '_syncProvider' isn't used - lib\features\checklists\presentation\providers\checklist_provider.dart:9:23 - unused_field
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\features\checklists\presentation\screens\checklist_form_screen.dart:111:11 - deprecated_member_use
+   info - 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre - lib\features\checklists\presentation\screens\checklist_form_screen.dart:173:15 - deprecated_member_use
+   info - 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre - lib\features\checklists\presentation\screens\checklist_form_screen.dart:176:15 - deprecated_member_use
+   info - 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre - lib\features\checklists\presentation\screens\checklist_form_screen.dart:183:15 - deprecated_member_use
+   info - 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre - lib\features\checklists\presentation\screens\checklist_form_screen.dart:186:15 - deprecated_member_use
+

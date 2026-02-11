@@ -1,5 +1,15 @@
-Analyzing frontend...                                           
+Analyzing weekly_calendar_screen.dart...                        
 
-warning - Unused import: 'package:frontend/features/fleet/presentation/screens/vehicle_resume_screen.dart' - lib\features\fleet\presentation\screens\vehicle_list_screen.dart:5:8 - unused_import
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\scheduler\presentation\screens\weekly_calendar_screen.dart:324:35 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\scheduler\presentation\screens\weekly_calendar_screen.dart:326:54 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\scheduler\presentation\screens\weekly_calendar_screen.dart:392:24 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\scheduler\presentation\screens\weekly_calendar_screen.dart:393:26 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\scheduler\presentation\screens\weekly_calendar_screen.dart:615:36 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\scheduler\presentation\screens\weekly_calendar_screen.dart:637:34 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\scheduler\presentation\screens\weekly_calendar_screen.dart:686:43 - deprecated_member_use
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\features\scheduler\presentation\screens\weekly_calendar_screen.dart:809:25 - deprecated_member_use
+   info - Statements in an if should be enclosed in a block - lib\features\scheduler\presentation\screens\weekly_calendar_screen.dart:903:33 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\features\scheduler\presentation\screens\weekly_calendar_screen.dart:1023:21 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\features\scheduler\presentation\screens\weekly_calendar_screen.dart:1131:21 - curly_braces_in_flow_control_structures
 
-1 issue found. (ran in 1.9s)
+11 issues found. (ran in 1.0s)

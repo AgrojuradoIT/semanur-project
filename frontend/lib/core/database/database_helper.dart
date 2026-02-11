@@ -25,7 +25,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 8,
+      version: 12,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -68,6 +68,35 @@ class DatabaseHelper {
     if (oldVersion < 8) {
       await _createAnalyticsTable(db);
     }
+    if (oldVersion < 9) {
+      await _createBodegasTable(db);
+      await _createBodegaProductoTable(db);
+      // Agregar columna operador_asignado_id a vehiculos si existe la tabla
+      try {
+        await db.execute(
+          'ALTER TABLE vehiculos ADD COLUMN operador_asignado_id INTEGER',
+        );
+      } catch (e) {
+        debugPrint(
+          'Error adding column operador_asignado_id (might already exist or table missing): $e',
+        );
+      }
+    }
+    if (oldVersion < 10) {
+      try {
+        await db.execute(
+          'ALTER TABLE vehiculos ADD COLUMN mecanico_asignado_id INTEGER',
+        );
+      } catch (e) {
+        debugPrint('Error adding column mecanico_asignado_id: $e');
+      }
+    }
+    if (oldVersion < 11) {
+      await _createUsersTable(db);
+    }
+    if (oldVersion < 12) {
+      await _createEmpleadosTable(db);
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -79,11 +108,15 @@ class DatabaseHelper {
     await _createCombustibleTable(db);
     await _createSesionTrabajoLocalTable(db);
     await _createAnalyticsTable(db);
+    await _createBodegasTable(db);
+    await _createBodegaProductoTable(db);
+    await _createUsersTable(db);
+    await _createEmpleadosTable(db);
   }
 
   Future<void> _createVehiculosTable(Database db) async {
     await db.execute('''
-      CREATE TABLE vehiculos (
+      CREATE TABLE IF NOT EXISTS vehiculos (
         vehiculo_id INTEGER PRIMARY KEY,
         placa TEXT,
         marca TEXT,
@@ -96,6 +129,8 @@ class DatabaseHelper {
         kilometraje_proximo_mantenimiento REAL,
         fecha_vencimiento_soat TEXT,
         fecha_vencimiento_tecnomecanica TEXT,
+        operador_asignado_id INTEGER,
+        mecanico_asignado_id INTEGER,
         last_updated TEXT
       )
     ''');
@@ -104,7 +139,7 @@ class DatabaseHelper {
   Future<void> _createProductosTable(Database db) async {
     // Schema alineado con product_model.dart
     await db.execute('''
-      CREATE TABLE productos (
+      CREATE TABLE IF NOT EXISTS productos (
         producto_id INTEGER PRIMARY KEY,
         categoria_id INTEGER,
         producto_sku TEXT,
@@ -122,7 +157,7 @@ class DatabaseHelper {
 
   Future<void> _createSyncQueueTable(Database db) async {
     await db.execute('''
-      CREATE TABLE sync_queue (
+      CREATE TABLE IF NOT EXISTS sync_queue (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         endpoint TEXT,
         method TEXT,
@@ -234,7 +269,7 @@ class DatabaseHelper {
   // Métodos de utilidad: Órdenes de Trabajo (Cache Offline)
   Future<void> _createOrdenesTrabajoTable(Database db) async {
     await db.execute('''
-      CREATE TABLE ordenes_trabajo (
+      CREATE TABLE IF NOT EXISTS ordenes_trabajo (
         id INTEGER PRIMARY KEY,
         vehiculo_id INTEGER,
         prioridad TEXT,
@@ -295,7 +330,7 @@ class DatabaseHelper {
   // Métodos de utilidad: Checklists
   Future<void> _createChecklistsTable(Database db) async {
     await db.execute('''
-      CREATE TABLE checklists (
+      CREATE TABLE IF NOT EXISTS checklists (
         id INTEGER PRIMARY KEY,
         vehiculo_id INTEGER,
         fecha TEXT,
@@ -350,7 +385,7 @@ class DatabaseHelper {
   // Métodos de utilidad: Combustible
   Future<void> _createCombustibleTable(Database db) async {
     await db.execute('''
-      CREATE TABLE combustible (
+      CREATE TABLE IF NOT EXISTS combustible (
         id INTEGER PRIMARY KEY,
         vehiculo_id INTEGER,
         fecha TEXT,
@@ -407,7 +442,7 @@ class DatabaseHelper {
   // Métodos de utilidad: Sesiones Offline
   Future<void> _createSesionTrabajoLocalTable(Database db) async {
     await db.execute('''
-      CREATE TABLE sesion_trabajo_local (
+      CREATE TABLE IF NOT EXISTS sesion_trabajo_local (
         local_id INTEGER PRIMARY KEY AUTOINCREMENT, -- ID local si no ha sincronizado
         server_id INTEGER, -- ID servidor si ya sincronizó pero sigue activa
         user_id INTEGER,
@@ -466,7 +501,7 @@ class DatabaseHelper {
   // Métodos de utilidad: Analytics Cache
   Future<void> _createAnalyticsTable(Database db) async {
     await db.execute('''
-      CREATE TABLE analytics_cache (
+      CREATE TABLE IF NOT EXISTS analytics_cache (
         key TEXT PRIMARY KEY,
         data TEXT,
         last_updated TEXT
@@ -495,5 +530,195 @@ class DatabaseHelper {
       return jsonDecode(results.first['data'] as String);
     }
     return null;
+  }
+
+  // Métodos de utilidad: Bodegas e Inventario
+  Future<void> _createBodegasTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS bodegas (
+        bodega_id INTEGER PRIMARY KEY,
+        nombre TEXT,
+        descripcion TEXT,
+        tipo TEXT, -- estandar, recuperacion
+        last_updated TEXT
+      )
+    ''');
+  }
+
+  Future<void> _createBodegaProductoTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS bodega_producto (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        bodega_id INTEGER,
+        producto_id INTEGER,
+        cantidad REAL,
+        last_updated TEXT,
+        UNIQUE(bodega_id, producto_id)
+      )
+    ''');
+  }
+
+  Future<void> saveBodegas(List<dynamic> bodegasJson) async {
+    final db = await database;
+    final batch = db.batch();
+    for (var b in bodegasJson) {
+      batch.insert('bodegas', {
+        'bodega_id': b['bodega_id'],
+        'nombre': b['nombre'],
+        'descripcion': b['descripcion'],
+        'tipo': b['tipo'],
+        'last_updated': DateTime.now().toIso8601String(),
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+    }
+    await batch.commit(noResult: true);
+  }
+
+  Future<List<Map<String, dynamic>>> getBodegas() async {
+    final db = await database;
+    return await db.query('bodegas');
+  }
+
+  Future<void> saveInventarioBodegas(List<dynamic> inventarioJson) async {
+    final db = await database;
+    final batch = db.batch();
+
+    // Opcional: limpiar inventario viejo si es una carga completa
+    // await db.delete('bodega_producto');
+
+    for (var item in inventarioJson) {
+      batch.insert('bodega_producto', {
+        'bodega_id': item['bodega_id'],
+        'producto_id': item['producto_id'],
+        'cantidad': item['cantidad'],
+        'last_updated': DateTime.now().toIso8601String(),
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+    }
+    await batch.commit(noResult: true);
+  }
+
+  Future<List<Map<String, dynamic>>> getInventarioProducto(
+    int productoId,
+  ) async {
+    final db = await database;
+    // Join para traer info de la bodega (especialmente el tipo)
+    return await db.rawQuery(
+      '''
+      SELECT bp.*, b.nombre as bodega_nombre, b.tipo as bodega_tipo 
+      FROM bodega_producto bp
+      INNER JOIN bodegas b ON bp.bodega_id = b.bodega_id
+      WHERE bp.producto_id = ?
+    ''',
+      [productoId],
+    );
+  }
+
+  // Métodos de utilidad: Empleados
+  Future<void> _createEmpleadosTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS empleados (
+        id INTEGER PRIMARY KEY,
+        nombres TEXT,
+        apellidos TEXT,
+        documento TEXT,
+        telefono TEXT,
+        direccion TEXT,
+        cargo TEXT,
+        dependencia TEXT,
+        licencia_conduccion TEXT,
+        categoria_licencia TEXT,
+        vencimiento_licencia TEXT,
+        foto_url TEXT,
+        user_id INTEGER,
+        estado TEXT,
+        last_updated TEXT
+      )
+    ''');
+  }
+
+  Future<void> saveEmpleados(List<dynamic> empleadosJson) async {
+    final db = await database;
+    final batch = db.batch();
+    for (var e in empleadosJson) {
+      batch.insert('empleados', {
+        'id': e['id'],
+        'nombres': e['nombres'],
+        'apellidos': e['apellidos'],
+        'documento': e['documento'],
+        'telefono': e['telefono'],
+        'direccion': e['direccion'],
+        'cargo': e['cargo'],
+        'dependencia': e['dependencia'],
+        'licencia_conduccion': e['licencia_conduccion'],
+        'categoria_licencia': e['categoria_licencia'],
+        'vencimiento_licencia': e['vencimiento_licencia'],
+        'foto_url': e['foto_url'],
+        'user_id': e['user_id'],
+        'estado': e['estado'],
+        'last_updated': DateTime.now().toIso8601String(),
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+    }
+    await batch.commit(noResult: true);
+  }
+
+  Future<List<Map<String, dynamic>>> getEmpleados() async {
+    final db = await database;
+    return await db.query('empleados', orderBy: 'nombres ASC');
+  }
+
+  // Métodos de utilidad: Usuarios y Asignaciones
+  Future<List<Map<String, dynamic>>> getUsers() async {
+    final db = await database;
+    return await db.query('users');
+  }
+
+  Future<void> saveUsers(List<dynamic> usersJson) async {
+    final db = await database;
+    final batch = db.batch();
+    for (var u in usersJson) {
+      // Adaptar campos si es necesario o guardar direct json
+      // Asumimos que el json viene compatible con model User
+      // User model: id, name, email, role, phone, license_number, cargo, dependencia
+      batch.insert('users', {
+        'id': u['id'],
+        'name': u['name'],
+        'email': u['email'],
+        'role': u['role'],
+        'phone': u['phone'],
+        'license_number': u['license_number'],
+        'cargo': u['cargo'],
+        'dependencia': u['dependencia'],
+        'last_updated': DateTime.now().toIso8601String(),
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+    }
+    await batch.commit(noResult: true);
+  }
+
+  Future<void> _createUsersTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY,
+        name TEXT,
+        email TEXT,
+        role TEXT,
+        phone TEXT,
+        license_number TEXT,
+        cargo TEXT,
+        dependencia TEXT,
+        last_updated TEXT
+      )
+    ''');
+  }
+
+  Future<void> updateVehicleOperator(int vehiculoId, int operatorId) async {
+    final db = await database;
+    await db.update(
+      'vehiculos',
+      {
+        'operador_asignado_id': operatorId,
+        'last_updated': DateTime.now().toIso8601String(),
+      },
+      where: 'vehiculo_id = ?',
+      whereArgs: [vehiculoId],
+    );
   }
 }

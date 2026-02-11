@@ -8,6 +8,9 @@ import 'package:frontend/core/theme/app_theme.dart';
 import 'package:frontend/features/inventory/presentation/screens/add_movement_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:frontend/features/inventory/presentation/screens/movement_list_screen.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:frontend/features/profile/presentation/screens/profile_screen.dart';
+import 'package:frontend/features/notifications/presentation/screens/notification_list_screen.dart';
 
 class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key});
@@ -105,32 +108,59 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
               ),
-              Container(
-                width: 35,
-                height: 35,
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppTheme.primaryYellow),
-                ),
-                child: CachedNetworkImage(
-                  imageUrl:
-                      'https://lh3.googleusercontent.com/aida-public/AB6AXuDdniVoAwXdAaZ8_1i3-86JjnO2RVHHvuOMTexBpN44I65icwgSaVFaQIbCu4l5jOTCm7Omfz5WanVHeEhNbgjIf7pniPtW5N9zJArd9inzYp2UUNBFh3abGbT2uAUKRN4x0NvBFdKDa9HPY7Q7__HR7SJeFzvBw0RNdAIlDg3UbpWPSHLW9D7E6a__qpTGHPNj5bMl23YMDcYdb4czEALeNsbyaOlZKxr-Lnx7caoHeZ0S56oc9vBtgJs4N-a9cDYkDBiu_emQYz8',
-                  fit: BoxFit.contain,
-                  placeholder: (context, url) => const Center(
-                    child: CircularProgressIndicator(strokeWidth: 2),
+              Row(
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ProfileScreen(),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      width: 35,
+                      height: 35,
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.black,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppTheme.primaryYellow),
+                      ),
+                      child: CachedNetworkImage(
+                        imageUrl:
+                            'https://ui-avatars.com/api/?name=Inv&background=random',
+                        fit: BoxFit.contain,
+                        placeholder: (context, url) => const Center(
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        errorWidget: (context, url, error) =>
+                            const Icon(Icons.error),
+                      ),
+                    ),
                   ),
-                  errorWidget: (context, url, error) => const Icon(Icons.error),
-                ),
-              ),
-              const Icon(
-                Icons.notifications_none,
-                color: Colors.white,
-                size: 24,
+
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const NotificationListScreen(),
+                        ),
+                      );
+                    },
+                    child: const Icon(
+                      Icons.notifications_none,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
+
           const SizedBox(height: 15),
           Text(
             'GESTIÓN DE INVENTARIO',
@@ -313,6 +343,20 @@ class _InventoryScreenState extends State<InventoryScreen> {
                       provider.fetchProductos();
                     });
                   },
+                ),
+              ),
+              Container(
+                width: 1,
+                height: 40,
+                color: AppTheme.surfaceDark2,
+                margin: const EdgeInsets.symmetric(horizontal: 10),
+              ),
+              Expanded(
+                child: _buildPanelButton(
+                  'Importar',
+                  Icons.upload_file,
+                  AppTheme.primaryYellow,
+                  () => _pickFileAndUpload(),
                 ),
               ),
               Container(
@@ -596,6 +640,21 @@ class _InventoryScreenState extends State<InventoryScreen> {
                               ),
                             ],
                           ),
+                          // Chevron indicador
+                          Positioned(
+                            right: 0,
+                            top: 0,
+                            bottom: 0,
+                            child: Container(
+                              alignment: Alignment.center,
+                              padding: const EdgeInsets.only(right: 10),
+                              child: Icon(
+                                Icons.chevron_right,
+                                color: Colors.white.withValues(alpha: 0.3),
+                                size: 20,
+                              ),
+                            ),
+                          ),
                           if (producto.categoria?.nombre.toLowerCase() ==
                               'combustible')
                             Padding(
@@ -702,5 +761,159 @@ class _InventoryScreenState extends State<InventoryScreen> {
       default:
         return Icons.inventory_2;
     }
+  }
+
+  Future<void> _pickFileAndUpload() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['csv', 'txt'],
+      );
+
+      if (result != null && result.files.single.path != null) {
+        final path = result.files.single.path!;
+
+        if (!mounted) return;
+
+        final response = await context
+            .read<InventoryProvider>()
+            .importProductos(path);
+
+        if (!mounted) return;
+
+        if (response['requires_confirmation'] == true) {
+          final List duplicates = response['duplicates'] ?? [];
+          final int newCount = response['new_count'] ?? 0;
+          _showDuplicateDialog(path, duplicates, newCount);
+        } else {
+          _showSuccessDialog(response);
+        }
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  void _showDuplicateDialog(String path, List duplicates, int newCount) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Códigos Duplicados Detectados'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Se encontraron ${duplicates.length} códigos que ya existen.',
+              ),
+              const SizedBox(height: 10),
+              Container(
+                height: 150,
+                width: double.maxFinite,
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey),
+                ),
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: duplicates.length,
+                  itemBuilder: (context, index) {
+                    final item = duplicates[index];
+                    return ListTile(
+                      dense: true,
+                      title: Text('${item['codigo']} - ${item['nombre']}'),
+                      leading: const Icon(
+                        Icons.warning,
+                        color: Colors.orange,
+                        size: 16,
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text('Hay $newCount productos nuevos listos para subir.'),
+              const SizedBox(height: 10),
+              const Text(
+                '¿Desea omitir los duplicados y cargar solo los nuevos?',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext); // Close dialog
+              try {
+                final response = await context
+                    .read<InventoryProvider>()
+                    .importProductos(path, skipDuplicates: true);
+                if (mounted) _showSuccessDialog(response);
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text('Error: $e')));
+                }
+              }
+            },
+            child: const Text('Sí, Cargar Nuevos'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSuccessDialog(Map<String, dynamic> response) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Importación Completada'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Insertados: ${response['inserted_count'] ?? 0}'),
+            Text('Omitidos/Duplicados: ${response['skipped_count'] ?? 0}'),
+            if (response['errors'] != null &&
+                (response['errors'] as List).isNotEmpty) ...[
+              const SizedBox(height: 10),
+              const Text('Errores:', style: TextStyle(color: Colors.red)),
+              SizedBox(
+                height: 100,
+                width: double.maxFinite,
+                child: ListView(
+                  children: (response['errors'] as List)
+                      .map(
+                        (e) => Text(
+                          '- $e',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.red,
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -27,6 +27,9 @@ class MovementRepository {
     int? referenciaId,
     String? referenciaType,
     String? notas,
+    int? bodegaId,
+    int? bodegaOrigenId,
+    int? bodegaDestinoId,
   }) async {
     try {
       final response = await _apiClient.dio.post(
@@ -39,6 +42,9 @@ class MovementRepository {
           'transaccion_referencia_id': referenciaId,
           'transaccion_referencia_type': referenciaType,
           'transaccion_notas': notas,
+          'bodega_id': bodegaId,
+          'bodega_origen_id': bodegaOrigenId,
+          'bodega_destino_id': bodegaDestinoId,
         },
       );
       return response.statusCode == 200 || response.statusCode == 201;

@@ -1,6 +1,9 @@
 class RegistroCombustible {
   final int id;
-  final int vehiculoId;
+  final int? vehiculoId;
+  final int? empleadoId;
+  final String? terceroNombre;
+  final String tipoDestino;
   final int usuarioId;
   final DateTime fecha;
   final double cantidadGalones;
@@ -14,7 +17,10 @@ class RegistroCombustible {
 
   RegistroCombustible({
     required this.id,
-    required this.vehiculoId,
+    this.vehiculoId,
+    this.empleadoId,
+    this.terceroNombre,
+    this.tipoDestino = 'vehiculo',
     required this.usuarioId,
     required this.fecha,
     required this.cantidadGalones,
@@ -44,7 +50,10 @@ class RegistroCombustible {
 
     return RegistroCombustible(
       id: parseInt(json['registro_id']) ?? 0,
-      vehiculoId: parseInt(json['vehiculo_id']) ?? 0,
+      vehiculoId: parseInt(json['vehiculo_id']),
+      empleadoId: parseInt(json['empleado_id']),
+      terceroNombre: json['tercero_nombre'],
+      tipoDestino: json['tipo_destino'] ?? 'vehiculo',
       usuarioId: parseInt(json['usuario_id']) ?? 0,
       fecha: DateTime.parse(json['fecha']),
       cantidadGalones: parseDouble(json['cantidad_galones']),
@@ -67,6 +76,9 @@ class RegistroCombustible {
     return {
       'registro_id': id,
       'vehiculo_id': vehiculoId,
+      'empleado_id': empleadoId,
+      'tercero_nombre': terceroNombre,
+      'tipo_destino': tipoDestino,
       'usuario_id': usuarioId,
       'fecha': fecha.toIso8601String(),
       'cantidad_galones': cantidadGalones,

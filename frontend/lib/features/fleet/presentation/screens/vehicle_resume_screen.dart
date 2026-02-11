@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:frontend/features/fleet/presentation/providers/fleet_provider.dart';
+import 'package:frontend/features/auth/presentation/providers/employee_provider.dart';
+import 'package:frontend/features/auth/data/models/empleado_model.dart';
 import 'package:frontend/features/fleet/data/models/vehicle_model.dart';
 import 'package:intl/intl.dart';
 import 'package:frontend/core/theme/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'fuel_history_screen.dart';
 import 'hour_meter_history_screen.dart';
-import 'checklist_screen.dart';
+import 'checklist_form_screen.dart';
 
 class VehicleResumeScreen extends StatefulWidget {
   final int vehiculoId;
@@ -37,6 +39,7 @@ class _VehicleResumeScreenState extends State<VehicleResumeScreen>
     _tabController = TabController(length: 4, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadData();
+      context.read<EmployeeProvider>().loadEmployees();
     });
   }
 
@@ -98,7 +101,7 @@ class _VehicleResumeScreenState extends State<VehicleResumeScreen>
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => ChecklistScreen(vehiculo: _vehiculo!),
+                  builder: (_) => ChecklistFormScreen(vehiculo: _vehiculo!),
                 ),
               );
             },
@@ -348,6 +351,26 @@ class _VehicleResumeScreenState extends State<VehicleResumeScreen>
                 Colors.orange,
               ),
             ],
+          ),
+
+          // ASIGNACIONES DE PERSONAL
+          const SizedBox(height: 24),
+          _buildSectionTitle('PERSONAL ASIGNADO'),
+          const SizedBox(height: 12),
+          _buildAssignmentCard(
+            'Operador / Conductor',
+            _vehiculo?.operadorAsignado?.nombreCompleto,
+            Icons.person,
+            () =>
+                _showAssignmentDialog('operador', _vehiculo?.operadorAsignado),
+          ),
+          const SizedBox(height: 12),
+          _buildAssignmentCard(
+            'Mecánico Responsable',
+            _vehiculo?.mecanicoAsignado?.nombreCompleto,
+            Icons.engineering,
+            () =>
+                _showAssignmentDialog('mecanico', _vehiculo?.mecanicoAsignado),
           ),
 
           // Alertas de Mantenimiento
@@ -718,5 +741,170 @@ class _VehicleResumeScreenState extends State<VehicleResumeScreen>
       total += ot.movimientosInventario?.length ?? 0;
     });
     return total;
+  }
+
+  Widget _buildAssignmentCard(
+    String title,
+    String? name,
+    IconData icon,
+    VoidCallback onTap,
+  ) {
+    return Card(
+      color: AppTheme.surfaceDark,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: AppTheme.surfaceDark2),
+      ),
+      child: ListTile(
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppTheme.primaryYellow.withValues(alpha: 0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: AppTheme.primaryYellow, size: 20),
+        ),
+        title: Text(
+          title,
+          style: const TextStyle(color: Colors.grey, fontSize: 12),
+        ),
+        subtitle: Text(
+          name ?? 'Sin asignar',
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+        trailing: IconButton(
+          icon: const Icon(Icons.edit, color: Colors.blueAccent),
+          onPressed: onTap,
+        ),
+      ),
+    );
+  }
+
+  void _showAssignmentDialog(String type, Empleado? currentAssignee) {
+    if (_vehiculo == null) return;
+
+    final employeeProvider = context.read<EmployeeProvider>();
+    if (employeeProvider.employees.isEmpty) {
+      employeeProvider.loadEmployees();
+    }
+
+    // Buscar objeto coincidente en la lista para el Dropdown
+    Empleado? selectedEmployee;
+    try {
+      if (currentAssignee != null) {
+        selectedEmployee = employeeProvider.employees.firstWhere(
+          (e) => e.id == currentAssignee.id,
+        );
+      }
+    } catch (_) {}
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              backgroundColor: AppTheme.surfaceDark,
+              title: Text(
+                'ASIGNAR ${type.toUpperCase()}',
+                style: GoogleFonts.oswald(color: Colors.white),
+              ),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (employeeProvider.isLoading)
+                      const LinearProgressIndicator()
+                    else
+                      DropdownButtonFormField<Empleado>(
+                        isExpanded: true,
+                        dropdownColor: AppTheme.surfaceDark,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: const InputDecoration(
+                          labelText: 'Seleccionar Empleado',
+                          labelStyle: TextStyle(color: AppTheme.textGray),
+                          enabledBorder: UnderlineInputBorder(
+                            borderSide: BorderSide(
+                              color: AppTheme.surfaceDark2,
+                            ),
+                          ),
+                        ),
+                        key: ValueKey(selectedEmployee),
+                        initialValue: selectedEmployee,
+                        items: employeeProvider.employees.map((e) {
+                          return DropdownMenuItem(
+                            value: e,
+                            child: Text(e.nombreCompleto),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          setState(() => selectedEmployee = val);
+                        },
+                      ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text(
+                    'CANCELAR',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (selectedEmployee == null) return;
+
+                    Navigator.pop(dialogContext);
+
+                    final data = <String, dynamic>{
+                      type == 'operador'
+                              ? 'operador_asignado_id'
+                              : 'mecanico_asignado_id':
+                          selectedEmployee!.id,
+                    };
+
+                    final success = await context
+                        .read<FleetProvider>()
+                        .updateVehicle(widget.vehiculoId, data);
+
+                    if (context.mounted) {
+                      if (success) {
+                        _loadData();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Asignación actualizada'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Error al actualizar'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryYellow,
+                    foregroundColor: Colors.black,
+                  ),
+                  child: const Text('GUARDAR'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 }

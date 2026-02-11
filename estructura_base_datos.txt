@@ -1,0 +1,240 @@
+ESTRUCTURA DE BASE DE DATOS - SEMANUR APP
+Generado: 2026-02-09
+
+================================================================================
+1. TABLAS PRINCIPALES (CORE)
+================================================================================
+
+[users]
+- id (PK)
+- name (string)
+- email (string)
+- role (string, default: 'operador')
+- phone (string, nullable)
+- license_number (string, nullable)
+- cargo (string, nullable)
+- dependencia (string, nullable)
+- email_verified_at (timestamp, nullable)
+- password (string)
+- remember_token (string, nullable)
+- created_at, updated_at (timestamps)
+
+[empleados]
+- id (PK)
+- nombres (string)
+- apellidos (string, nullable)
+- documento (string, nullable, unique)
+- telefono (string, nullable)
+- direccion (string, nullable)
+- cargo (string, nullable)
+- dependencia (string, nullable)
+- licencia_conduccion (string, nullable)
+- categoria_licencia (string, nullable)
+- vencimiento_licencia (date, nullable)
+- foto_url (string, nullable)
+- user_id (FK -> users.id, nullable, unique)
+- estado (string, default: 'activo')
+- resumen_profesional (text, nullable)
+- created_at, updated_at (timestamps)
+
+[vehiculos]
+- vehiculo_id (PK)
+- placa (string, unique)
+- tipo (string) // Tractor, Volqueta, Moto
+- marca (string)
+- modelo (string)
+- horometro_actual (decimal, default: 0)
+- horometro_proximo_mantenimiento (decimal, nullable)
+- kilometraje_actual (decimal, default: 0)
+- kilometraje_proximo_mantenimiento (decimal, nullable)
+- fecha_vencimiento_soat (date, nullable)
+- fecha_vencimiento_tecnomecanica (date, nullable)
+- operador_asignado_id (FK -> users.id, nullable)
+- mecanico_asignado_id (FK -> users.id, nullable)
+- created_at, updated_at (timestamps)
+
+================================================================================
+2. INVENTARIO Y PRODUCTOS
+================================================================================
+
+[categorias]
+- categoria_id (PK)
+- categoria_nombre (string)
+- categoria_tipo (string, default: 'repuesto') // repuesto, insumo, combustible, herramienta
+- categoria_descripcion (text, nullable)
+- created_at, updated_at (timestamps)
+
+[productos]
+- producto_id (PK)
+- categoria_id (FK -> categorias.categoria_id)
+- producto_sku (string, unique)
+- producto_nombre (string)
+- producto_unidad_medida (string, default: 'unidad')
+- producto_stock_actual (decimal, default: 0)
+- producto_alerta_stock_minimo (decimal, default: 5)
+- producto_precio_costo (decimal, default: 0)
+- producto_ubicacion (string, nullable)
+- created_at, updated_at (timestamps)
+
+[bodegas]
+- bodega_id (PK)
+- nombre (string)
+- descripcion (string, nullable)
+- tipo (string, default: 'estandar') // estandar, recuperacion
+- created_at, updated_at (timestamps)
+
+[bodega_producto] (Tabla Pivote)
+- id (PK)
+- bodega_id (FK -> bodegas.bodega_id)
+- producto_id (FK -> productos.producto_id)
+- cantidad (decimal, default: 0)
+- created_at, updated_at (timestamps)
+- UNIQUE(bodega_id, producto_id)
+
+[transaccion_inventarios]
+- transaccion_id (PK)
+- producto_id (FK -> productos.producto_id)
+- usuario_id (FK -> users.id, nullable)
+- transaccion_tipo (string) // entrada, salida
+- transaccion_cantidad (decimal)
+- transaccion_motivo (string) // compra, ajuste, consumo_ot, devolucion
+- transaccion_referencia_type (string, nullable)
+- transaccion_referencia_id (bigint, nullable)
+- transaccion_notas (text, nullable)
+- created_at, updated_at (timestamps)
+
+[prestamos_herramientas]
+- prestamo_id (PK)
+- producto_id (FK -> productos.producto_id)
+- mecanico_id (FK -> users.id)
+- admin_id (FK -> users.id)
+- prestamo_cantidad (decimal)
+- fecha_prestamo (datetime)
+- fecha_devolucion (datetime, nullable)
+- estado (string, default: 'prestado')
+- notas (text, nullable)
+- created_at, updated_at (timestamps)
+
+================================================================================
+3. OPERACIONES Y MANTENIMIENTO
+================================================================================
+
+[orden_trabajos]
+- orden_trabajo_id (PK)
+- vehiculo_id (FK -> vehiculos.vehiculo_id)
+- mecanico_asignado_id (FK -> users.id, nullable)
+- fecha_inicio (date)
+- fecha_fin (date, nullable)
+- estado (string, default: 'Abierta') // Abierta, En Progreso, Cerrada
+- prioridad (string, default: 'Media')
+- descripcion (text)
+- foto_evidencia (string, nullable)
+- created_at, updated_at (timestamps)
+
+[sesiones_trabajo]
+- sesion_id (PK)
+- user_id (FK -> users.id)
+- orden_trabajo_id (FK -> orden_trabajos.orden_trabajo_id)
+- fecha_inicio (datetime)
+- fecha_fin (datetime, nullable)
+- notas (text, nullable)
+- created_at, updated_at (timestamps)
+
+[registros_combustible]
+- registro_id (PK)
+- vehiculo_id (FK -> vehiculos.vehiculo_id, nullable)
+- empleado_id (FK -> users.id, nullable)
+- tercero_nombre (string, nullable)
+- tipo_destino (string, default: 'vehiculo') // 'vehiculo', 'empleado', 'tercero'
+- placa_manual (string, nullable)
+- usuario_id (FK -> users.id) // Usuario que registra
+- fecha (datetime)
+- cantidad_galones (decimal)
+- valor_total (decimal)
+- horometro_actual (decimal, nullable)
+- kilometraje_actual (decimal, nullable)
+- estacion_servicio (string, nullable)
+- notas (text, nullable)
+- created_at, updated_at (timestamps)
+
+[registros_horometro]
+- registro_horometro_id (PK)
+- vehiculo_id (FK -> vehiculos.vehiculo_id)
+- valor_anterior (decimal)
+- valor_nuevo (decimal)
+- usuario_id (FK -> users.id)
+- notas (string, nullable)
+- created_at, updated_at (timestamps)
+
+================================================================================
+4. CHECKLISTS Y PREOPERACIONALES
+================================================================================
+
+[checklists_preoperacionales]
+- id (PK)
+- vehiculo_id (FK -> vehiculos.vehiculo_id)
+- usuario_id (FK -> users.id)
+- fecha (datetime)
+- horometro_actual (decimal, nullable)
+- checklist_data (json)
+- observaciones (text, nullable)
+- estado (string, default: 'aprobado')
+- foto_evidencia (string, nullable)
+- created_at, updated_at (timestamps)
+
+[listas_chequeo]
+- id (PK)
+- nombre (string)
+- descripcion (text, nullable)
+- tipo_vehiculo (string, nullable)
+- activo (boolean, default: true)
+- created_at, updated_at (timestamps)
+
+[items_lista_chequeo]
+- id (PK)
+- lista_chequeo_id (FK -> listas_chequeo.id)
+- pregunta (string)
+- tipo_respuesta (enum, default: 'cumple_falla')
+- orden (integer, default: 0)
+- es_critico (boolean, default: false)
+- created_at, updated_at (timestamps)
+
+[respuestas_lista_chequeo]
+- id (PK)
+- lista_chequeo_id (FK -> listas_chequeo.id)
+- vehiculo_id (FK -> vehiculos.vehiculo_id)
+- operador_id (FK -> users.id)
+- fecha (datetime)
+- respuestas (json)
+- estado (enum, default: 'aprobado')
+- observaciones_generales (text, nullable)
+- created_at, updated_at (timestamps)
+
+================================================================================
+5. PROGRAMACIÓN
+================================================================================
+
+[programacion]
+- id (PK)
+- fecha (date)
+- empleado_id (FK -> users.id)
+- vehiculo_id (FK -> vehiculos.vehiculo_id, nullable)
+- labor (string)
+- ubicacion (string, nullable)
+- estado (enum, default: 'pendiente') // pendiente, en_progreso, pausado, completado
+- orden_trabajo_id (FK -> orden_trabajos.orden_trabajo_id, nullable)
+- es_novedad (boolean, default: false)
+- created_at, updated_at (timestamps)
+
+================================================================================
+6. SISTEMA ADICIONAL
+================================================================================
+
+[personal_access_tokens] (Sanctum)
+[failed_jobs]
+[jobs]
+[job_batches]
+[cache]
+[cache_locks]
+[sessions]
+[password_reset_tokens]

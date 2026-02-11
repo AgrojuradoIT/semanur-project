@@ -111,4 +111,35 @@ class InventoryProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  Future<Map<String, dynamic>> importProductos(
+    String filePath, {
+    bool skipDuplicates = false,
+  }) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final result = await _repository.importProductos(
+        filePath,
+        skipDuplicates: skipDuplicates,
+      );
+
+      // Refresh list if successful (or partial success)
+      if (result['inserted_count'] != null && result['inserted_count'] > 0) {
+        await fetchProductos();
+      } else {
+        _isLoading = false;
+        notifyListeners();
+      }
+
+      return result;
+    } catch (e) {
+      _isLoading = false;
+      _error = e.toString();
+      notifyListeners();
+      rethrow;
+    }
+  }
 }
