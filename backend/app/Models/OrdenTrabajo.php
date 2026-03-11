@@ -35,7 +35,7 @@ class OrdenTrabajo extends Model
 
     public function mecanico(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'mecanico_asignado_id', 'id');
+        return $this->belongsTo(Empleado::class, 'mecanico_asignado_id', 'id');
     }
 
     public function sesiones()

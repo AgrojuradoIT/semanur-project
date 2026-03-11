@@ -1,0 +1,117 @@
+import { createRouter, createWebHashHistory } from 'vue-router';
+
+import AppShell from '../layouts/AppShell.vue';
+import LoginPage from '../../features/auth/pages/LoginPage.vue';
+import DiagnosticPage from '../../pages/DiagnosticPage.vue';
+import DashboardPage from '../../features/dashboard/pages/DashboardPage.vue';
+import InventoryPage from '../../features/inventory/pages/InventoryPage.vue';
+import FleetPage from '../../features/fleet/pages/FleetPage.vue';
+import WorkOrdersPage from '../../features/work-orders/pages/WorkOrdersPage.vue';
+import EmployeesPage from '../../features/employees/pages/EmployeesPage.vue';
+import HistoryPage from '../../features/history/pages/HistoryPage.vue';
+import LoansPage from '../../features/loans/pages/LoansPage.vue';
+import FuelPage from '../../features/fuel/pages/FuelPage.vue';
+import ChecklistsPage from '../../features/checklists/pages/ChecklistsPage.vue';
+import SchedulerPage from '../../features/scheduler/pages/SchedulerPage.vue';
+import { useAuthStore } from '../../shared/stores/auth';
+
+const shellChildren = [
+  { path: '', name: 'dashboard', component: DashboardPage, meta: { title: 'Dashboard', requiresAuth: true } },
+  {
+    path: 'inventory',
+    name: 'inventory',
+    component: InventoryPage,
+    meta: { title: 'Inventario', requiresAuth: true },
+  },
+  {
+    path: 'fleet',
+    name: 'fleet',
+    component: FleetPage,
+    meta: { title: 'Flota', requiresAuth: true },
+  },
+  {
+    path: 'work-orders',
+    name: 'work-orders',
+    component: WorkOrdersPage,
+    meta: { title: 'Ordenes de Trabajo', requiresAuth: true },
+  },
+  {
+    path: 'history',
+    name: 'history',
+    component: HistoryPage,
+    meta: { title: 'Centro de Actividad', requiresAuth: true },
+  },
+  {
+    path: 'employees',
+    name: 'employees',
+    component: EmployeesPage,
+    meta: { title: 'Empleados', requiresAuth: true },
+  },
+  {
+    path: 'loans',
+    name: 'loans',
+    component: LoansPage,
+    meta: { title: 'Prestamos', requiresAuth: true },
+  },
+  {
+    path: 'checklists',
+    name: 'checklists',
+    component: ChecklistsPage,
+    meta: { title: 'Checklists', requiresAuth: true },
+  },
+  {
+    path: 'fuel',
+    name: 'fuel',
+    component: FuelPage,
+    meta: { title: 'Combustible', requiresAuth: true },
+  },
+  {
+    path: 'scheduler',
+    name: 'scheduler',
+    component: SchedulerPage,
+    meta: { title: 'Programacion', requiresAuth: true },
+  },
+];
+
+const router = createRouter({
+  history: createWebHashHistory(),
+  routes: [
+    {
+      path: '/login',
+      name: 'login',
+      component: LoginPage,
+      meta: { title: 'Iniciar Sesion' },
+    },
+    {
+      path: '/diagnostic',
+      name: 'diagnostic',
+      component: DiagnosticPage,
+      meta: { title: 'Diagnóstico' },
+    },
+    {
+      path: '/',
+      component: AppShell,
+      children: shellChildren,
+    },
+    {
+      path: '/:pathMatch(.*)*',
+      redirect: '/',
+    },
+  ],
+});
+
+router.beforeEach((to) => {
+  const auth = useAuthStore();
+
+  if (to.meta.requiresAuth && !auth.isAuthenticated) {
+    return { path: '/login' };
+  }
+
+  if (to.path === '/login' && auth.isAuthenticated) {
+    return { path: '/' };
+  }
+
+  return true;
+});
+
+export default router;

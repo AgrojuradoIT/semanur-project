@@ -13,7 +13,7 @@ class ChecklistPreoperacional extends Model
 
     protected $fillable = [
         'vehiculo_id',
-        'usuario_id',
+        'empleado_id',
         'fecha',
         'horometro_actual',
         'checklist_data',
@@ -33,8 +33,8 @@ class ChecklistPreoperacional extends Model
         return $this->belongsTo(Vehiculo::class, 'vehiculo_id', 'vehiculo_id');
     }
 
-    public function usuario()
+    public function empleado()
     {
-        return $this->belongsTo(User::class, 'usuario_id');
+        return $this->belongsTo(Empleado::class, 'empleado_id');
     }
 }

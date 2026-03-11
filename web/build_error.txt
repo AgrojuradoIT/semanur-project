@@ -1,0 +1,23 @@
+
+> web@0.0.0 build C:\DEV\semanur_app\web
+> vite build
+
+[36mvite v7.3.1 [32mbuilding client environment for production...[36m[39m
+transforming...
+[32mÔ£ô[39m 12 modules transformed.
+Ô£ù Build failed in 232ms
+error during build:
+[vite:vue] [plugin vite:vue] src/features/fleet/pages/FleetPage.vue (383:5): Invalid end tag.
+file: C:/DEV/semanur_app/web/src/features/fleet/pages/FleetPage.vue:383:5
+SyntaxError: [plugin vite:vue] src/features/fleet/pages/FleetPage.vue (383:5): Invalid end tag.
+    at createCompilerError (C:\DEV\semanur_app\web\node_modules\.pnpm\@vue+compiler-core@3.5.29\node_modules\@vue\compiler-core\dist\compiler-core.cjs.prod.js:1374:17)
+    at emitError (C:\DEV\semanur_app\web\node_modules\.pnpm\@vue+compiler-core@3.5.29\node_modules\@vue\compiler-core\dist\compiler-core.cjs.prod.js:2980:5)
+    at Object.onclosetag (C:\DEV\semanur_app\web\node_modules\.pnpm\@vue+compiler-core@3.5.29\node_modules\@vue\compiler-core\dist\compiler-core.cjs.prod.js:2387:9)
+    at Tokenizer.stateInClosingTagName (C:\DEV\semanur_app\web\node_modules\.pnpm\@vue+compiler-core@3.5.29\node_modules\@vue\compiler-core\dist\compiler-core.cjs.prod.js:799:16)
+    at Tokenizer.parse (C:\DEV\semanur_app\web\node_modules\.pnpm\@vue+compiler-core@3.5.29\node_modules\@vue\compiler-core\dist\compiler-core.cjs.prod.js:1157:16)
+    at Object.baseParse (C:\DEV\semanur_app\web\node_modules\.pnpm\@vue+compiler-core@3.5.29\node_modules\@vue\compiler-core\dist\compiler-core.cjs.prod.js:3012:13)
+    at Object.parse (C:\DEV\semanur_app\web\node_modules\.pnpm\@vue+compiler-dom@3.5.29\node_modules\@vue\compiler-dom\dist\compiler-dom.cjs.prod.js:665:23)
+    at Object.parse$1 [as parse] (C:\DEV\semanur_app\web\node_modules\.pnpm\@vue+compiler-sfc@3.5.29\node_modules\@vue\compiler-sfc\dist\compiler-sfc.cjs.js:1824:24)
+    at createDescriptor (file:///C:/DEV/semanur_app/web/node_modules/.pnpm/@vitejs+plugin-vue@6.0.4_vite@7.3.1_yaml@2.8.2__vue@3.5.29/node_modules/@vitejs/plugin-vue/dist/index.mjs:54:42)
+    at transformMain (file:///C:/DEV/semanur_app/web/node_modules/.pnpm/@vitejs+plugin-vue@6.0.4_vite@7.3.1_yaml@2.8.2__vue@3.5.29/node_modules/@vitejs/plugin-vue/dist/index.mjs:1319:33)
+ÔÇëELIFECYCLEÔÇë Command failed with exit code 1.

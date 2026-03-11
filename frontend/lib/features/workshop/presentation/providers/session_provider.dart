@@ -58,7 +58,7 @@ class SessionProvider extends ChangeNotifier {
                 id:
                     localData['server_id'] ??
                     localData['local_id'], // fallback ID
-                userId: localData['user_id'] ?? 0,
+                empleadoId: localData['empleado_id'] ?? 0,
                 ordenTrabajoId: localData['orden_trabajo_id'],
                 fechaInicio: DateTime.parse(localData['fecha_inicio']),
                 fechaFin: null,
@@ -111,7 +111,7 @@ class SessionProvider extends ChangeNotifier {
         // 1. Guardar en DB local (Optimistic UI)
         final tempSession = {
           'sesion_id': null, // No tenemos ID del server aún
-          'user_id': 0, // Placeholder
+          'empleado_id': 0, // Placeholder
           'orden_trabajo_id': ordenTrabajoId,
           'fecha_inicio': now.toIso8601String(),
         };
@@ -123,7 +123,7 @@ class SessionProvider extends ChangeNotifier {
         // 2. Establecer activeSession en memoria
         _activeSession = SessionTrabajo(
           id: 0, // ID Temporal
-          userId: 0,
+          empleadoId: 0,
           ordenTrabajoId: ordenTrabajoId,
           fechaInicio: now,
         );

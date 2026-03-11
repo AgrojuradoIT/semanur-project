@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:frontend/features/inventory/data/models/product_model.dart';
+import 'package:frontend/features/inventory/presentation/providers/inventory_provider.dart';
 import 'package:frontend/core/database/database_helper.dart';
 
 class ProductDetailScreen extends StatefulWidget {
@@ -59,9 +61,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.edit_outlined),
-            onPressed: () {
-              // Editar producto (próximamente)
-            },
+            onPressed: () => _editProduct(context),
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Colors.red),
+            onPressed: () => _confirmDelete(context),
           ),
         ],
       ),
@@ -297,6 +301,88 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
               color: valueColor ?? Colors.black87,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _editProduct(BuildContext context) {
+    final p = widget.producto;
+    final nameCtrl = TextEditingController(text: p.nombre);
+    final skuCtrl = TextEditingController(text: p.sku);
+    final ubicCtrl = TextEditingController(text: p.ubicacion ?? '');
+    final alertCtrl = TextEditingController(text: '${p.alertaStockMinimo}');
+    final precioCtrl = TextEditingController(text: '${p.precioCosto ?? 0}');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Editar Producto'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Nombre')),
+              const SizedBox(height: 8),
+              TextField(controller: skuCtrl, decoration: const InputDecoration(labelText: 'SKU')),
+              const SizedBox(height: 8),
+              TextField(controller: ubicCtrl, decoration: const InputDecoration(labelText: 'Ubicación')),
+              const SizedBox(height: 8),
+              TextField(controller: alertCtrl, decoration: const InputDecoration(labelText: 'Alerta Mínima'), keyboardType: TextInputType.number),
+              const SizedBox(height: 8),
+              TextField(controller: precioCtrl, decoration: const InputDecoration(labelText: 'Precio Costo'), keyboardType: TextInputType.number),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final provider = context.read<InventoryProvider>();
+              final success = await provider.updateProducto(p.id, {
+                'producto_nombre': nameCtrl.text,
+                'producto_sku': skuCtrl.text,
+                'producto_ubicacion': ubicCtrl.text,
+                'producto_alerta_stock_minimo': double.tryParse(alertCtrl.text) ?? 5,
+                'producto_precio_costo': double.tryParse(precioCtrl.text) ?? 0,
+              });
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(success ? 'Producto actualizado' : 'Error al actualizar')),
+                );
+                if (success) Navigator.pop(context);
+              }
+            },
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDelete(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar Producto'),
+        content: Text('¿Estás seguro de eliminar "${widget.producto.nombre}"?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final provider = context.read<InventoryProvider>();
+              final result = await provider.deleteProducto(widget.producto.id);
+              if (mounted) {
+                final msg = result['message']?.toString() ?? 'Producto eliminado';
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+                if (!msg.contains('No se puede')) Navigator.pop(context);
+              }
+            },
+            child: const Text('Eliminar'),
           ),
         ],
       ),

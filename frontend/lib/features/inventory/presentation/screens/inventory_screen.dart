@@ -641,10 +641,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
                             ],
                           ),
                           // Chevron indicador
-                          Positioned(
-                            right: 0,
-                            top: 0,
-                            bottom: 0,
+                          Align(
+                            alignment: Alignment.centerRight,
                             child: Container(
                               alignment: Alignment.center,
                               padding: const EdgeInsets.only(right: 10),

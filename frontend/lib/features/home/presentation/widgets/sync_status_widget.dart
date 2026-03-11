@@ -115,6 +115,12 @@ class SyncStatusWidget extends StatelessWidget {
               provider.pendingCount > 0 ? Colors.orange : Colors.green,
             ),
             _buildDetailRow(
+              'Cola de fallidos',
+              '${provider.failedCount} registros',
+              Icons.error_outline,
+              provider.failedCount > 0 ? Colors.red : Colors.green,
+            ),
+            _buildDetailRow(
               'Sincronización inicial',
               provider.isInitialSyncCompleted
                   ? 'Completada'
@@ -147,6 +153,22 @@ class SyncStatusWidget extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.primaryYellow,
                     foregroundColor: Colors.black,
+                  ),
+                ),
+              ),
+            if (provider.status != SyncStatus.offline &&
+                provider.failedCount > 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      provider.retryFailedNow();
+                    },
+                    icon: const Icon(Icons.restore),
+                    label: const Text('Reintentar Cola Fallida'),
                   ),
                 ),
               ),

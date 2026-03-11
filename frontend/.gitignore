@@ -33,6 +33,15 @@ migrate_working_dir/
 .pub/
 /build/
 /coverage/
+analysis*.txt
+analysis*.log
+analyze_output*.txt
+analyze_results.txt
+build_log.txt
+result.txt
+content.txt
+temp.dart
+temp_*.txt
 
 # Symbolication related
 app.*.symbols

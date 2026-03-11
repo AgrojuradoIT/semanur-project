@@ -3,15 +3,19 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Empleado;
 use App\Models\ListaChequeo;
 use App\Models\RespuestaListaChequeo;
 use App\Models\Vehiculo;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class ChecklistApiController extends Controller
 {
+    // Removed resolveOperadorUserId as we now strictly use empleado_id in payloads
+
     // Obtener listas de chequeo activas con sus items
     public function index(Request $request)
     {
@@ -32,18 +36,19 @@ class ChecklistApiController extends Controller
         $request->validate([
             'lista_chequeo_id' => 'required|exists:listas_chequeo,id',
             'vehiculo_id' => 'required|exists:vehiculos,vehiculo_id',
+            'operador_id' => 'required|exists:empleados,id',
             'respuestas' => 'required|array', // { item_id: valor }
             'observaciones_generales' => 'nullable|string',
         ]);
 
         return DB::transaction(function () use ($request) {
+            $operadorId = (int) $request->operador_id;
+
             $lista = ListaChequeo::with('items')->find($request->lista_chequeo_id);
             $estado = 'aprobado';
             
             // Validar respuestas críticas
             foreach ($lista->items as $item) {
-                // Si el item es crítico y la respuesta no es "cumple" (suponiendo 'cumple_falla' -> true/false o 'cumple'/'falla')
-                // Ajustar lógica según frontend. Asumiremos que el frontend envía 'cumple' o 'falla'
                 if ($item->es_critico && isset($request->respuestas[$item->id])) {
                     $respuesta = $request->respuestas[$item->id];
                     if ($respuesta === 'falla' || $respuesta === false || $respuesta === 0) {
@@ -55,7 +60,7 @@ class ChecklistApiController extends Controller
             $respuesta = RespuestaListaChequeo::create([
                 'lista_chequeo_id' => $request->lista_chequeo_id,
                 'vehiculo_id' => $request->vehiculo_id,
-                'operador_id' => $request->user()->id,
+                'operador_id' => $operadorId,
                 'fecha' => Carbon::now(),
                 'respuestas' => $request->respuestas,
                 'estado' => $estado,

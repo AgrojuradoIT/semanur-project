@@ -17,6 +17,7 @@ import 'package:frontend/features/notifications/presentation/screens/notificatio
 import 'package:frontend/features/auth/presentation/screens/employee_list_screen.dart';
 import 'package:frontend/features/fleet/presentation/screens/add_fuel_screen.dart';
 import 'package:frontend/features/fleet/presentation/screens/checklist_dashboard_screen.dart';
+import 'package:frontend/features/history/presentation/screens/history_screen.dart';
 
 // import 'package:frontend/core/widgets/sync_status_indicator.dart';
 
@@ -640,6 +641,16 @@ class _HomeDashboardState extends State<HomeDashboard> {
             ),
             _buildIndustrialButton(
               context,
+              'Actividad',
+              Icons.history_toggle_off,
+              'Auditoria por usuario',
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const HistoryScreen()),
+              ),
+            ),
+            _buildIndustrialButton(
+              context,
               'Empleados',
               Icons.people_alt_outlined,
               'Gestión de Personal',
@@ -973,7 +984,15 @@ class _HomeDashboardState extends State<HomeDashboard> {
           const SizedBox(
             width: 40,
           ), // Espacio para el FAB central si se implementa
-          _buildNavItem(Icons.history_outlined, 'Historial', false),
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const HistoryScreen()),
+              );
+            },
+            child: _buildNavItem(Icons.history_outlined, 'Historial', false),
+          ),
           GestureDetector(
             onTap: () {
               Navigator.push(
@@ -1009,3 +1028,8 @@ class _HomeDashboardState extends State<HomeDashboard> {
     );
   }
 }
+
+
+
+
+

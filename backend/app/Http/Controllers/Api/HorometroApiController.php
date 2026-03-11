@@ -56,7 +56,7 @@ class HorometroApiController extends Controller
                 ], 201);
             });
         } catch (\Exception $e) {
-            return response()->json(['message' => 'Error al registrar horómetro: ' . $e.getMessage()], 500);
+            return response()->json(['message' => 'Error al registrar horómetro: ' . $e->getMessage()], 500);
         }
     }
 }

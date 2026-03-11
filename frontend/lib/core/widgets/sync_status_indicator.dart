@@ -31,7 +31,7 @@ class SyncStatusIndicator extends StatelessWidget {
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('Iniciando sincronización manual...'),
+                  content: Text('Iniciando sincronizacion manual...'),
                 ),
               );
               syncProvider.syncNow();
@@ -71,7 +71,46 @@ class SyncStatusIndicator extends StatelessWidget {
           );
         }
 
-        // Si todo está sincronizado y online, no mostramos nada (o un check opcional)
+        if (syncProvider.failedCount > 0 &&
+            syncProvider.status != SyncStatus.offline) {
+          return IconButton(
+            tooltip: 'Reintentar ${syncProvider.failedCount} fallidos',
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Reintentando cola de fallidos...'),
+                ),
+              );
+              syncProvider.retryFailedNow();
+            },
+            icon: Stack(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.red),
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 12,
+                      minHeight: 12,
+                    ),
+                    child: Text(
+                      '${syncProvider.failedCount}',
+                      style: const TextStyle(color: Colors.white, fontSize: 8),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
         return const SizedBox.shrink();
       },
     );

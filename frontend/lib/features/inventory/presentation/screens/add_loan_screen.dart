@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:frontend/features/inventory/presentation/providers/loan_provider.dart';
 import 'package:frontend/features/inventory/presentation/providers/inventory_provider.dart';
@@ -26,8 +26,21 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
   void initState() {
     super.initState();
     _loadUsers();
-    // Asegurar que tenemos productos cargados
-    context.read<InventoryProvider>().fetchProductos();
+    // Evita notifyListeners() durante el ciclo de build inicial.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final inventory = context.read<InventoryProvider>();
+      if (inventory.productos.isEmpty && !inventory.isLoading) {
+        inventory.fetchProductos();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _cantidadController.dispose();
+    _notesController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadUsers() async {
@@ -47,7 +60,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Nuevo Préstamo')),
+      appBar: AppBar(title: const Text('Nuevo Prestamo')),
       body: Consumer<InventoryProvider>(
         builder: (context, invProvider, child) {
           if (invProvider.isLoading || _loadingUsers) {
@@ -68,7 +81,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
               padding: const EdgeInsets.all(20),
               children: [
                 const Text(
-                  'DATOS DEL PRÉSTAMO',
+                  'DATOS DEL PRESTAMO',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.grey,
@@ -76,8 +89,9 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // Selección de Herramienta
+                // Seleccion de Herramienta
                 DropdownButtonFormField<int>(
+                  isExpanded: true,
                   decoration: const InputDecoration(
                     labelText: 'Herramienta',
                     border: OutlineInputBorder(),
@@ -87,7 +101,11 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                       .map(
                         (p) => DropdownMenuItem(
                           value: p.id,
-                          child: Text('${p.nombre} (Stock: ${p.stockActual})'),
+                          child: Text(
+                            '${p.nombre} (Stock: ${p.stockActual})',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       )
                       .toList(),
@@ -97,17 +115,24 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // Selección de Mecánico
+                // Seleccion de Mecanico
                 DropdownButtonFormField<int>(
+                  isExpanded: true,
                   decoration: const InputDecoration(
-                    labelText: 'Mecánico / Operario',
+                    labelText: 'Mecanico / Operario',
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.person),
                   ),
                   items: _users
                       .map(
-                        (u) =>
-                            DropdownMenuItem(value: u.id, child: Text(u.name)),
+                        (u) => DropdownMenuItem(
+                          value: u.id,
+                          child: Text(
+                            u.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                       )
                       .toList(),
                   onChanged: (val) => setState(() => _selectedMecanicoId = val),
@@ -130,7 +155,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                       return 'Ingrese la cantidad';
                     }
                     if (double.tryParse(val) == null) {
-                      return 'Ingrese un número válido';
+                      return 'Ingrese un numero valido';
                     }
                     return null;
                   },
@@ -163,7 +188,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                         child: loanProvider.isLoading
                             ? const CircularProgressIndicator()
                             : const Text(
-                                'REGISTRAR PRÉSTAMO',
+                                'REGISTRAR PRESTAMO',
                                 style: TextStyle(fontWeight: FontWeight.bold),
                               ),
                       ),
@@ -191,7 +216,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
         if (success) {
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Préstamo registrado correctamente')),
+            const SnackBar(content: Text('Prestamo registrado correctamente')),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -204,3 +229,4 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
     }
   }
 }
+

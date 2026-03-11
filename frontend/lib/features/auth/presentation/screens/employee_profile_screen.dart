@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import 'package:frontend/features/auth/data/models/empleado_model.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -111,13 +112,18 @@ class EmployeeProfileScreen extends StatelessWidget {
                 child: Container(
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    image: DecorationImage(
-                      image: NetworkImage(
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: CachedNetworkImage(
+                    imageUrl:
                         employee.fotoUrl ??
-                            'https://ui-avatars.com/api/?name=${Uri.encodeComponent(employee.nombreCompleto.isNotEmpty ? employee.nombreCompleto : 'U')}&background=random&color=fff&size=256',
-                      ),
-                      fit: BoxFit.cover,
+                        'https://ui-avatars.com/api/?name=${Uri.encodeComponent(employee.nombreCompleto.isNotEmpty ? employee.nombreCompleto : 'U')}&background=random&color=fff&size=256',
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => const ColoredBox(
+                      color: Color(0xFF2A2A2A),
                     ),
+                    errorWidget: (context, url, error) =>
+                        const Icon(Icons.person, color: Colors.white54),
                   ),
                 ),
               ),
@@ -534,7 +540,7 @@ class EmployeeProfileScreen extends StatelessWidget {
       context,
       MaterialPageRoute(builder: (_) => EmployeeFormScreen(employee: employee)),
     );
-    // Si se editó algo, podríamos retornar true para recargar la lista
+
     if (result == true && context.mounted) {
       Navigator.pop(context, true);
     }

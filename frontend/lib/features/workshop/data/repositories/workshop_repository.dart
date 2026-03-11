@@ -133,6 +133,16 @@ class WorkOrderRepository {
         data: formData,
       );
       return response.statusCode == 200 || response.statusCode == 201;
+    } on DioException catch (e) {
+      if (e.response?.data != null && e.response?.data is Map) {
+        final data = e.response!.data as Map;
+        String msg = data['message'] ?? 'Error en el servidor';
+        if (data['error'] != null) {
+          msg = "$msg: ${data['error']}";
+        }
+        throw Exception(msg);
+      }
+      throw Exception('Error al crear orden de trabajo: ${e.message}');
     } catch (e) {
       throw Exception('Error al crear orden de trabajo: $e');
     }

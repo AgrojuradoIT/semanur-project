@@ -26,7 +26,7 @@ class OrdenTrabajoRequest extends FormRequest
     {
         return [
             'vehiculo_id' => 'required|exists:vehiculos,vehiculo_id',
-            'mecanico_asignado_id' => 'nullable|exists:users,id',
+            'mecanico_asignado_id' => 'nullable|exists:empleados,id',
             'fecha_inicio' => 'required|date',
             'fecha_fin' => 'nullable|date|after_or_equal:fecha_inicio',
             'estado' => 'required|string|max:50',

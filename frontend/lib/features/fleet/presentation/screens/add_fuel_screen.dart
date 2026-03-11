@@ -4,8 +4,9 @@ import 'package:frontend/features/inventory/data/models/product_model.dart';
 import 'package:frontend/features/inventory/presentation/providers/inventory_provider.dart';
 import 'package:frontend/features/fleet/data/models/vehicle_model.dart';
 import 'package:frontend/features/fleet/presentation/providers/fleet_provider.dart';
-import 'package:frontend/features/auth/data/models/user_model.dart';
 import 'package:frontend/features/auth/presentation/providers/user_provider.dart';
+import 'package:frontend/features/auth/presentation/providers/employee_provider.dart';
+import 'package:frontend/features/auth/data/models/empleado_model.dart';
 import '../providers/fuel_provider.dart';
 
 class AddFuelScreen extends StatefulWidget {
@@ -21,21 +22,19 @@ class AddFuelScreen extends StatefulWidget {
 class _AddFuelScreenState extends State<AddFuelScreen> {
   final _formKey = GlobalKey<FormState>();
   final _cantidadController = TextEditingController();
-  final _valorController = TextEditingController();
   final _horometroController = TextEditingController();
   final _kilometrajeController = TextEditingController();
-  final _estacionController = TextEditingController();
   final _notasController = TextEditingController();
   final _terceroController = TextEditingController();
   final _placaManualController = TextEditingController();
+  final _laborController = TextEditingController();
 
-  bool _isInternal = true;
-  Producto? _selectedProduct;
+  String _tipoCombustible = 'gasolina';
 
   // Destination State
   String _tipoDestino = 'vehiculo'; // vehiculo, empleado, tercero
   Vehiculo? _selectedVehicle;
-  User? _selectedEmployee;
+  Empleado? _selectedEmployee;
 
   @override
   void initState() {
@@ -43,12 +42,9 @@ class _AddFuelScreenState extends State<AddFuelScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<InventoryProvider>().fetchProductos();
       context.read<FleetProvider>().fetchVehiculos();
-      context.read<UserProvider>().fetchUsers();
+      context.read<EmployeeProvider>().loadEmployees();
 
-      // Initialize text for internal mode
-      if (_isInternal) {
-        _estacionController.text = 'Inventario Interno';
-      }
+      // Default internal text if left empty during submission
 
       // Pre-select vehicle if provided
       if (widget.vehiculoId != null) {
@@ -92,7 +88,7 @@ class _AddFuelScreenState extends State<AddFuelScreen> {
               ),
               const SizedBox(height: 10),
               DropdownButtonFormField<String>(
-                initialValue: _tipoDestino,
+                value: _tipoDestino,
                 decoration: const InputDecoration(
                   labelText: 'Tipo de Destino',
                   border: OutlineInputBorder(),
@@ -127,7 +123,7 @@ class _AddFuelScreenState extends State<AddFuelScreen> {
               Consumer<FleetProvider>(
                 builder: (context, fleet, _) {
                   return DropdownButtonFormField<Vehiculo>(
-                    initialValue: _selectedVehicle,
+                    value: _selectedVehicle,
                     isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: 'Seleccionar Vehículo',
@@ -149,38 +145,45 @@ class _AddFuelScreenState extends State<AddFuelScreen> {
                 },
               ),
 
-            if (_tipoDestino == 'empleado') ...[
-              Consumer<UserProvider>(
-                builder: (context, users, _) {
-                  return DropdownButtonFormField<User>(
-                    initialValue: _selectedEmployee,
+            if (_tipoDestino == 'vehiculo') ...[
+              const SizedBox(height: 10),
+              Consumer<EmployeeProvider>(
+                builder: (context, employeeProvider, _) {
+                  return DropdownButtonFormField<Empleado>(
+                    value: _selectedEmployee,
                     isExpanded: true,
                     decoration: const InputDecoration(
-                      labelText: 'Seleccionar Empleado',
+                      labelText: 'A quién se le entrega (Empleado)',
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.person),
                     ),
-                    items: users.users.map((u) {
-                      return DropdownMenuItem(value: u, child: Text(u.name));
+                    items: employeeProvider.employees.map((e) {
+                      return DropdownMenuItem(value: e, child: Text(e.nombreCompleto));
                     }).toList(),
                     onChanged: (val) => setState(() => _selectedEmployee = val),
                     validator: (val) =>
-                        _tipoDestino == 'empleado' && val == null
+                        _tipoDestino == 'vehiculo' && val == null
                         ? 'Seleccione un empleado'
                         : null,
                   );
                 },
               ),
-              const SizedBox(height: 10),
+            ],
+
+            if (_tipoDestino == 'empleado') ...[
               TextFormField(
-                controller:
-                    _terceroController, // Reusamos este para la placa manual en empleado opcional
+                controller: _terceroController,
                 decoration: const InputDecoration(
-                  labelText: 'Placa del Vehículo (Opcional)',
+                  labelText: 'Nombre del Empleado',
                   border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.directions_car_outlined),
+                  prefixIcon: Icon(Icons.person),
                 ),
+                validator: (val) =>
+                    _tipoDestino == 'empleado' && (val == null || val.isEmpty)
+                    ? 'Ingrese el nombre del empleado'
+                    : null,
               ),
+              const SizedBox(height: 10),
             ],
 
             if (_tipoDestino == 'tercero') ...[
@@ -211,65 +214,27 @@ class _AddFuelScreenState extends State<AddFuelScreen> {
             const SizedBox(height: 30),
 
             const Text(
-              'DATOS DE ABASTECIMIENTO',
+              'DATOS DE ABASTECIMIENTO (Interno)',
               style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
             ),
             const SizedBox(height: 20),
-            // Switch Origen
-            SwitchListTile(
-              title: const Text('Origen: Inventario Interno'),
-              subtitle: Text(
-                _isInternal
-                    ? 'Descontar del Inventario'
-                    : 'Estación de Servicio Externa',
-              ),
-              value: _isInternal,
-              onChanged: (val) {
-                setState(() {
-                  _isInternal = val;
-                  if (_isInternal) {
-                    _estacionController.text = 'Inventario Interno';
-                  } else {
-                    _estacionController.clear();
-                    _selectedProduct = null;
-                  }
-                });
-              },
-            ),
-            const SizedBox(height: 10),
-            if (_isInternal)
-              Consumer<InventoryProvider>(
-                builder: (context, invProvider, child) {
-                  final combustibles = invProvider.productos
-                      .where(
-                        (p) =>
-                            p.categoria?.tipo?.toLowerCase() == 'combustible',
-                      )
-                      .toList();
 
-                  return DropdownButtonFormField<Producto>(
-                    key: ValueKey(_selectedProduct?.id),
-                    isExpanded: true,
-                    initialValue: _selectedProduct,
-                    decoration: const InputDecoration(
-                      labelText: 'Producto (Combustible)',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.inventory),
-                    ),
-                    items: combustibles.map((p) {
-                      return DropdownMenuItem(
-                        value: p,
-                        child: Text('${p.nombre} (Stock: ${p.stockActual})'),
-                      );
-                    }).toList(),
-                    onChanged: (val) => setState(() => _selectedProduct = val),
-                    validator: (val) => _isInternal && val == null
-                        ? 'Seleccione producto'
-                        : null,
-                  );
-                },
+            // Tipo de Combustible
+            DropdownButtonFormField<String>(
+              value: _tipoCombustible,
+              decoration: const InputDecoration(
+                labelText: 'Tipo de Combustible',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.local_gas_station),
               ),
-            if (_isInternal) const SizedBox(height: 20),
+              items: const [
+                DropdownMenuItem(value: 'gasolina', child: Text('Gasolina')),
+                DropdownMenuItem(value: 'acpm', child: Text('ACPM')),
+              ],
+              onChanged: (val) => setState(() => _tipoCombustible = val!),
+            ),
+            const SizedBox(height: 20),
+
             TextFormField(
               controller: _cantidadController,
               decoration: const InputDecoration(
@@ -280,32 +245,10 @@ class _AddFuelScreenState extends State<AddFuelScreen> {
               keyboardType: TextInputType.number,
               validator: (val) {
                 if (val == null || val.isEmpty) return 'Ingrese galones';
-                if (_isInternal && _selectedProduct != null) {
-                  final qty = double.tryParse(val);
-                  if (qty != null && qty > _selectedProduct!.stockActual) {
-                    return 'Stock insuficiente (Max: ${_selectedProduct!.stockActual})';
-                  }
-                }
                 return null;
               },
             ),
             const SizedBox(height: 20),
-            if (!_isInternal) ...[
-              TextFormField(
-                controller: _valorController,
-                decoration: const InputDecoration(
-                  labelText: 'Valor Total (\$)',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.payments),
-                ),
-                keyboardType: TextInputType.number,
-                validator: (val) =>
-                    (!_isInternal && (val == null || val.isEmpty))
-                    ? 'Ingrese valor total'
-                    : null,
-              ),
-              const SizedBox(height: 20),
-            ],
 
             // Checking (Horometer/Odometer) only if destination is Vehicle
             if (_tipoDestino == 'vehiculo') ...[
@@ -347,15 +290,14 @@ class _AddFuelScreenState extends State<AddFuelScreen> {
               const SizedBox(height: 20),
             ],
 
-            if (!_isInternal)
-              TextFormField(
-                controller: _estacionController,
-                decoration: const InputDecoration(
-                  labelText: 'Estación de Servicio',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.business),
-                ),
+            TextFormField(
+              controller: _laborController,
+              decoration: const InputDecoration(
+                labelText: 'Destino o Labor',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.work_outline),
               ),
+            ),
             const SizedBox(height: 20),
             TextFormField(
               controller: _notasController,
@@ -396,9 +338,10 @@ class _AddFuelScreenState extends State<AddFuelScreen> {
 
   void _submit() async {
     if (_formKey.currentState!.validate()) {
-      // Determine IDs based on type
       int? vehiculoId = widget.vehiculoId ?? _selectedVehicle?.id;
-      int? empleadoId = _selectedEmployee?.id;
+      int? empleadoId = _tipoDestino == 'vehiculo'
+          ? _selectedEmployee?.id
+          : null;
       String? terceroNombre = _terceroController.text.isNotEmpty
           ? _terceroController.text
           : null;
@@ -416,21 +359,20 @@ class _AddFuelScreenState extends State<AddFuelScreen> {
         terceroNombre: terceroNombre,
         placaManual: _placaManualController.text.isNotEmpty
             ? _placaManualController.text
-            : (_tipoDestino == 'empleado' && _terceroController.text.isNotEmpty
-                  ? _terceroController.text
-                  : null),
+            : null,
         tipoDestino: _tipoDestino,
         cantidad: double.parse(_cantidadController.text),
-        valor: _isInternal ? 0.0 : double.parse(_valorController.text),
+        valor: 0,
         horometro: _horometroController.text.isNotEmpty
             ? double.parse(_horometroController.text)
             : null,
         kilometraje: _kilometrajeController.text.isNotEmpty
             ? double.parse(_kilometrajeController.text)
             : null,
-        estacion: _isInternal ? 'Inventario Interno' : _estacionController.text,
         notas: _notasController.text,
-        productoId: _isInternal ? _selectedProduct?.id : null,
+        labor: _laborController.text.isNotEmpty ? _laborController.text : null,
+        productoId: null, // Asignado en backend
+        tipoCombustible: _tipoCombustible,
       );
 
       if (mounted) {

@@ -119,12 +119,17 @@ class _VehicleListScreenState extends State<VehicleListScreen> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(color: AppTheme.primaryYellow, width: 2),
-                    image: const DecorationImage(
-                      image: CachedNetworkImageProvider(
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: CachedNetworkImage(
+                    imageUrl:
                         'https://ui-avatars.com/api/?name=Veh&background=random',
-                      ),
-                      fit: BoxFit.cover,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => const ColoredBox(
+                      color: AppTheme.surfaceDark2,
                     ),
+                    errorWidget: (context, url, error) =>
+                        const Icon(Icons.person, color: AppTheme.textGray),
                   ),
                 ),
               ),

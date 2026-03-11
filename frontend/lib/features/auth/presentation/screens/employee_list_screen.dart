@@ -4,6 +4,7 @@ import 'package:frontend/features/auth/presentation/providers/employee_provider.
 import 'package:frontend/features/auth/data/models/empleado_model.dart';
 import 'package:frontend/core/theme/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'employee_form_screen.dart';
 import 'employee_profile_screen.dart';
 
@@ -206,12 +207,19 @@ class _EmployeeListScreenState extends State<EmployeeListScreen> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(color: AppTheme.primaryYellow, width: 2),
-                    image: DecorationImage(
-                      image: NetworkImage(
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: CachedNetworkImage(
+                    imageUrl:
                         employee.fotoUrl ??
-                            'https://ui-avatars.com/api/?name=${Uri.encodeComponent(employee.nombreCompleto.isNotEmpty ? employee.nombreCompleto : 'U')}&background=random&color=fff',
-                      ),
-                      fit: BoxFit.cover,
+                        'https://ui-avatars.com/api/?name=${Uri.encodeComponent(employee.nombreCompleto.isNotEmpty ? employee.nombreCompleto : 'U')}&background=random&color=fff',
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => const ColoredBox(
+                      color: Color(0xFF2A2A2A),
+                    ),
+                    errorWidget: (context, url, error) => const Icon(
+                      Icons.person,
+                      color: Colors.white54,
                     ),
                   ),
                 ),

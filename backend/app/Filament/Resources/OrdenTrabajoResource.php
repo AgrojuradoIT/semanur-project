@@ -32,8 +32,10 @@ class OrdenTrabajoResource extends Resource
                 Forms\Components\Select::make('vehiculo_id')
                     ->relationship('vehiculo', 'vehiculo_id')
                     ->required(),
-                Forms\Components\TextInput::make('mecanico_asignado_id')
-                    ->numeric(),
+                Forms\Components\Select::make('mecanico_asignado_id')
+                    ->relationship('mecanico', 'name')
+                    ->searchable()
+                    ->preload(),
                 Forms\Components\DatePicker::make('fecha_inicio')
                     ->required(),
                 Forms\Components\DatePicker::make('fecha_fin'),
@@ -58,8 +60,7 @@ class OrdenTrabajoResource extends Resource
                 Tables\Columns\TextColumn::make('vehiculo.vehiculo_id')
                     ->numeric()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('mecanico_asignado_id')
-                    ->numeric()
+                Tables\Columns\TextColumn::make('mecanico.name')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('fecha_inicio')
                     ->date()

@@ -76,22 +76,58 @@ class _FuelHistoryScreenState extends State<FuelHistoryScreen> {
                               color: Colors.blueAccent,
                             ),
                           ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.green.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              '${reg.cantidadGalones} Gal',
-                              style: const TextStyle(
-                                color: Colors.green,
-                                fontWeight: FontWeight.bold,
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: reg.tipoCombustible == 'acpm'
+                                      ? Colors.orange.withValues(alpha: 0.15)
+                                      : Colors.blue.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  reg.tipoCombustible.toUpperCase(),
+                                  style: TextStyle(
+                                    color: reg.tipoCombustible == 'acpm'
+                                        ? Colors.orange
+                                        : Colors.blue,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 11,
+                                  ),
+                                ),
                               ),
-                            ),
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '${reg.cantidadGalones} Gal',
+                                  style: const TextStyle(
+                                    color: Colors.green,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              PopupMenuButton<String>(
+                                icon: const Icon(Icons.more_vert, size: 18),
+                                itemBuilder: (ctx) => [
+                                  const PopupMenuItem(value: 'delete', child: Text('Eliminar')),
+                                ],
+                                onSelected: (val) {
+                                  if (val == 'delete') _confirmDelete(reg);
+                                },
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -167,6 +203,46 @@ class _FuelHistoryScreenState extends State<FuelHistoryScreen> {
               value,
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDelete(RegistroCombustible reg) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar Registro'),
+        content: Text(
+          '¿Estás seguro de eliminar el registro del ${DateFormat('dd/MM/yyyy').format(reg.fecha)} (${reg.cantidadGalones} gal)?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final success = await context.read<FuelProvider>().deleteRegistro(
+                    reg.id,
+                    vehiculoId: widget.vehiculoId,
+                  );
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      success
+                          ? 'Registro eliminado'
+                          : 'Error al eliminar',
+                    ),
+                  ),
+                );
+              }
+            },
+            child: const Text('Eliminar'),
           ),
         ],
       ),

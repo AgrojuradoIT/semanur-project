@@ -11,8 +11,11 @@ class RegistroCombustible extends Model
 
     protected $fillable = [
         'vehiculo_id',
+        'empleado_id',
+        'tercero_nombre',
         'usuario_id',
         'fecha',
+        'tipo_combustible',
         'cantidad_galones',
         'valor_total',
         'horometro_actual',
@@ -21,6 +24,7 @@ class RegistroCombustible extends Model
         'tipo_destino',
         'placa_manual',
         'notas',
+        'labor',
     ];
 
     protected $casts = [
@@ -39,5 +43,10 @@ class RegistroCombustible extends Model
     public function usuario()
     {
         return $this->belongsTo(User::class, 'usuario_id', 'id');
+    }
+
+    public function empleado()
+    {
+        return $this->belongsTo(Empleado::class, 'empleado_id', 'id');
     }
 }

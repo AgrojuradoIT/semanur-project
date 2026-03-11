@@ -1,0 +1,25 @@
+# Archivos comprimidos
+*.zip
+*.rar
+*.7z
+*.tar.gz
+
+# Documentación
+docs/
+DOCUMENTACION_SISTEMA.md
+pensamientos de logica.md
+"Listado de productos _ Servicios.xlsx"
+
+# Skills y Agentes
+.agents/
+skill.md
+
+# Archivos de Sistema y Entorno
+.env
+.DS_Store
+Thumbs.db
+node_modules/
+vendor/
+.vscode/
+.idea/
+*.log

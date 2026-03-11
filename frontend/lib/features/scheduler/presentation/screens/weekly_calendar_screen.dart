@@ -552,7 +552,7 @@ class _WeeklyCalendarScreenState extends State<WeeklyCalendarScreen> {
     DateTime day,
     List<Programacion> allTasks,
   ) {
-    final empleadoBackendId = employee.userId ?? employee.id;
+    final empleadoBackendId = employee.id;
     final tasks = allTasks
         .where(
           (t) =>

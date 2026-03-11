@@ -20,7 +20,12 @@ class ProgramacionApiController extends Controller
             'fecha_fin' => 'required|date',
         ]);
 
-        $programacion = Programacion::with(['empleado', 'vehiculo', 'ordenTrabajo'])
+        $programacion = Programacion::query()
+            ->with([
+                'empleado:id,nombres,apellidos,cargo',
+                'vehiculo:vehiculo_id,placa,tipo,marca,modelo',
+                'ordenTrabajo:orden_trabajo_id,vehiculo_id,estado,prioridad,fecha_inicio,fecha_fin,descripcion',
+            ])
             ->whereBetween('fecha', [$request->fecha_inicio, $request->fecha_fin])
             ->orderBy('fecha', 'asc')
             ->get();
@@ -135,5 +140,36 @@ class ProgramacionApiController extends Controller
                 'media' => $media,
             ], 201);
         });
+    }
+
+    public function update(Request $request, $id)
+    {
+        $request->validate([
+            'fecha' => 'required|date',
+            'empleado_id' => 'required|exists:empleados,id',
+            'vehiculo_id' => 'nullable|exists:vehiculos,vehiculo_id',
+            'labor' => 'required|string',
+            'ubicacion' => 'nullable|string',
+        ]);
+
+        $programacion = Programacion::findOrFail($id);
+
+        $programacion->update([
+            'fecha' => $request->fecha,
+            'empleado_id' => $request->empleado_id,
+            'vehiculo_id' => $request->vehiculo_id,
+            'labor' => $request->labor,
+            'ubicacion' => $request->ubicacion,
+        ]);
+
+        return response()->json($programacion->load(['empleado', 'vehiculo', 'ordenTrabajo']));
+    }
+
+    public function destroy($id)
+    {
+        $programacion = Programacion::findOrFail($id);
+        $programacion->delete();
+
+        return response()->json(['message' => 'Programación eliminada correctamente.']);
     }
 }

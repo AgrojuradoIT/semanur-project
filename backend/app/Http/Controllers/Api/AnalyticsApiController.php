@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\RegistroCombustible;
+use App\Models\Producto;
 use App\Models\TransaccionInventario;
 use App\Models\Vehiculo;
 use App\Models\OrdenTrabajo;
@@ -66,5 +67,35 @@ class AnalyticsApiController extends Controller
             ->get();
 
         return response()->json($stats);
+    }
+
+    /**
+     * Retorna los productos de tipo combustible con su stock actual.
+     * Permite al dashboard mostrar Gasolina vs ACPM, etc.
+     */
+    public function getFuelStock()
+    {
+        // Solo productos de la categoría "Combustible"
+        $fuelProducts = Producto::join('categorias', 'productos.categoria_id', '=', 'categorias.categoria_id')
+            ->whereRaw('LOWER(categorias.categoria_nombre) LIKE ?', ['%combustible%'])
+            ->select(
+                'productos.producto_id',
+                'productos.producto_nombre',
+                'productos.producto_sku',
+                'productos.producto_stock_actual',
+                'productos.capacidad_maxima',
+                'productos.producto_unidad_medida',
+                'productos.producto_alerta_stock_minimo'
+            )
+            ->orderBy('productos.producto_nombre')
+            ->get()
+            ->map(function ($p) {
+                $p->porcentaje_nivel = $p->capacidad_maxima > 0
+                    ? round(($p->producto_stock_actual / $p->capacidad_maxima) * 100, 1)
+                    : null;
+                return $p;
+            });
+
+        return response()->json($fuelProducts);
     }
 }

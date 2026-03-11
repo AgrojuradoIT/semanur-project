@@ -14,26 +14,48 @@ class InventoryRepository {
     try {
       final response = await _apiClient.dio.get(ApiConstants.productos);
       if (response.statusCode == 200) {
-        final List<dynamic> data = response.data;
+        // Handle paginated response {data: [...], meta: {...}} or legacy array
+        final List<dynamic> data;
+        if (response.data is Map) {
+          data = response.data['data'] ?? [];
+        } else {
+          data = response.data;
+        }
 
-        // Preparar para guardar en BD
+        int? toIntOrNull(dynamic value) {
+          if (value == null) return null;
+          if (value is int) return value;
+          return int.tryParse(value.toString());
+        }
+
+        double toDoubleOrDefault(dynamic value, double defaultValue) {
+          if (value == null) return defaultValue;
+          if (value is num) return value.toDouble();
+          return double.tryParse(value.toString()) ?? defaultValue;
+        }
+
+        // Preparar para guardar en BD (alineado con backend actual y compat legacy)
         List<Map<String, dynamic>> productsToSave = [];
         for (var item in data) {
-          // Flatten categories if needed, but DatabaseHelper handles json encoding of 'categoria' field.
-          // We need to match table columns: producto_id, categoria_id, producto_sku...
-          // Assuming the API returns matching keys mostly.
+          final map = Map<String, dynamic>.from(item as Map);
 
           productsToSave.add({
-            'producto_id': item['id'],
-            'categoria_id': item['categoria_id'], // Puede ser null
-            'producto_sku': item['sku'],
-            'producto_nombre': item['nombre'],
-            'producto_unidad_medida': item['unidad_medida'],
-            'producto_stock_actual': item['stock_actual'],
-            'producto_alerta_stock_minimo': item['stock_minimo'],
-            'producto_precio_costo': item['precio_costo'],
-            'producto_ubicacion': item['ubicacion'],
-            'categoria': item['categoria'], // Object or null
+            'producto_id': toIntOrNull(map['producto_id'] ?? map['id']),
+            'categoria_id': toIntOrNull(map['categoria_id']),
+            'producto_sku': map['producto_sku'] ?? map['sku'] ?? '',
+            'producto_nombre': map['producto_nombre'] ?? map['nombre'] ?? '',
+            'producto_unidad_medida':
+                map['producto_unidad_medida'] ?? map['unidad_medida'] ?? 'unidad',
+            'producto_stock_actual':
+                toDoubleOrDefault(map['producto_stock_actual'] ?? map['stock_actual'], 0),
+            'producto_alerta_stock_minimo': toDoubleOrDefault(
+              map['producto_alerta_stock_minimo'] ?? map['stock_minimo'],
+              5,
+            ),
+            'producto_precio_costo':
+                toDoubleOrDefault(map['producto_precio_costo'] ?? map['precio_costo'], 0),
+            'producto_ubicacion': map['producto_ubicacion'] ?? map['ubicacion'],
+            'categoria': map['categoria'],
             'last_updated': DateTime.now().toIso8601String(),
           });
         }
@@ -52,20 +74,40 @@ class InventoryRepository {
         final cachedData = await DatabaseHelper().getProductos();
 
         // Mapear de BD a Modelo
+        double toDoubleOrZero(dynamic value) {
+          if (value == null) return 0.0;
+          if (value is num) return value.toDouble();
+          return double.tryParse(value.toString()) ?? 0.0;
+        }
+
+        int? toIntOrNull(dynamic value) {
+          if (value == null) return null;
+          if (value is int) return value;
+          return int.tryParse(value.toString());
+        }
+
         return cachedData.map((row) {
+          final dynamic categoriaRaw = row['categoria'];
+          final Map<String, dynamic>? categoriaMap = categoriaRaw is Map
+              ? Map<String, dynamic>.from(categoriaRaw)
+              : null;
+
           return Producto(
-            id: row['producto_id'],
-            categoriaId: row['categoria_id'],
-            sku: row['producto_sku'],
-            nombre: row['producto_nombre'],
-            unidadMedida: row['producto_unidad_medida'],
-            stockActual: (row['producto_stock_actual'] as num).toDouble(),
-            alertaStockMinimo: (row['producto_alerta_stock_minimo'] as num)
-                .toDouble(),
-            precioCosto: (row['producto_precio_costo'] as num).toDouble(),
-            ubicacion: row['producto_ubicacion'],
-            categoria: row['categoria'] != null
-                ? Categoria.fromJson(row['categoria'])
+            id: toIntOrNull(row['producto_id']) ?? 0,
+            categoriaId: toIntOrNull(row['categoria_id']),
+            sku: row['producto_sku']?.toString() ?? '',
+            nombre: row['producto_nombre']?.toString() ?? '',
+            unidadMedida: row['producto_unidad_medida']?.toString(),
+            stockActual: toDoubleOrZero(row['producto_stock_actual']),
+            alertaStockMinimo: toDoubleOrZero(
+              row['producto_alerta_stock_minimo'],
+            ),
+            precioCosto: row['producto_precio_costo'] != null
+                ? toDoubleOrZero(row['producto_precio_costo'])
+                : null,
+            ubicacion: row['producto_ubicacion']?.toString(),
+            categoria: categoriaMap != null
+                ? Categoria.fromJson(categoriaMap)
                 : null,
           );
         }).toList();
@@ -126,6 +168,32 @@ class InventoryRepository {
         return e.response?.data; // Return duplicates info
       }
       throw Exception('Error importando productos: ${e.message}');
+    }
+  }
+
+  Future<Map<String, dynamic>> updateProducto(int id, Map<String, dynamic> payload) async {
+    try {
+      final response = await _apiClient.dio.put(
+        '${ApiConstants.productos}/$id',
+        data: payload,
+      );
+      return response.data;
+    } catch (e) {
+      throw Exception('Error al actualizar producto: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteProducto(int id) async {
+    try {
+      final response = await _apiClient.dio.delete(
+        '${ApiConstants.productos}/$id',
+      );
+      return response.data;
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 422) {
+        return e.response?.data ?? {'message': 'No se puede eliminar'};
+      }
+      throw Exception('Error al eliminar producto: ${e.message}');
     }
   }
 }

@@ -142,4 +142,39 @@ class InventoryProvider extends ChangeNotifier {
       rethrow;
     }
   }
+
+  Future<bool> updateProducto(int id, Map<String, dynamic> payload) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      await _repository.updateProducto(id, payload);
+      await fetchProductos();
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteProducto(int id) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final result = await _repository.deleteProducto(id);
+      if (result['message']?.toString().contains('No se puede') == true) {
+        _isLoading = false;
+        notifyListeners();
+        return result;
+      }
+      await fetchProductos();
+      return result;
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      return {'message': e.toString()};
+    }
+  }
 }

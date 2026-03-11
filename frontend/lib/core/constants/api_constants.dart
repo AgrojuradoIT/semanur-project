@@ -8,6 +8,8 @@ class ApiConstants {
   // Auth
   static const String login = '/login';
   static const String logout = '/logout';
+  static const String refresh = '/refresh';
+  static const String logoutAll = '/logout-all';
   static const String user = '/user';
 
   // Inventario

@@ -258,29 +258,63 @@ class _AddMovementScreenState extends State<AddMovementScreen> {
               // Motivo
               if (_type != 'transferencia') ...[
                 _buildSectionTitle('MOTIVO'),
-                DropdownButtonFormField<String>(
-                  // key removed to prevent rebuilds on change
-                  initialValue: _reason,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    hintText: 'Seleccionar motivo',
+                if (_type == 'salida')
+                  DropdownSearch<String>(
+                    items: (filter, loadProps) {
+                      final query = filter.trim().toLowerCase();
+                      final reasons = _exitReasons.where((reason) {
+                        if (query.isEmpty) return true;
+                        return reason.toLowerCase().contains(query);
+                      }).toList();
+                      return Future.value(reasons);
+                    },
+                    selectedItem: _reason,
+                    enabled: widget.initialOT == null,
+                    onChanged: (val) => setState(() {
+                      _reason = val;
+                      _selectedOT = null;
+                      _selectedVehicle = null;
+                      _selectedMechanic = null;
+                    }),
+                    popupProps: const PopupProps.menu(
+                      showSearchBox: true,
+                      searchFieldProps: TextFieldProps(
+                        decoration: InputDecoration(
+                          hintText: 'Buscar motivo de salida...',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                    decoratorProps: const DropDownDecoratorProps(
+                      decoration: InputDecoration(
+                        border: OutlineInputBorder(),
+                        hintText: 'Seleccionar motivo',
+                      ),
+                    ),
+                    validator: (val) =>
+                        val == null ? 'Seleccione un motivo' : null,
+                  )
+                else
+                  DropdownButtonFormField<String>(
+                    initialValue: _reason,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      hintText: 'Seleccionar motivo',
+                    ),
+                    items: _entryReasons.map((r) {
+                      return DropdownMenuItem(value: r, child: Text(r));
+                    }).toList(),
+                    onChanged: widget.initialOT != null
+                        ? null
+                        : (val) => setState(() {
+                            _reason = val;
+                            _selectedOT = null;
+                            _selectedVehicle = null;
+                            _selectedMechanic = null;
+                          }),
+                    validator: (val) =>
+                        val == null ? 'Seleccione un motivo' : null,
                   ),
-                  items: (_type == 'ingreso' ? _entryReasons : _exitReasons)
-                      .map((r) {
-                        return DropdownMenuItem(value: r, child: Text(r));
-                      })
-                      .toList(),
-                  onChanged: widget.initialOT != null
-                      ? null
-                      : (val) => setState(() {
-                          _reason = val;
-                          _selectedOT = null;
-                          _selectedVehicle = null;
-                          _selectedMechanic = null;
-                        }),
-                  validator: (val) =>
-                      val == null ? 'Seleccione un motivo' : null,
-                ),
                 const SizedBox(height: 24),
               ],
               const SizedBox(height: 24),

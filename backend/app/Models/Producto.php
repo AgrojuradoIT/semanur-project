@@ -13,9 +13,11 @@ class Producto extends Model
     protected $fillable = [
         'categoria_id',
         'producto_sku',
+        'referencia_fabrica',
         'producto_nombre',
         'producto_unidad_medida',
         'producto_stock_actual',
+        'capacidad_maxima',
         'producto_alerta_stock_minimo',
         'producto_precio_costo',
         'producto_ubicacion',

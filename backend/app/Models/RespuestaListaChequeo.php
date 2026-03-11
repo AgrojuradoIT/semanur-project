@@ -38,6 +38,6 @@ class RespuestaListaChequeo extends Model
 
     public function operador()
     {
-        return $this->belongsTo(User::class, 'operador_id');
+        return $this->belongsTo(Empleado::class, 'operador_id');
     }
 }

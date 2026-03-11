@@ -15,7 +15,8 @@
         "laravel/framework": "^11.0",
         "laravel/sanctum": "^4.3",
         "laravel/tinker": "^2.9",
-        "livewire/livewire": "^4.1"
+        "livewire/livewire": "^4.1",
+        "phpoffice/phpspreadsheet": "^5.5"
     },
     "require-dev": {
         "backpack/generators": "^4.0",

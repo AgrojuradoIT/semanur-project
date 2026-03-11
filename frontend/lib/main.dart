@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:frontend/core/network/api_client.dart';
 import 'package:frontend/core/theme/app_theme.dart';
+import 'package:frontend/core/services/inactivity_lock_service.dart';
 import 'package:frontend/core/services/notification_service.dart';
 import 'package:frontend/features/auth/data/repositories/auth_repository.dart';
 import 'package:frontend/features/auth/presentation/providers/auth_provider.dart';
@@ -35,10 +36,12 @@ import 'package:frontend/features/workshop/presentation/providers/session_provid
 import 'package:frontend/features/fleet/data/repositories/fleet_repository.dart';
 import 'package:frontend/features/fleet/presentation/providers/fleet_provider.dart';
 import 'package:frontend/features/analytics/presentation/providers/analytics_provider.dart';
+import 'package:frontend/features/history/presentation/providers/history_provider.dart';
 import 'package:frontend/core/providers/sync_provider.dart';
 import 'package:frontend/features/notifications/presentation/providers/notification_provider.dart';
 import 'package:frontend/features/auth/presentation/screens/login_screen.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -140,6 +143,24 @@ void main() async {
               FuelProvider(fuelRepository, ctx.read<SyncProvider>()),
           update: (_, sync, prev) => prev ?? FuelProvider(fuelRepository, sync),
         ),
+        ChangeNotifierProxyProvider5<
+          MovementProvider,
+          WorkshopProvider,
+          FuelProvider,
+          LoanProvider,
+          fleet_prov.ChecklistProvider,
+          HistoryProvider
+        >(
+          create: (ctx) => HistoryProvider(
+            ctx.read<MovementProvider>(),
+            ctx.read<WorkshopProvider>(),
+            ctx.read<FuelProvider>(),
+            ctx.read<LoanProvider>(),
+            ctx.read<fleet_prov.ChecklistProvider>(),
+          ),
+          update: (_, movement, workshop, fuel, loan, checklist, prev) =>
+              prev ?? HistoryProvider(movement, workshop, fuel, loan, checklist),
+        ),
         ChangeNotifierProvider(
           create: (_) => HorometroProvider(horometroRepository),
         ),
@@ -176,8 +197,51 @@ void main() async {
   );
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  final InactivityLockService _inactivityLockService = InactivityLockService();
+  final FlutterSecureStorage _storage = const FlutterSecureStorage();
+
+  @override
+  void initState() {
+    super.initState();
+    _inactivityLockService.configureFromEnv();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _inactivityLockService.start(onTimeout: _handleInactivityTimeout);
+    });
+  }
+
+  Future<void> _handleInactivityTimeout() async {
+    final token = await _storage.read(key: 'auth_token');
+    if (token == null || token.isEmpty) return;
+
+    await _storage.delete(key: 'auth_token');
+    await _storage.delete(key: 'user_data');
+    await _storage.delete(key: 'device_name');
+    if (!mounted) return;
+
+    navigatorKey.currentState?.pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) => const LoginScreen(
+          message: 'Sesion bloqueada por inactividad.',
+        ),
+      ),
+      (route) => false,
+    );
+  }
+
+  @override
+  void dispose() {
+    _inactivityLockService.stop();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -187,6 +251,14 @@ class MyApp extends StatelessWidget {
       title: 'Semanur HUB app',
       themeMode: ThemeMode.dark,
       darkTheme: AppTheme.darkTheme,
+      builder: (context, child) {
+        return Listener(
+          onPointerDown: (_) => _inactivityLockService.registerActivity(),
+          onPointerMove: (_) => _inactivityLockService.registerActivity(),
+          behavior: HitTestBehavior.translucent,
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
       home: const AuthWrapper(),
     );
   }

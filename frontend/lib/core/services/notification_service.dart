@@ -1,4 +1,5 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -7,8 +8,14 @@ class NotificationService {
   factory NotificationService() => _instance;
   NotificationService._internal();
 
+  static const int _dailyReminderMorningId = 1001;
+  static const int _dailyReminderAfternoonId = 1002;
+  static const String _dailyRemindersConfiguredKey =
+      'daily_reminders_configured_v1';
+
   final FlutterLocalNotificationsPlugin _notificationsPlugin =
       FlutterLocalNotificationsPlugin();
+  final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   Future<void> init() async {
     tz.initializeTimeZones();
@@ -26,7 +33,7 @@ class NotificationService {
       guid: 'A181F50B-268E-4B9A-AAED-285027D9994C',
     );
 
-    final InitializationSettings initializationSettings =
+    const InitializationSettings initializationSettings =
         InitializationSettings(
           android: initializationSettingsAndroid,
           linux: initializationSettingsLinux,
@@ -36,9 +43,23 @@ class NotificationService {
     await _notificationsPlugin.initialize(
       settings: initializationSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
-        // Manejar cuando se toca la notificación
+        // Manejar cuando se toca la notificacion.
       },
     );
+
+    await _notificationsPlugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
+        ?.requestNotificationsPermission();
+
+    await _notificationsPlugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
+        ?.requestExactAlarmsPermission();
+
+    await ensureDailyRemindersConfiguredOnce();
   }
 
   Future<void> showNotification({
@@ -52,7 +73,7 @@ class NotificationService {
           'semanur_alerts',
           'Alertas Semanur',
           channelDescription:
-              'Notificaciones de vencimientos y alertas críticas',
+              'Notificaciones de vencimientos y alertas criticas',
           importance: Importance.max,
           priority: Priority.high,
           ticker: 'ticker',
@@ -94,21 +115,29 @@ class NotificationService {
   }
 
   Future<void> scheduleDailyReminders() async {
-    // Programar para las 10:00 AM
     await _scheduleDaily(
-      id: 1001,
-      hour: 10,
-      title: 'Recordatorio de Sincronización',
-      body: 'Tienes datos pendientes por subir. Conéctate a internet.',
+      id: _dailyReminderMorningId,
+      hour: 8,
+      title: 'Recordatorio Semanur',
+      body: 'Revisa pendientes y sincroniza tu informacion.',
     );
 
-    // Programar para las 4:00 PM (16:00)
     await _scheduleDaily(
-      id: 1002,
-      hour: 16,
-      title: 'Sincronización Pendiente',
-      body: 'No olvides sincronizar tus registros antes de terminar el día.',
+      id: _dailyReminderAfternoonId,
+      hour: 15,
+      title: 'Recordatorio Semanur',
+      body: 'No olvides validar y sincronizar tus registros del dia.',
     );
+  }
+
+  Future<void> ensureDailyRemindersConfiguredOnce() async {
+    final isConfigured = await _storage.read(key: _dailyRemindersConfiguredKey);
+    if (isConfigured == 'true') {
+      return;
+    }
+
+    await scheduleDailyReminders();
+    await _storage.write(key: _dailyRemindersConfiguredKey, value: 'true');
   }
 
   Future<void> _scheduleDaily({
@@ -138,7 +167,7 @@ class NotificationService {
         android: AndroidNotificationDetails(
           'semanur_daily',
           'Recordatorios Diarios',
-          channelDescription: 'Recordatorios de sincronización',
+          channelDescription: 'Recordatorios diarios de Semanur',
         ),
       ),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
@@ -147,7 +176,8 @@ class NotificationService {
   }
 
   Future<void> cancelDailyReminders() async {
-    await _notificationsPlugin.cancel(id: 1001);
-    await _notificationsPlugin.cancel(id: 1002);
+    await _notificationsPlugin.cancel(id: _dailyReminderMorningId);
+    await _notificationsPlugin.cancel(id: _dailyReminderAfternoonId);
+    await _storage.delete(key: _dailyRemindersConfiguredKey);
   }
 }

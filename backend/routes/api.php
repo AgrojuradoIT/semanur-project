@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\ProductoApiController;
 use App\Http\Controllers\Api\OrdenTrabajoApiController;
 use App\Http\Controllers\Api\MediaApiController;
 use App\Http\Controllers\Api\VehiculoApiController;
+use App\Http\Controllers\Api\VehiculoDocumentoApiController;
 use App\Http\Controllers\Api\MovimientoInventarioApiController;
 use App\Http\Controllers\Api\PrestamoApiController;
 use App\Http\Controllers\Api\CombustibleApiController;
@@ -15,19 +16,24 @@ use Illuminate\Support\Facades\Route;
 
 // Rutas públicas
 Route::post('/login', [AuthController::class, 'login']);
-
 // Rutas protegidas
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
     Route::get('/users', [AuthController::class, 'index']); // Mantener compatibilidad o reemplazar por UserApiController
     Route::apiResource('/empleados', \App\Http\Controllers\Api\EmpleadoApiController::class);
     Route::post('/logout', [AuthController::class, 'logout']);
+    Route::post('/refresh', [AuthController::class, 'refresh']);
+    Route::post('/logout-all', [AuthController::class, 'logoutAll']);
 
     // Productos
     Route::get('/productos', [ProductoApiController::class, 'index']);
     Route::get('/productos/buscar', [ProductoApiController::class, 'search']);
-    Route::post('/productos/import', [ProductoApiController::class, 'import']);
     Route::get('/productos/{id}', [ProductoApiController::class, 'show']);
+    Route::post('/productos', [ProductoApiController::class, 'store'])->middleware('role:admin,jefe_taller,auxiliar_bodega');
+    Route::put('/productos/{id}', [ProductoApiController::class, 'update'])->middleware('role:admin');
+    Route::delete('/productos/{id}', [ProductoApiController::class, 'destroy'])->middleware('role:admin');
+    Route::post('/productos/import', [ProductoApiController::class, 'import'])->middleware('role:admin,jefe_taller,auxiliar_bodega');
+    Route::post('/inventario/import-compras', [\App\Http\Controllers\Api\InventarioImportApiController::class, 'importCompras'])->middleware('role:admin,jefe_taller,auxiliar_bodega');
 
     // Órdenes de Trabajo
     Route::get('/ordenes-trabajo', [OrdenTrabajoApiController::class, 'index']);
@@ -37,8 +43,17 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Vehículos
     Route::get('/vehiculos', [VehiculoApiController::class, 'index']);
+    Route::post('/vehiculos', [VehiculoApiController::class, 'store']);
+    Route::post('/vehiculos/imagen', [VehiculoApiController::class, 'uploadImage']);
     Route::get('/vehiculos/{id}', [VehiculoApiController::class, 'show']);
     Route::put('/vehiculos/{id}', [VehiculoApiController::class, 'update']);
+
+    // Documentos de Vehículos
+    Route::get('/vehiculos/{vehiculoId}/documentos', [VehiculoDocumentoApiController::class, 'index']);
+    Route::post('/vehiculos/{vehiculoId}/documentos', [VehiculoDocumentoApiController::class, 'store']);
+    Route::get('/vehiculos/{vehiculoId}/documentos/{id}', [VehiculoDocumentoApiController::class, 'show']);
+    Route::put('/vehiculos/{vehiculoId}/documentos/{id}', [VehiculoDocumentoApiController::class, 'update']);
+    Route::delete('/vehiculos/{vehiculoId}/documentos/{id}', [VehiculoDocumentoApiController::class, 'destroy']);
 
     // Movimientos de Inventario
     Route::get('/movimientos', [MovimientoInventarioApiController::class, 'index']);
@@ -50,7 +65,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Combustible y Horómetro
     Route::get('/combustible', [CombustibleApiController::class, 'index']);
-    Route::post('/combustible', [CombustibleApiController::class, 'store']);
+    Route::get('/combustible/resumen', [CombustibleApiController::class, 'summary']);
+    Route::post('/combustible', [CombustibleApiController::class, 'store'])->middleware('role:admin,jefe_taller,auxiliar_bodega');
+    Route::put('/combustible/{id}', [CombustibleApiController::class, 'update'])->middleware('role:admin');
+    Route::delete('/combustible/{id}', [CombustibleApiController::class, 'destroy'])->middleware('role:admin');
     
     Route::get('/vehiculos/{id}/horometro', [HorometroApiController::class, 'index']);
     Route::post('/horometro', [HorometroApiController::class, 'store']);
@@ -69,11 +87,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/analytics/summary', [\App\Http\Controllers\Api\AnalyticsApiController::class, 'getSummary']);
     Route::get('/analytics/fuel', [\App\Http\Controllers\Api\AnalyticsApiController::class, 'getFuelMonthly']);
     Route::get('/analytics/maintenance', [\App\Http\Controllers\Api\AnalyticsApiController::class, 'getMaintenanceByVehicle']);
+    Route::get('/analytics/fuel-stock', [\App\Http\Controllers\Api\AnalyticsApiController::class, 'getFuelStock']);
 
     // Programación Semanal
     Route::get('/programacion', [\App\Http\Controllers\Api\ProgramacionApiController::class, 'index']);
     Route::post('/programacion', [\App\Http\Controllers\Api\ProgramacionApiController::class, 'store']);
     Route::post('/programacion/novedad', [\App\Http\Controllers\Api\ProgramacionApiController::class, 'novedad']);
+    Route::put('/programacion/{id}', [\App\Http\Controllers\Api\ProgramacionApiController::class, 'update']);
+    Route::delete('/programacion/{id}', [\App\Http\Controllers\Api\ProgramacionApiController::class, 'destroy']);
 
     // Media (fotos, archivos)
     Route::get('/media', [MediaApiController::class, 'index']);

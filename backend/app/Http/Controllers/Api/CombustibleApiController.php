@@ -3,120 +3,274 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\RegistroCombustible;
-use App\Models\Vehiculo;
-use Illuminate\Http\Request;
-use Carbon\Carbon;
-
+use App\Models\Empleado;
 use App\Models\Producto;
+use App\Models\RegistroCombustible;
 use App\Models\TransaccionInventario;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class CombustibleApiController extends Controller
 {
     public function index(Request $request)
     {
-        $query = RegistroCombustible::with(['vehiculo', 'usuario'])
+        $query = RegistroCombustible::with(['vehiculo', 'empleado', 'usuario'])
             ->orderBy('fecha', 'desc');
 
-        if ($request->has('vehiculo_id')) {
+        if ($request->filled('vehiculo_id')) {
             $query->where('vehiculo_id', $request->vehiculo_id);
         }
+        if ($request->filled('tipo_combustible')) {
+            $query->where('tipo_combustible', $request->tipo_combustible);
+        }
+        if ($request->filled('tipo_destino')) {
+            $query->where('tipo_destino', $request->tipo_destino);
+        }
+        if ($request->filled('fecha_desde')) {
+            $query->whereDate('fecha', '>=', $request->fecha_desde);
+        }
+        if ($request->filled('fecha_hasta')) {
+            $query->whereDate('fecha', '<=', $request->fecha_hasta);
+        }
 
-        return response()->json($query->get());
+        $perPage = min((int) $request->get('per_page', 25), 100);
+        $paginated = $query->paginate($perPage);
+
+        return response()->json([
+            'data' => $paginated->items(),
+            'meta' => [
+                'current_page' => $paginated->currentPage(),
+                'last_page' => $paginated->lastPage(),
+                'per_page' => $paginated->perPage(),
+                'total' => $paginated->total(),
+            ],
+        ]);
+    }
+
+    public function summary(Request $request)
+    {
+        $query = RegistroCombustible::query();
+
+        if ($request->filled('fecha_desde')) {
+            $query->whereDate('fecha', '>=', $request->fecha_desde);
+        }
+        if ($request->filled('fecha_hasta')) {
+            $query->whereDate('fecha', '<=', $request->fecha_hasta);
+        }
+
+        $gasolina = (clone $query)->where('tipo_combustible', 'gasolina');
+        $acpm = (clone $query)->where('tipo_combustible', 'acpm');
+
+        return response()->json([
+            'total_registros' => $query->count(),
+            'gasolina_galones' => round($gasolina->sum('cantidad_galones'), 2),
+            'gasolina_valor' => round((clone $query)->where('tipo_combustible', 'gasolina')->sum('valor_total'), 2),
+            'acpm_galones' => round($acpm->sum('cantidad_galones'), 2),
+            'acpm_valor' => round((clone $query)->where('tipo_combustible', 'acpm')->sum('valor_total'), 2),
+            'valor_total' => round((clone $query)->sum('valor_total'), 2),
+        ]);
     }
 
     public function store(Request $request)
     {
         $request->validate([
             'tipo_destino' => 'required|in:vehiculo,empleado,tercero',
+            'tipo_combustible' => 'required|in:gasolina,acpm',
             'vehiculo_id' => 'nullable|exists:vehiculos,vehiculo_id',
-            'empleado_id' => 'nullable|exists:users,id',
+            'empleado_id' => 'nullable|exists:empleados,id',
             'tercero_nombre' => 'nullable|string',
             'cantidad_galones' => 'required|numeric|min:0.01',
-            'valor_total' => 'required|numeric|min:0',
+            'valor_total' => 'nullable|numeric|min:0',
             'horometro_actual' => 'nullable|numeric',
             'kilometraje_actual' => 'nullable|numeric',
             'estacion_servicio' => 'nullable|string',
             'notas' => 'nullable|string',
-            'producto_id' => 'nullable|exists:productos,producto_id',
-            'placa_manual' => 'nullable|string', // Nuevo campo opcional
+            'labor' => 'nullable|string',
+            'placa_manual' => 'nullable|string',
         ]);
 
-        return DB::transaction(function () use ($request) {
-            // Validaciones específicas según el tipo de destino
-            if ($request->tipo_destino == 'vehiculo' && !$request->vehiculo_id) {
-                 return response()->json(['message' => 'El vehiculo_id es requerido para destino vehiculo'], 422);
-            }
-            if ($request->tipo_destino == 'empleado' && !$request->empleado_id) {
-                 return response()->json(['message' => 'El empleado_id es requerido para destino empleado'], 422);
-            }
-            if ($request->tipo_destino == 'tercero' && !$request->tercero_nombre) {
-                 return response()->json(['message' => 'El nombre del tercero es requerido'], 422);
-            }
+        try {
+            return DB::transaction(function () use ($request) {
+                $empleadoId = null;
 
-            // Si es interno, manejar inventario
-            if ($request->has('producto_id') && $request->producto_id) {
-                $producto = Producto::find($request->producto_id);
-
-                if ($producto->producto_stock_actual < $request->cantidad_galones) {
-                    return response()->json(['message' => 'Stock insuficiente de combustible'], 422);
+                // Validaciones especificas segun el tipo de destino
+                if ($request->tipo_destino === 'vehiculo') {
+                    if (!$request->vehiculo_id) {
+                        return response()->json(['message' => 'El vehiculo_id es requerido para destino vehiculo'], 422);
+                    }
+                    if (!$request->empleado_id) {
+                        return response()->json(['message' => 'El empleado_id (A quien se le entrega) es requerido'], 422);
+                    }
+                    $empleadoId = $request->empleado_id;
                 }
 
-                $producto->producto_stock_actual -= $request->cantidad_galones;
-                $producto->save();
+                if ($request->tipo_destino === 'empleado' && !$request->tercero_nombre) {
+                    return response()->json(['message' => 'El nombre del empleado es requerido'], 422);
+                }
 
-                // Determinar referencia para transacción
+                if ($request->tipo_destino === 'tercero' && !$request->tercero_nombre) {
+                    return response()->json(['message' => 'El nombre del tercero es requerido'], 422);
+                }
+
+                // Deducción obligatoria de inventario basada en el tipo de combustible
+                $sku = $request->tipo_combustible === 'gasolina' ? 'AL000001' : 'AL000002';
+                $producto = Producto::where('producto_sku', $sku)->first();
+
+                if (!$producto) {
+                    // Intento fallback por nombre exacto si el SKU no coincide
+                    $nombreBusqueda = $request->tipo_combustible === 'gasolina' ? 'GASOLINA' : 'ACPM';
+                    $producto = Producto::where('producto_nombre', $nombreBusqueda)->first();
+                    
+                    if (!$producto) {
+                        $producto = Producto::where('producto_nombre', 'like', "%{$nombreBusqueda}%")
+                                            ->whereHas('categoria', function($q) {
+                                                $q->where('categoria_tipo', 'combustible');
+                                            })->first();
+                    }
+                }
+
+                if (!$producto) {
+                    return response()->json(['message' => "No se encontró el producto de combustible ({$request->tipo_combustible}). Verifique el inventario."], 422);
+                }
+
+                if ($producto->producto_stock_actual < $request->cantidad_galones) {
+                    return response()->json(['message' => "Stock insuficiente del combustible ({$request->tipo_combustible}). Stock actual: {$producto->producto_stock_actual}"], 422);
+                }
+
+                // Determinar referencia para transaccion
                 $refType = null;
                 $refId = null;
-                $notas = "Tanqueo interno";
+                $notas = 'Tanqueo interno';
 
-                if ($request->tipo_destino == 'vehiculo') {
+                if ($request->tipo_destino === 'vehiculo') {
                     $refType = 'Vehiculo';
                     $refId = $request->vehiculo_id;
-                    $notas .= " para vehículo ID {$request->vehiculo_id}";
-                } else if ($request->tipo_destino == 'empleado') {
-                    $refType = 'Empleado';
-                    $refId = $request->empleado_id;
-                    $notas .= " para empleado ID {$request->empleado_id}";
-                } else if ($request->tipo_destino == 'tercero') {
+                    $notas .= " para vehiculo ID {$request->vehiculo_id}";
+                } elseif ($request->tipo_destino === 'empleado') {
+                    $refType = 'EmpleadoTexto';
+                    $notas .= " para empleado: {$request->tercero_nombre}";
+                } else {
                     $refType = 'Tercero';
                     $notas .= " para tercero: {$request->tercero_nombre}";
                 }
 
-                // Registrar transacción de salida
+                if ($request->filled('labor')) {
+                    $notas .= " | Labor: {$request->labor}";
+                }
+
+                // Registrar transaccion de salida (el stock se ajusta por observer)
                 TransaccionInventario::create([
-                    'producto_id' => $request->producto_id,
+                    'producto_id' => $producto->producto_id,
                     'usuario_id' => $request->user()->id,
                     'transaccion_tipo' => 'salida',
                     'transaccion_cantidad' => $request->cantidad_galones,
                     'transaccion_motivo' => 'Consumo de Combustible (Interno)',
-                    'transaccion_referencia_id' => $refId, // Null si es tercero
+                    'transaccion_referencia_id' => $refId,
                     'transaccion_referencia_type' => $refType,
                     'transaccion_notas' => $notas,
                 ]);
+
+                $registro = RegistroCombustible::create([
+                    'vehiculo_id' => $request->vehiculo_id,
+                    'empleado_id' => $empleadoId,
+                    'tercero_nombre' => $request->tercero_nombre,
+                    'tipo_destino' => $request->tipo_destino,
+                    'tipo_combustible' => $request->tipo_combustible,
+                    'usuario_id' => $request->user()->id,
+                    'fecha' => Carbon::now(),
+                    'cantidad_galones' => $request->cantidad_galones,
+                    'valor_total' => $request->valor_total ?? 0,
+                    'horometro_actual' => $request->horometro_actual,
+                    'kilometraje_actual' => $request->kilometraje_actual,
+                    'estacion_servicio' => $request->estacion_servicio,
+                    'placa_manual' => $request->placa_manual,
+                    'notas' => $request->notas,
+                    'labor' => $request->labor,
+                ]);
+
+                return response()->json([
+                    'message' => 'Registro de combustible creado con exito',
+                    'registro' => $registro->load(['vehiculo', 'empleado']),
+                ], 201);
+            });
+        } catch (\Exception $e) {
+            \Log::error("Error en CombustibleApiController@store: " . $e->getMessage(), [
+                'exception' => $e,
+                'request' => $request->all()
+            ]);
+            return response()->json([
+                'message' => 'Error interno al registrar abastecimiento',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+
+    }
+
+    public function update(Request $request, $id)
+    {
+        $registro = RegistroCombustible::find($id);
+
+        if (!$registro) {
+            return response()->json(['message' => 'Registro no encontrado'], 404);
+        }
+
+        $validated = $request->validate([
+            'tipo_combustible' => 'sometimes|in:gasolina,acpm',
+            'cantidad_galones' => 'sometimes|numeric|min:0.01',
+            'valor_total' => 'nullable|numeric|min:0',
+            'horometro_actual' => 'nullable|numeric',
+            'kilometraje_actual' => 'nullable|numeric',
+            'estacion_servicio' => 'nullable|string',
+            'notas' => 'nullable|string',
+            'labor' => 'nullable|string',
+        ]);
+
+        $registro->update($validated);
+
+        return response()->json([
+            'message' => 'Registro actualizado con éxito',
+            'registro' => $registro->load(['vehiculo', 'empleado', 'usuario']),
+        ]);
+    }
+
+    public function destroy($id)
+    {
+        $registro = RegistroCombustible::find($id);
+
+        if (!$registro) {
+            return response()->json(['message' => 'Registro no encontrado'], 404);
+        }
+
+        return DB::transaction(function () use ($registro) {
+            // Buscar y revertir transacción de inventario asociada
+            $transaccion = TransaccionInventario::where('transaccion_motivo', 'Consumo de Combustible (Interno)')
+                ->where('transaccion_tipo', 'salida')
+                ->where('transaccion_cantidad', $registro->cantidad_galones)
+                ->where('created_at', '>=', $registro->created_at->subMinute())
+                ->where('created_at', '<=', $registro->created_at->addMinute())
+                ->first();
+
+            if ($transaccion) {
+                // Crear movimiento de ingreso para revertir
+                TransaccionInventario::create([
+                    'producto_id' => $transaccion->producto_id,
+                    'usuario_id' => auth()->id(),
+                    'transaccion_tipo' => 'ingreso',
+                    'transaccion_cantidad' => $transaccion->transaccion_cantidad,
+                    'transaccion_motivo' => 'Reversión por eliminación de tanqueo',
+                    'transaccion_referencia_type' => 'combustible',
+                    'transaccion_referencia_id' => $registro->registro_id,
+                    'transaccion_notas' => "Reversión automática del registro #{$registro->registro_id}",
+                ]);
             }
 
-            $registro = RegistroCombustible::create([
-                'vehiculo_id' => $request->vehiculo_id, // Puede ser null
-                'empleado_id' => $request->empleado_id,
-                'tercero_nombre' => $request->tercero_nombre,
-                'tipo_destino' => $request->tipo_destino ?? 'vehiculo',
-                'usuario_id' => $request->user()->id,
-                'fecha' => Carbon::now(),
-                'cantidad_galones' => $request->cantidad_galones,
-                'valor_total' => $request->valor_total,
-                'horometro_actual' => $request->horometro_actual,
-                'kilometraje_actual' => $request->kilometraje_actual,
-                'estacion_servicio' => $request->estacion_servicio ?? 'Tanque Interno',
-                'placa_manual' => $request->placa_manual,
-                'notas' => $request->notas,
-            ]);
+            $registro->delete();
 
             return response()->json([
-                'message' => 'Registro de combustible creado con éxito',
-                'registro' => $registro->load(['vehiculo', 'usuario']) // Cargar relaciones si existen
-            ], 201);
+                'message' => 'Registro eliminado' . ($transaccion ? ' y stock revertido' : ''),
+            ]);
         });
     }
 }

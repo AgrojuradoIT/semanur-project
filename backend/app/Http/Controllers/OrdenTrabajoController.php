@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Empleado;
 use App\Models\OrdenTrabajo;
 use App\Models\Vehiculo;
-use App\Models\User;
 use App\Http\Requests\OrdenTrabajoRequest;
 use Illuminate\Http\Request;
 
@@ -25,7 +25,13 @@ class OrdenTrabajoController extends Controller
     public function create()
     {
         $vehiculos = Vehiculo::all();
-        $mecanicos = User::all(); // Assuming users are mechanics
+        $mecanicos = Empleado::query()
+            ->where(function ($q) {
+                $q->where('cargo', 'like', '%mecanico%')
+                    ->orWhere('cargo', 'like', '%mecánico%');
+            })
+            ->orderBy('nombres')
+            ->get();
         return view('ordenes-trabajo.create', compact('vehiculos', 'mecanicos'));
     }
 
@@ -54,7 +60,13 @@ class OrdenTrabajoController extends Controller
     public function edit(OrdenTrabajo $ordenTrabajo)
     {
         $vehiculos = Vehiculo::all();
-        $mecanicos = User::all();
+        $mecanicos = Empleado::query()
+            ->where(function ($q) {
+                $q->where('cargo', 'like', '%mecanico%')
+                    ->orWhere('cargo', 'like', '%mecánico%');
+            })
+            ->orderBy('nombres')
+            ->get();
         return view('ordenes-trabajo.edit', compact('ordenTrabajo', 'vehiculos', 'mecanicos'));
     }
 

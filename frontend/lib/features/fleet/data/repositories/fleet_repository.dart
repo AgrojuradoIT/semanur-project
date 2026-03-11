@@ -14,33 +14,40 @@ class FleetRepository {
       if (response.statusCode == 200) {
         final List<dynamic> data = response.data;
 
-        // Convertir models a Map para guardar en BD (usando toJson)
+        int? toIntOrNull(dynamic value) {
+          if (value == null) return null;
+          if (value is int) return value;
+          return int.tryParse(value.toString());
+        }
+
+        double? toDoubleOrNull(dynamic value) {
+          if (value == null) return null;
+          if (value is num) return value.toDouble();
+          return double.tryParse(value.toString());
+        }
+
+        // Convertir a map para guardar en BD (alineado con API actual y compat legacy)
         final List<Map<String, dynamic>> maps = data.map((json) {
-          // Asegurarnos de que el json es compatible con lo que espera el helper
-          // El helper espera un map plano. El Vehiculo.fromJson maneja la estructura.
-          // Pero saveVehiculos espera un map compatible con la tabla.
-          // Simplemente guardaremos lo básico o adaptamos el helper.
-          // Revisando DatabaseHelper._createVehiculosTable, espera:
-          // vehiculo_id, placa, marca, modelo, tipo, foto_url...
+          final map = Map<String, dynamic>.from(json as Map);
 
           return {
-            'vehiculo_id': json['id'],
-            'placa': json['placa'],
-            'marca': json['marca'],
-            'modelo': json['modelo'],
-            'tipo': json['tipo'],
-            'foto_url': json['foto_url'],
-            'horometro_actual': json['horometro_actual'],
-            'kilometraje_actual': json['kilometraje_actual'],
+            'vehiculo_id': toIntOrNull(map['vehiculo_id'] ?? map['id']),
+            'placa': map['placa'],
+            'marca': map['marca'],
+            'modelo': map['modelo'],
+            'tipo': map['tipo'],
+            'foto_url': map['imagen_url'] ?? map['foto_url'],
+            'horometro_actual': toDoubleOrNull(map['horometro_actual']),
+            'kilometraje_actual': toDoubleOrNull(map['kilometraje_actual']),
             'horometro_proximo_mantenimiento':
-                json['horometro_proximo_mantenimiento'],
+                toDoubleOrNull(map['horometro_proximo_mantenimiento']),
             'kilometraje_proximo_mantenimiento':
-                json['kilometraje_proximo_mantenimiento'],
-            'fecha_vencimiento_soat': json['fecha_vencimiento_soat'],
+                toDoubleOrNull(map['kilometraje_proximo_mantenimiento']),
+            'fecha_vencimiento_soat': map['fecha_vencimiento_soat'],
             'fecha_vencimiento_tecnomecanica':
-                json['fecha_vencimiento_tecnomecanica'],
-            'operador_asignado_id': json['operador_asignado_id'],
-            'mecanico_asignado_id': json['mecanico_asignado_id'],
+                map['fecha_vencimiento_tecnomecanica'],
+            'operador_asignado_id': toIntOrNull(map['operador_asignado_id']),
+            'mecanico_asignado_id': toIntOrNull(map['mecanico_asignado_id']),
             'last_updated': DateTime.now().toIso8601String(),
           };
         }).toList();
@@ -59,23 +66,32 @@ class FleetRepository {
               e.error.toString().contains('SocketException'))) {
         final cachedData = await DatabaseHelper().getVehiculos();
 
-        // Mapear de vuelta de DB a Modelo
+        // Mapear de vuelta de BD a Modelo
         return cachedData.map((row) {
-          // Reconstruir el map que espera Vehiculo.fromJson si es necesario,
-          // o usar un factory fromDb. Por ahora adaptamos keys.
+          double toDoubleOrZero(dynamic value) {
+            if (value == null) return 0.0;
+            if (value is num) return value.toDouble();
+            return double.tryParse(value.toString()) ?? 0.0;
+          }
+
+          double? toDoubleOrNull(dynamic value) {
+            if (value == null) return null;
+            if (value is num) return value.toDouble();
+            return double.tryParse(value.toString());
+          }
+
           return Vehiculo(
             id: row['vehiculo_id'],
             placa: row['placa'],
             marca: row['marca'],
             modelo: row['modelo'],
             tipo: row['tipo'],
-            // fotoUrl not in model
-            horometroActual: (row['horometro_actual'] as num).toDouble(),
-            kilometrajeActual: row['kilometraje_actual'],
+            horometroActual: toDoubleOrZero(row['horometro_actual']),
+            kilometrajeActual: toDoubleOrZero(row['kilometraje_actual']),
             horometroProximoMantenimiento:
-                row['horometro_proximo_mantenimiento'],
+                toDoubleOrNull(row['horometro_proximo_mantenimiento']),
             kilometrajeProximoMantenimiento:
-                row['kilometraje_proximo_mantenimiento'],
+                toDoubleOrNull(row['kilometraje_proximo_mantenimiento']),
             fechaVencimientoSoat: row['fecha_vencimiento_soat'] != null
                 ? DateTime.parse(row['fecha_vencimiento_soat'])
                 : null,

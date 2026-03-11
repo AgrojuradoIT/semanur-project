@@ -1,7 +1,7 @@
 class ChecklistPreoperacional {
   final int id;
   final int vehiculoId;
-  final int usuarioId;
+  final int empleadoId;
   final DateTime fecha;
   final double? horometroActual;
   final Map<String, dynamic> checklistData;
@@ -15,7 +15,7 @@ class ChecklistPreoperacional {
   ChecklistPreoperacional({
     required this.id,
     required this.vehiculoId,
-    required this.usuarioId,
+    required this.empleadoId,
     required this.fecha,
     this.horometroActual,
     required this.checklistData,
@@ -37,7 +37,7 @@ class ChecklistPreoperacional {
     return ChecklistPreoperacional(
       id: parseInt(json['id']) ?? 0,
       vehiculoId: parseInt(json['vehiculo_id']) ?? 0,
-      usuarioId: parseInt(json['usuario_id']) ?? 0,
+      empleadoId: parseInt(json['empleado_id']) ?? 0,
       fecha: DateTime.parse(json['fecha']),
       horometroActual: json['horometro_actual'] != null
           ? double.parse(json['horometro_actual'].toString())
@@ -54,7 +54,7 @@ class ChecklistPreoperacional {
     return {
       'id': id,
       'vehiculo_id': vehiculoId,
-      'usuario_id': usuarioId,
+      'empleado_id': empleadoId,
       'fecha': fecha.toIso8601String(),
       'horometro_actual': horometroActual,
       'checklist_data': checklistData,

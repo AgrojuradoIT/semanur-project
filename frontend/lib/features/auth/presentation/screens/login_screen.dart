@@ -6,7 +6,8 @@ import 'package:frontend/features/home/presentation/screens/home_dashboard.dart'
 import 'package:frontend/core/theme/app_theme.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final String? message;
+  const LoginScreen({super.key, this.message});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -16,6 +17,32 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.message != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(widget.message!),
+            backgroundColor: AppTheme.primaryYellow,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            action: SnackBarAction(
+              label: 'OK',
+              textColor: AppTheme.backgroundDark,
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ),
+          ),
+        );
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -109,7 +136,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Inicia sesión para continuar gestionando tu flota.',
+                    'Inicia sesión para getionar el taller.',
                     style: TextStyle(color: AppTheme.textGray, fontSize: 14),
                   ),
                   const SizedBox(height: 40),
@@ -156,26 +183,36 @@ class _LoginScreenState extends State<LoginScreen> {
                               final navigator = Navigator.of(context);
                               final messenger = ScaffoldMessenger.of(context);
 
-                              final success = await authProvider.login(
-                                _emailController.text,
-                                _passwordController.text,
-                              );
-
-                              if (!mounted) return;
-
-                              if (success) {
-                                navigator.pushReplacement(
-                                  MaterialPageRoute(
-                                    builder: (_) => const HomeDashboard(),
-                                  ),
+                              try {
+                                final success = await authProvider.login(
+                                  _emailController.text,
+                                  _passwordController.text,
                                 );
-                              } else {
+
+                                if (!mounted) return;
+
+                                if (success) {
+                                  navigator.pushReplacement(
+                                    MaterialPageRoute(
+                                      builder: (_) => const HomeDashboard(),
+                                    ),
+                                  );
+                                } else {
+                                  messenger.showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        authProvider.error ??
+                                            'Error desconocido al iniciar sesión',
+                                      ),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                if (!mounted) return;
                                 messenger.showSnackBar(
                                   SnackBar(
-                                    content: Text(
-                                      authProvider.error ??
-                                          'Error al iniciar sesión',
-                                    ),
+                                    content: Text('Error inesperado: $e'),
                                     backgroundColor: Colors.red,
                                   ),
                                 );
@@ -199,7 +236,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text(
-                              'Por favor contacte al administrador del sistema',
+                              'Por favor contacte con el area IT de Agropecuaria Juradó S.A.S. para restablecer su contraseña.',
                             ),
                           ),
                         );

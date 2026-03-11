@@ -13,7 +13,7 @@ class WorkSession extends Model
     protected $primaryKey = 'sesion_id';
 
     protected $fillable = [
-        'user_id',
+        'empleado_id',
         'orden_trabajo_id',
         'fecha_inicio',
         'fecha_fin',
@@ -25,9 +25,9 @@ class WorkSession extends Model
         'fecha_fin' => 'datetime',
     ];
 
-    public function user()
+    public function empleado()
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->belongsTo(Empleado::class, 'empleado_id');
     }
 
     public function ordenTrabajo()

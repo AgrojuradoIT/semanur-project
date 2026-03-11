@@ -35,7 +35,7 @@ class PrestamoHerramienta extends Model
 
     public function mecanico()
     {
-        return $this->belongsTo(User::class, 'mecanico_id', 'id');
+        return $this->belongsTo(Empleado::class, 'mecanico_id', 'id');
     }
 
     public function admin()

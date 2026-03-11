@@ -1,12 +1,17 @@
-import 'package:flutter/foundation.dart';
-import 'package:dio/dio.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:frontend/core/network/api_client.dart';
-import 'package:frontend/core/constants/api_constants.dart';
-import 'package:frontend/features/auth/data/models/user_model.dart';
 import 'dart:convert';
 
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:frontend/core/constants/api_constants.dart';
+import 'package:frontend/core/network/api_client.dart';
+import 'package:frontend/features/auth/data/models/user_model.dart';
+
 class AuthRepository {
+  static const String _authTokenKey = 'auth_token';
+  static const String _userDataKey = 'user_data';
+  static const String _deviceNameKey = 'device_name';
+
   final ApiClient _apiClient;
   final _storage = const FlutterSecureStorage();
 
@@ -14,12 +19,13 @@ class AuthRepository {
 
   Future<User?> login(String email, String password) async {
     try {
+      const deviceName = 'flutter_app';
       final response = await _apiClient.dio.post(
         ApiConstants.login,
         data: {
           'email': email,
           'password': password,
-          'device_name': 'flutter_app', // Se podría parametrizar
+          'device_name': deviceName,
         },
       );
 
@@ -27,10 +33,9 @@ class AuthRepository {
         final String token = response.data['token'];
         final userData = response.data['user'];
 
-        // Guardar token de forma segura
-        await _storage.write(key: 'auth_token', value: token);
-        // Guardar datos del usuario para modo offline
-        await _storage.write(key: 'user_data', value: jsonEncode(userData));
+        await _storage.write(key: _authTokenKey, value: token);
+        await _storage.write(key: _deviceNameKey, value: deviceName);
+        await _storage.write(key: _userDataKey, value: jsonEncode(userData));
 
         return User.fromJson(userData);
       }
@@ -45,11 +50,24 @@ class AuthRepository {
     try {
       await _apiClient.dio.post(ApiConstants.logout);
     } catch (e) {
-      // Ignorar error de red al cerrar sesión, igual borramos local
-      debugPrint('Error logout API (posible offline): $e');
+      debugPrint('Error logout API (possible offline): $e');
     } finally {
-      await _storage.delete(key: 'auth_token');
-      await _storage.delete(key: 'user_data');
+      await _storage.delete(key: _authTokenKey);
+      await _storage.delete(key: _userDataKey);
+      await _storage.delete(key: _deviceNameKey);
+    }
+  }
+
+  Future<void> logoutAllDevices() async {
+    try {
+      await _apiClient.dio.post(ApiConstants.logoutAll);
+    } catch (e) {
+      debugPrint('Error logout-all API: $e');
+      rethrow;
+    } finally {
+      await _storage.delete(key: _authTokenKey);
+      await _storage.delete(key: _userDataKey);
+      await _storage.delete(key: _deviceNameKey);
     }
   }
 
@@ -67,43 +85,40 @@ class AuthRepository {
   }
 
   Future<User?> restoreSession() async {
-    final token = await _storage.read(key: 'auth_token');
+    final token = await _storage.read(key: _authTokenKey);
     if (token == null) return null;
 
     try {
       final response = await _apiClient.dio.get(ApiConstants.user);
       if (response.statusCode == 200) {
-        // Actualizar caché
         await _storage.write(
-          key: 'user_data',
+          key: _userDataKey,
           value: jsonEncode(response.data),
         );
         return User.fromJson(response.data);
       }
     } on DioException catch (e) {
-      debugPrint('Error restaurando sesión API: $e');
+      debugPrint('Error restaurando sesion API: $e');
 
-      // Si es error de conexión (Offline), intentamos recuperar caché
       if (e.type == DioExceptionType.connectionTimeout ||
           e.type == DioExceptionType.receiveTimeout ||
           e.type == DioExceptionType.sendTimeout ||
           e.type == DioExceptionType.connectionError ||
           e.type == DioExceptionType.unknown) {
-        final cachedUser = await _storage.read(key: 'user_data');
+        final cachedUser = await _storage.read(key: _userDataKey);
         if (cachedUser != null) {
-          debugPrint('Restaurando sesión desde caché (OFFLINE MODE)');
+          debugPrint('Restaurando sesion desde cache (OFFLINE MODE)');
           return User.fromJson(jsonDecode(cachedUser));
         }
       }
-      // Si es 401, el token expiró -> Devolvemos null para forzar login
     } catch (e) {
-      debugPrint('Error general restaurando sesión: $e');
+      debugPrint('Error general restaurando sesion: $e');
     }
     return null;
   }
 
   Future<bool> isLoggedIn() async {
-    final token = await _storage.read(key: 'auth_token');
+    final token = await _storage.read(key: _authTokenKey);
     return token != null;
   }
 }

@@ -21,13 +21,40 @@ class EmpleadoApiController extends Controller
                   ->orWhere('documento', 'like', "%{$search}%");
             });
         }
-        
-        if ($request->has('cargo') && $request->cargo != 'todos') {
-             // Basic text match for now
-            $query->where('cargo', 'like', "%{$request->cargo}%");
+
+        // Filtro por estado
+        if ($request->has('estado') && $request->estado !== 'todos') {
+            $query->where('estado', $request->estado);
         }
 
-        return response()->json($query->orderBy('nombres')->get());
+        // Compatibilidad: frontend puede enviar 'role' o 'cargo'
+        $cargo = $request->input('cargo', $request->input('role'));
+        if (!empty($cargo) && $cargo !== 'todos') {
+            $query->where('cargo', $cargo);
+        }
+
+        return response()->json(
+            $query
+                ->select([
+                    'id',
+                    'nombres',
+                    'apellidos',
+                    'documento',
+                    'telefono',
+                    'cargo',
+                    'dependencia',
+                    'licencia_conduccion',
+                    'categoria_licencia',
+                    'estado',
+                    'fecha_retiro',
+                    'motivo_retiro',
+                    'user_id',
+                    'created_at',
+                    'updated_at',
+                ])
+                ->orderBy('nombres')
+                ->get()
+        );
     }
 
     public function store(Request $request)
@@ -75,7 +102,21 @@ class EmpleadoApiController extends Controller
 
     public function show($id)
     {
-        return response()->json(Empleado::findOrFail($id));
+        $empleado = Empleado::with('user')->findOrFail($id);
+
+        // Contar estadísticas reales
+        $stats = [
+            'ot_asignadas'   => $empleado->ordenesTrabajoAsignadas()->count(),
+            'prestamos'      => $empleado->prestamosHerramientas()->count(),
+            'tanqueos'       => $empleado->registrosCombustible()->count(),
+            'checklists'     => $empleado->checklists()->count(),
+            'sesiones'       => $empleado->sesiones()->count(),
+        ];
+
+        $data = $empleado->toArray();
+        $data['stats'] = $stats;
+
+        return response()->json($data);
     }
 
     public function update(Request $request, $id)
@@ -90,6 +131,9 @@ class EmpleadoApiController extends Controller
             'cargo' => 'nullable|string|max:100',
             'dependencia' => 'nullable|string|max:100',
             'licencia_conduccion' => 'nullable|string|max:50',
+            'estado' => 'nullable|string|in:activo,inactivo,retirado',
+            'fecha_retiro' => 'nullable|date',
+            'motivo_retiro' => 'nullable|string|max:500',
             'user_id' => ['nullable', 'exists:users,id', Rule::unique('empleados')->ignore($empleado->id)],
         ]);
 
@@ -101,12 +145,7 @@ class EmpleadoApiController extends Controller
     public function destroy($id)
     {
         $empleado = Empleado::findOrFail($id);
-        // Soft delete logic or hard delete
-        // If hard delete:
         $empleado->delete();
-        
-        // If soft delete state:
-        // $empleado->update(['estado' => 'inactivo']);
 
         return response()->json(['message' => 'Empleado eliminado correctamente']);
     }

@@ -417,7 +417,7 @@ class _ChecklistFormScreenState extends State<ChecklistFormScreen> {
     final checklist = ChecklistPreoperacional(
       id: 0,
       vehiculoId: widget.vehiculo.id,
-      usuarioId: _selectedOperatorId ?? 0, // Assigned operator
+      empleadoId: _selectedOperatorId ?? 0, // Assigned operator
       fecha: DateTime.now(),
       horometroActual: _horometroController.text.isNotEmpty
           ? double.tryParse(_horometroController.text)

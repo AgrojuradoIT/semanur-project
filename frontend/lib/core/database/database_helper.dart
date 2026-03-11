@@ -25,7 +25,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 12,
+      version: 14,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -97,12 +97,61 @@ class DatabaseHelper {
     if (oldVersion < 12) {
       await _createEmpleadosTable(db);
     }
+    if (oldVersion < 13) {
+      try {
+        await db.execute(
+          "ALTER TABLE sync_queue ADD COLUMN status TEXT DEFAULT 'queued'",
+        );
+      } catch (e) {
+        debugPrint('Error adding sync_queue.status: $e');
+      }
+      try {
+        await db.execute('ALTER TABLE sync_queue ADD COLUMN last_attempt_at TEXT');
+      } catch (e) {
+        debugPrint('Error adding sync_queue.last_attempt_at: $e');
+      }
+      try {
+        await db.execute('ALTER TABLE sync_queue ADD COLUMN next_retry_at TEXT');
+      } catch (e) {
+        debugPrint('Error adding sync_queue.next_retry_at: $e');
+      }
+      try {
+        await db.execute('ALTER TABLE sync_queue ADD COLUMN last_error TEXT');
+      } catch (e) {
+        debugPrint('Error adding sync_queue.last_error: $e');
+      }
+      try {
+        await db.execute(
+          "UPDATE sync_queue SET status = 'queued' WHERE status IS NULL OR status = ''",
+        );
+        await db.execute(
+          'UPDATE sync_queue SET next_retry_at = created_at WHERE next_retry_at IS NULL',
+        );
+      } catch (e) {
+        debugPrint('Error backfilling sync_queue retry fields: $e');
+      }
+      await _createSyncDeadLetterTable(db);
+    }
+    if (oldVersion < 14) {
+      try {
+        await db.execute(
+          'ALTER TABLE sesion_trabajo_local ADD COLUMN empleado_id INTEGER',
+        );
+        // Migración simple: si tenemos un user_id local, intentamos mantenerlo o marcar para actualización
+        await db.execute(
+          'UPDATE sesion_trabajo_local SET empleado_id = user_id WHERE empleado_id IS NULL',
+        );
+      } catch (e) {
+        debugPrint('Error upgrading to v14 (empleado_id in sessions): $e');
+      }
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {
     await _createVehiculosTable(db);
     await _createProductosTable(db);
     await _createSyncQueueTable(db);
+    await _createSyncDeadLetterTable(db);
     await _createOrdenesTrabajoTable(db);
     await _createChecklistsTable(db);
     await _createCombustibleTable(db);
@@ -164,7 +213,29 @@ class DatabaseHelper {
         payload TEXT,
         image_path TEXT,
         created_at TEXT,
-        attempts INTEGER DEFAULT 0
+        attempts INTEGER DEFAULT 0,
+        status TEXT DEFAULT 'queued',
+        last_attempt_at TEXT,
+        next_retry_at TEXT,
+        last_error TEXT
+      )
+    ''');
+  }
+
+  Future<void> _createSyncDeadLetterTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS sync_dead_letter (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        original_queue_id INTEGER,
+        endpoint TEXT,
+        method TEXT,
+        payload TEXT,
+        image_path TEXT,
+        attempts INTEGER,
+        last_error TEXT,
+        status_code INTEGER,
+        failed_at TEXT,
+        created_at TEXT
       )
     ''');
   }
@@ -238,19 +309,47 @@ class DatabaseHelper {
   }) async {
     final db = await database;
     final String payloadStr = jsonEncode(payload);
+    final String now = DateTime.now().toIso8601String();
 
     return await db.insert('sync_queue', {
       'endpoint': endpoint,
       'method': method,
       'payload': payloadStr,
       'image_path': imagePath,
-      'created_at': DateTime.now().toIso8601String(),
+      'created_at': now,
+      'status': 'queued',
+      'attempts': 0,
+      'next_retry_at': now,
     });
   }
 
   Future<List<Map<String, dynamic>>> getSyncQueue() async {
     final db = await database;
-    return await db.query('sync_queue', orderBy: 'created_at ASC');
+    return await db.query(
+      'sync_queue',
+      where: "COALESCE(status, 'queued') IN ('queued','retrying')",
+      orderBy: 'created_at ASC',
+    );
+  }
+
+  Future<int> getPendingSyncCount() async {
+    final db = await database;
+    final result = await db.rawQuery(
+      "SELECT COUNT(*) as total FROM sync_queue WHERE COALESCE(status, 'queued') IN ('queued','retrying')",
+    );
+    return (result.first['total'] as int?) ?? 0;
+  }
+
+  Future<List<Map<String, dynamic>>> getDueSyncQueue() async {
+    final db = await database;
+    final String now = DateTime.now().toIso8601String();
+    return await db.query(
+      'sync_queue',
+      where:
+          "COALESCE(status, 'queued') IN ('queued','retrying') AND (next_retry_at IS NULL OR next_retry_at <= ?)",
+      whereArgs: [now],
+      orderBy: 'created_at ASC',
+    );
   }
 
   Future<void> removeFromSyncQueue(int id) async {
@@ -264,6 +363,83 @@ class DatabaseHelper {
       'UPDATE sync_queue SET attempts = attempts + 1 WHERE id = ?',
       [id],
     );
+  }
+
+  Future<void> markSyncAttemptFailed({
+    required int id,
+    required String nextRetryAt,
+    required String error,
+  }) async {
+    final db = await database;
+    await db.execute(
+      '''
+      UPDATE sync_queue
+      SET
+        attempts = attempts + 1,
+        status = 'retrying',
+        last_attempt_at = ?,
+        next_retry_at = ?,
+        last_error = ?
+      WHERE id = ?
+      ''',
+      [
+        DateTime.now().toIso8601String(),
+        nextRetryAt,
+        error,
+        id,
+      ],
+    );
+  }
+
+  Future<void> moveQueueItemToDeadLetter({
+    required Map<String, dynamic> item,
+    required String error,
+    int? statusCode,
+  }) async {
+    final db = await database;
+
+    await db.insert('sync_dead_letter', {
+      'original_queue_id': item['id'],
+      'endpoint': item['endpoint'],
+      'method': item['method'],
+      'payload': item['payload'],
+      'image_path': item['image_path'],
+      'attempts': item['attempts'] ?? 0,
+      'last_error': error,
+      'status_code': statusCode,
+      'failed_at': DateTime.now().toIso8601String(),
+      'created_at': item['created_at'],
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> getDeadLetterQueue() async {
+    final db = await database;
+    return await db.query('sync_dead_letter', orderBy: 'failed_at DESC');
+  }
+
+  Future<void> retryAllDeadLetter() async {
+    final db = await database;
+    final dead = await db.query('sync_dead_letter', orderBy: 'id ASC');
+    if (dead.isEmpty) return;
+
+    final batch = db.batch();
+    final String now = DateTime.now().toIso8601String();
+    for (final item in dead) {
+      batch.insert('sync_queue', {
+        'endpoint': item['endpoint'],
+        'method': item['method'],
+        'payload': item['payload'],
+        'image_path': item['image_path'],
+        'created_at': item['created_at'] ?? now,
+        'attempts': 0,
+        'status': 'queued',
+        'last_attempt_at': null,
+        'next_retry_at': now,
+        'last_error': null,
+      });
+    }
+    batch.delete('sync_dead_letter');
+    await batch.commit(noResult: true);
   }
 
   // Métodos de utilidad: Órdenes de Trabajo (Cache Offline)
@@ -289,13 +465,19 @@ class DatabaseHelper {
     // Usaremos replace.
 
     for (var o in ordenesJson) {
+      final map = Map<String, dynamic>.from(o as Map);
+      final orderId = map['orden_trabajo_id'] ?? map['id'];
+      if (orderId == null) {
+        continue;
+      }
+
       batch.insert('ordenes_trabajo', {
-        'id': o['id'],
-        'vehiculo_id': o['vehiculo_id'],
-        'prioridad': o['prioridad'],
-        'estado': o['estado'],
-        'descripcion': o['descripcion'],
-        'full_json': jsonEncode(o),
+        'id': orderId,
+        'vehiculo_id': map['vehiculo_id'],
+        'prioridad': map['prioridad'],
+        'estado': map['estado'],
+        'descripcion': map['descripcion'],
+        'full_json': jsonEncode(map),
         'last_updated': DateTime.now().toIso8601String(),
       }, conflictAlgorithm: ConflictAlgorithm.replace);
     }
@@ -401,13 +583,19 @@ class DatabaseHelper {
     final db = await database;
     final batch = db.batch();
     for (var l in logsJson) {
+      final map = Map<String, dynamic>.from(l as Map);
+      final logId = map['registro_id'] ?? map['id'];
+      if (logId == null) {
+        continue;
+      }
+
       batch.insert('combustible', {
-        'id': l['id'],
-        'vehiculo_id': l['vehiculo_id'],
-        'fecha': l['fecha_registro'], // Assuming the API returns this field
-        'cantidad_galones': l['cantidad_galones'],
-        'valor_total': l['valor_total'],
-        'full_json': jsonEncode(l),
+        'id': logId,
+        'vehiculo_id': map['vehiculo_id'],
+        'fecha': map['fecha'] ?? map['fecha_registro'] ?? map['created_at'],
+        'cantidad_galones': map['cantidad_galones'],
+        'valor_total': map['valor_total'],
+        'full_json': jsonEncode(map),
         'last_updated': DateTime.now().toIso8601String(),
       }, conflictAlgorithm: ConflictAlgorithm.replace);
     }
@@ -445,7 +633,8 @@ class DatabaseHelper {
       CREATE TABLE IF NOT EXISTS sesion_trabajo_local (
         local_id INTEGER PRIMARY KEY AUTOINCREMENT, -- ID local si no ha sincronizado
         server_id INTEGER, -- ID servidor si ya sincronizó pero sigue activa
-        user_id INTEGER,
+        user_id INTEGER, -- Mantener por compatibilidad local temporal
+        empleado_id INTEGER,
         orden_trabajo_id INTEGER,
         fecha_inicio TEXT,
         fecha_fin TEXT, -- Null si activa
@@ -461,13 +650,12 @@ class DatabaseHelper {
   }) async {
     final db = await database;
     // Solo puede haber una activa, limpiamos cualquier otra activa por si acaso
-    // O asumimos que la app maneja una sola sesión por usuario
-    // Borrar sesiones activas previas para garantizar consistencia local
     await db.delete('sesion_trabajo_local', where: 'fecha_fin IS NULL');
 
     await db.insert('sesion_trabajo_local', {
-      'server_id': session['sesion_id'], // Puede ser null o provisional
-      'user_id': session['user_id'],
+      'server_id': session['sesion_id'],
+      'user_id': session['user_id'] ?? session['empleado_id'],
+      'empleado_id': session['empleado_id'],
       'orden_trabajo_id': session['orden_trabajo_id'],
       'fecha_inicio': session['fecha_inicio'],
       'fecha_fin': null,

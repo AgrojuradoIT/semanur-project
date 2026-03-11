@@ -4,6 +4,7 @@ class RegistroCombustible {
   final int? empleadoId;
   final String? terceroNombre;
   final String tipoDestino;
+  final String tipoCombustible;
   final int usuarioId;
   final DateTime fecha;
   final double cantidadGalones;
@@ -12,6 +13,7 @@ class RegistroCombustible {
   final double? kilometrajeActual;
   final String? estacionServicio;
   final String? notas;
+  final String? labor;
   final String? vehiculoPlaca;
   final String? usuarioNombre;
 
@@ -21,6 +23,7 @@ class RegistroCombustible {
     this.empleadoId,
     this.terceroNombre,
     this.tipoDestino = 'vehiculo',
+    this.tipoCombustible = 'gasolina',
     required this.usuarioId,
     required this.fecha,
     required this.cantidadGalones,
@@ -29,6 +32,7 @@ class RegistroCombustible {
     this.kilometrajeActual,
     this.estacionServicio,
     this.notas,
+    this.labor,
     this.vehiculoPlaca,
     this.usuarioNombre,
   });
@@ -54,6 +58,7 @@ class RegistroCombustible {
       empleadoId: parseInt(json['empleado_id']),
       terceroNombre: json['tercero_nombre'],
       tipoDestino: json['tipo_destino'] ?? 'vehiculo',
+      tipoCombustible: json['tipo_combustible'] ?? 'gasolina',
       usuarioId: parseInt(json['usuario_id']) ?? 0,
       fecha: DateTime.parse(json['fecha']),
       cantidadGalones: parseDouble(json['cantidad_galones']),
@@ -66,12 +71,14 @@ class RegistroCombustible {
           : null,
       estacionServicio: json['estacion_servicio'],
       notas: json['notas'],
-      vehiculoPlaca: json['vehiculo'] != null
-          ? json['vehiculo']['placa']
-          : null,
-      usuarioNombre: json['usuario'] != null ? json['usuario']['name'] : null,
+      labor: json['labor'],
+      vehiculoPlaca:
+          json['vehiculo'] != null ? json['vehiculo']['placa'] : null,
+      usuarioNombre:
+          json['usuario'] != null ? json['usuario']['name'] : null,
     );
   }
+
   Map<String, dynamic> toJson() {
     return {
       'registro_id': id,
@@ -79,6 +86,7 @@ class RegistroCombustible {
       'empleado_id': empleadoId,
       'tercero_nombre': terceroNombre,
       'tipo_destino': tipoDestino,
+      'tipo_combustible': tipoCombustible,
       'usuario_id': usuarioId,
       'fecha': fecha.toIso8601String(),
       'cantidad_galones': cantidadGalones,
@@ -87,6 +95,7 @@ class RegistroCombustible {
       'kilometraje_actual': kilometrajeActual,
       'estacion_servicio': estacionServicio,
       'notas': notas,
+      'labor': labor,
       'vehiculo': vehiculoPlaca != null ? {'placa': vehiculoPlaca} : null,
       'usuario': usuarioNombre != null ? {'name': usuarioNombre} : null,
     };

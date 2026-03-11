@@ -17,9 +17,11 @@ class TransaccionInventarioObserver
             return;
         }
 
-        if ($transaccion->transaccion_tipo === 'entrada') {
+        $tipo = strtolower((string) $transaccion->transaccion_tipo);
+
+        if (in_array($tipo, ['entrada', 'ingreso'], true)) {
             $producto->producto_stock_actual += $transaccion->transaccion_cantidad;
-        } elseif ($transaccion->transaccion_tipo === 'salida') {
+        } elseif ($tipo === 'salida') {
             $producto->producto_stock_actual -= $transaccion->transaccion_cantidad;
         }
 

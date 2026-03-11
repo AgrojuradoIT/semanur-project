@@ -10,6 +10,16 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
+    private function canViewUsers(User $user): bool
+    {
+        $role = strtolower((string) $user->role);
+        if (in_array($role, ['admin', 'almacenista'], true)) {
+            return true;
+        }
+
+        return $user->email === 'admin@semanur.com';
+    }
+
     public function login(Request $request)
     {
         $request->validate([
@@ -20,7 +30,7 @@ class AuthController extends Controller
 
         $user = User::where('email', $request->email)->first();
 
-        if (! $user || ! Hash::check($request->password, $user->password)) {
+        if (!$user || !Hash::check($request->password, $user->password)) {
             throw ValidationException::withMessages([
                 'email' => ['Las credenciales proporcionadas son incorrectas.'],
             ]);
@@ -34,9 +44,30 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
+        $request->user()->currentAccessToken()?->delete();
 
-        return response()->json(['message' => 'Sesión cerrada correctamente']);
+        return response()->json(['message' => 'Sesion cerrada correctamente']);
+    }
+
+    public function refresh(Request $request)
+    {
+        $user = $request->user();
+        $currentToken = $user->currentAccessToken();
+
+        $tokenName = $request->input('device_name', $currentToken?->name ?? 'flutter_app');
+        $currentToken?->delete();
+
+        return response()->json([
+            'token' => $user->createToken($tokenName)->plainTextToken,
+            'user' => $user,
+        ]);
+    }
+
+    public function logoutAll(Request $request)
+    {
+        $request->user()->tokens()->delete();
+
+        return response()->json(['message' => 'Todas las sesiones fueron cerradas']);
     }
 
     public function user(Request $request)
@@ -44,8 +75,19 @@ class AuthController extends Controller
         return response()->json($request->user());
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        return response()->json(User::all());
+        $authUser = $request->user();
+
+        if (!$this->canViewUsers($authUser)) {
+            return response()->json(['message' => 'No autorizado para consultar usuarios'], 403);
+        }
+
+        return response()->json(
+            User::query()
+                ->select(['id', 'name', 'email', 'role', 'phone', 'license_number', 'cargo', 'dependencia'])
+                ->orderBy('name')
+                ->get()
+        );
     }
 }

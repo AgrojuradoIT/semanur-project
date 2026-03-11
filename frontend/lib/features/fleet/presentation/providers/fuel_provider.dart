@@ -82,11 +82,13 @@ class FuelProvider extends ChangeNotifier {
     double? kilometraje,
     String? estacion,
     String? notas,
+    String? labor,
     int? productoId,
     int? empleadoId,
     String? terceroNombre,
     String? placaManual,
     String tipoDestino = 'vehiculo',
+    String tipoCombustible = 'gasolina',
   }) async {
     _isLoading = true;
     notifyListeners();
@@ -98,12 +100,14 @@ class FuelProvider extends ChangeNotifier {
         terceroNombre: terceroNombre,
         placaManual: placaManual,
         tipoDestino: tipoDestino,
+        tipoCombustible: tipoCombustible,
         cantidadGalones: cantidad,
         valorTotal: valor,
         horometro: horometro,
         kilometraje: kilometraje,
         estacion: estacion,
         notas: notas,
+        labor: labor,
         productoId: productoId,
       );
       if (success) {
@@ -126,12 +130,14 @@ class FuelProvider extends ChangeNotifier {
             'tercero_nombre': terceroNombre,
             'placa_manual': placaManual,
             'tipo_destino': tipoDestino,
+            'tipo_combustible': tipoCombustible,
             'cantidad_galones': cantidad,
             'valor_total': valor,
             'horometro_actual': horometro,
             'kilometraje_actual': kilometraje,
             'estacion_servicio': estacion,
             'notas': notas,
+            'labor': labor,
             'producto_id': productoId,
           },
         );
@@ -140,6 +146,44 @@ class FuelProvider extends ChangeNotifier {
         return true;
       }
 
+      _error = e.toString().replaceAll('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> updateRegistro(int id, Map<String, dynamic> payload, {int? vehiculoId}) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final success = await _repository.updateRegistro(id, payload);
+      if (success) {
+        await fetchRegistros(vehiculoId: vehiculoId);
+      }
+      _isLoading = false;
+      notifyListeners();
+      return success;
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> deleteRegistro(int id, {int? vehiculoId}) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final success = await _repository.deleteRegistro(id);
+      if (success) {
+        await fetchRegistros(vehiculoId: vehiculoId);
+      }
+      _isLoading = false;
+      notifyListeners();
+      return success;
+    } catch (e) {
       _error = e.toString();
       _isLoading = false;
       notifyListeners();

@@ -16,6 +16,7 @@ class Vehiculo extends Model
         'tipo',
         'marca',
         'modelo',
+        'imagen_url',
         'horometro_actual',
         'horometro_proximo_mantenimiento',
         'kilometraje_actual',
@@ -49,11 +50,45 @@ class Vehiculo extends Model
 
     public function operador()
     {
-        return $this->belongsTo(User::class, 'operador_asignado_id');
+        return $this->belongsTo(Empleado::class, 'operador_asignado_id', 'id');
     }
 
     public function mecanico()
     {
-        return $this->belongsTo(User::class, 'mecanico_asignado_id');
+        return $this->belongsTo(Empleado::class, 'mecanico_asignado_id', 'id');
+    }
+
+    public function documentos(): HasMany
+    {
+        return $this->hasMany(VehiculoDocumento::class, 'vehiculo_id', 'vehiculo_id');
+    }
+
+    /**
+     * Mutador para formatear y normalizar el tipo de vehículo al guardar en BD.
+     * Convierte a minúsculas y elimina tildes/acentos.
+     * Ejemplo: "Camión" -> "camion"
+     */
+    public function setTipoAttribute($value)
+    {
+        if (empty($value)) {
+            $this->attributes['tipo'] = $value;
+            return;
+        }
+
+        // 1. Convertir a minúsculas (usando mb_strtolower para soporte de caracteres especiales)
+        $min = mb_strtolower($value, 'UTF-8');
+
+        // 2. Reemplazar tildes y caracteres especiales con sus equivalentes normales
+        $unwanted_array = [
+            'á'=>'a', 'é'=>'e', 'í'=>'i', 'ó'=>'o', 'ú'=>'u',
+            'à'=>'a', 'è'=>'e', 'ì'=>'i', 'ò'=>'o', 'ù'=>'u',
+            'ä'=>'a', 'ë'=>'e', 'ï'=>'i', 'ö'=>'o', 'ü'=>'u',
+            'ñ'=>'n'
+        ];
+        
+        $normalized = strtr($min, $unwanted_array);
+
+        // Guardar el valor limpio
+        $this->attributes['tipo'] = trim($normalized);
     }
 }

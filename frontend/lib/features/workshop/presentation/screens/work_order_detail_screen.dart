@@ -285,7 +285,8 @@ class _WorkOrderDetailScreenState extends State<WorkOrderDetailScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            s.user?.name.toUpperCase() ?? 'MECÁNICO',
+                            s.empleado?.nombreCompleto.toUpperCase() ??
+                                'MECÁNICO',
                             style: GoogleFonts.oswald(
                               color: AppTheme.primaryYellow,
                               fontSize: 14,
