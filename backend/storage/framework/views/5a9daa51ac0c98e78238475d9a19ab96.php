@@ -74,7 +74,7 @@ foreach ($attributes->all() as $__key => $__value) {
     if (array_key_exists($__key, $__defined_vars)) unset($$__key);
 }
 
-unset($__defined_vars); ?>
+unset($__defined_vars, $__key, $__value); ?>
 
 <?php
     if (filled($iconSize) && (! $iconSize instanceof IconSize)) {
@@ -116,7 +116,7 @@ unset($__defined_vars); ?>
     <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($hasHeader): ?>
         <header
             <?php if($collapsible): ?>
-                x-on:click="isCollapsed = ! isCollapsed"
+                x-on:click="if (! $event.target.closest('.fi-section-header-after-ctn')) isCollapsed = ! isCollapsed"
             <?php endif; ?>
             class="fi-section-header"
         >
@@ -143,7 +143,7 @@ unset($__defined_vars); ?>
             <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
             <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(! is_slot_empty($afterHeader)): ?>
-                <div x-on:click.stop class="fi-section-header-after-ctn">
+                <div class="fi-section-header-after-ctn">
                     <?php echo e($afterHeader); ?>
 
                 </div>
@@ -160,6 +160,8 @@ unset($__defined_vars); ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['color' => 'gray','icon' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(\Filament\Support\Icons\Heroicon::ChevronUp),'icon-alias' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(\Filament\Support\View\SupportIconAlias::SECTION_COLLAPSE_BUTTON),'x-on:click.stop' => 'isCollapsed = ! isCollapsed','class' => 'fi-section-collapse-btn']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalf0029cce6d19fd6d472097ff06a800a1)): ?>

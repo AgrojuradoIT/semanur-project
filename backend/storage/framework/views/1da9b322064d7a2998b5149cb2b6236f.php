@@ -52,7 +52,7 @@ foreach ($attributes->all() as $__key => $__value) {
     if (array_key_exists($__key, $__defined_vars)) unset($$__key);
 }
 
-unset($__defined_vars); ?>
+unset($__defined_vars, $__key, $__value); ?>
 
 <?php
     use Filament\Support\Enums\Width;
@@ -93,7 +93,7 @@ unset($__defined_vars); ?>
             x-transition:leave-end="fi-opacity-0"
             <?php if($attributes->has('wire:key')): ?>
                 wire:ignore.self
-                wire:key="<?php echo e($attributes->get('wire:key')); ?>.panel"
+                <?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::$currentLoop['key'] = ''.e($attributes->get('wire:key')).'.panel'; ?>wire:key="<?php echo e($attributes->get('wire:key')); ?>.panel"
             <?php endif; ?>
             class="<?php echo \Illuminate\Support\Arr::toCssClasses([
                 'fi-dropdown-panel',
