@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:frontend/core/network/api_client.dart';
 import 'package:frontend/core/database/database_helper.dart';
 import 'package:dio/dio.dart';
@@ -10,9 +11,31 @@ class InventoryRepository {
 
   InventoryRepository(this._apiClient);
 
-  Future<List<Producto>> getProductos() async {
+  /// Obtiene productos con soporte para pagination server-side
+  Future<List<Producto>> getProductos({
+    bool lowStock = false,
+    int page = 1,
+    int perPage = 50,
+  }) async {
     try {
-      final response = await _apiClient.dio.get(ApiConstants.productos);
+      final params = <String, dynamic>{
+        'page': page,
+        'per_page': perPage,
+      };
+      if (lowStock) {
+        params['low_stock'] = 1;
+      }
+
+      // Timeout más largo para inventario (primera carga puede ser lenta)
+      final response = await _apiClient.dio.get(
+        ApiConstants.productos,
+        queryParameters: params,
+        options: Options(
+          connectTimeout: const Duration(seconds: 60),
+          receiveTimeout: const Duration(seconds: 90),
+          sendTimeout: const Duration(seconds: 30),
+        ),
+      );
       if (response.statusCode == 200) {
         // Handle paginated response {data: [...], meta: {...}} or legacy array
         final List<dynamic> data;
@@ -20,6 +43,11 @@ class InventoryRepository {
           data = response.data['data'] ?? [];
         } else {
           data = response.data;
+        }
+
+        debugPrint('InventoryRepository: Datos recibidos - ${data.length} productos (página $page)');
+        if (data.isNotEmpty) {
+          debugPrint('InventoryRepository: Primer producto: ${data.first}');
         }
 
         int? toIntOrNull(dynamic value) {
@@ -56,21 +84,39 @@ class InventoryRepository {
                 toDoubleOrDefault(map['producto_precio_costo'] ?? map['precio_costo'], 0),
             'producto_ubicacion': map['producto_ubicacion'] ?? map['ubicacion'],
             'categoria': map['categoria'],
+            'capacidad_maxima': toDoubleOrDefault(map['capacidad_maxima'], 0),
             'last_updated': DateTime.now().toIso8601String(),
           });
         }
-        await DatabaseHelper().saveProductos(productsToSave);
+        if (!lowStock) {
+          await DatabaseHelper().saveProductos(productsToSave);
+        }
 
         return data.map((json) => Producto.fromJson(json)).toList();
       }
       return [];
     } catch (e) {
+      // Logging para diagnóstico
+      debugPrint('InventoryRepository: Error cargando productos: $e');
+      if (e is DioException) {
+        debugPrint('  - Type: ${e.type}');
+        debugPrint('  - Status: ${e.response?.statusCode}');
+        debugPrint('  - Message: ${e.message}');
+        debugPrint('  - Error: ${e.error}');
+      }
+      
       // Offline fallback
       if (e is DioException &&
           (e.type == DioExceptionType.connectionTimeout ||
               e.type == DioExceptionType.receiveTimeout ||
+              e.type == DioExceptionType.sendTimeout ||
               e.type == DioExceptionType.connectionError ||
-              e.error.toString().contains('SocketException'))) {
+              e.type == DioExceptionType.unknown ||
+              e.error.toString().contains('SocketException') ||
+              e.error.toString().contains('Failed host lookup') ||
+              e.error.toString().contains('handshake') ||
+              e.error.toString().contains('ssl'))) {
+        debugPrint('InventoryRepository: Usando fallback offline');
         final cachedData = await DatabaseHelper().getProductos();
 
         // Mapear de BD a Modelo
@@ -102,6 +148,7 @@ class InventoryRepository {
             alertaStockMinimo: toDoubleOrZero(
               row['producto_alerta_stock_minimo'],
             ),
+            capacidadMaxima: toDoubleOrZero(row['capacidad_maxima']),
             precioCosto: row['producto_precio_costo'] != null
                 ? toDoubleOrZero(row['producto_precio_costo'])
                 : null,

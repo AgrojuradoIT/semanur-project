@@ -3,27 +3,20 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\VehiculoResource\Pages;
-use App\Filament\Resources\VehiculoResource\RelationManagers;
 use App\Models\Vehiculo;
 use Filament\Forms;
-use BackedEnum;
-use Filament\Schemas\Schema;
-use Illuminate\Contracts\Support\Htmlable;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Actions;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Filament\Schemas\Schema;
+use BackedEnum;
 
 class VehiculoResource extends Resource
 {
     protected static ?string $model = Vehiculo::class;
 
-    public static function getNavigationIcon(): string | BackedEnum | Htmlable | null
-    {
-        return 'heroicon-o-rectangle-stack';
-    }
+    protected static string | BackedEnum | null $navigationIcon = 'heroicon-o-truck';
 
     public static function form(Schema $schema): Schema
     {
@@ -31,7 +24,7 @@ class VehiculoResource extends Resource
             ->schema([
                 Forms\Components\TextInput::make('placa')
                     ->required()
-                    ->maxLength(255),
+                    ->maxLength(20),
                 Forms\Components\TextInput::make('tipo')
                     ->required()
                     ->maxLength(255),
@@ -41,6 +34,16 @@ class VehiculoResource extends Resource
                 Forms\Components\TextInput::make('modelo')
                     ->required()
                     ->maxLength(255),
+                Forms\Components\TextInput::make('imagen_url')
+                    ->maxLength(255),
+                Forms\Components\TextInput::make('horometro_actual')
+                    ->numeric()
+                    ->default(0),
+                Forms\Components\TextInput::make('kilometraje_actual')
+                    ->numeric()
+                    ->default(0),
+                Forms\Components\DatePicker::make('fecha_vencimiento_soat'),
+                Forms\Components\DatePicker::make('fecha_vencimiento_tecnomecanica'),
             ]);
     }
 
@@ -56,11 +59,10 @@ class VehiculoResource extends Resource
                     ->searchable(),
                 Tables\Columns\TextColumn::make('modelo')
                     ->searchable(),
+                Tables\Columns\TextColumn::make('horometro_actual')
+                    ->numeric()
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('updated_at')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class ChecklistPreoperacional {
   final int id;
   final int vehiculoId;
@@ -34,19 +36,77 @@ class ChecklistPreoperacional {
       return null;
     }
 
+    String parseString(dynamic value, {String fallback = ''}) {
+      if (value == null) return fallback;
+      if (value is String) return value;
+      return value.toString();
+    }
+
+    String? parseOptionalString(dynamic value) {
+      if (value == null) return null;
+      if (value is String) return value;
+      return value.toString();
+    }
+
+    String? parseVehiculoPlaca(Map<String, dynamic> data) {
+      final vehiculo = data['vehiculo'];
+      if (vehiculo is Map && vehiculo['placa'] != null) {
+        return vehiculo['placa'].toString();
+      }
+      final direct = data['vehiculo_placa'] ?? data['placa'];
+      return parseOptionalString(direct);
+    }
+
+    String? parseUsuarioNombre(Map<String, dynamic> data) {
+      final usuario = data['usuario'];
+      if (usuario is Map && usuario['name'] != null) {
+        return usuario['name'].toString();
+      }
+      final direct = data['usuario_nombre'] ??
+          data['nombre_usuario'] ??
+          data['user_name'];
+      return parseOptionalString(direct);
+    }
+
+    DateTime parseDate(dynamic value) {
+      if (value is String) {
+        final parsed = DateTime.tryParse(value);
+        if (parsed != null) return parsed;
+      }
+      if (value is int) {
+        return DateTime.fromMillisecondsSinceEpoch(value);
+      }
+      return DateTime.now();
+    }
+
+    Map<String, dynamic> parseChecklistData(dynamic value) {
+      if (value is Map) {
+        return Map<String, dynamic>.from(value);
+      }
+      if (value is String && value.isNotEmpty) {
+        try {
+          final decoded = jsonDecode(value);
+          if (decoded is Map) {
+            return Map<String, dynamic>.from(decoded);
+          }
+        } catch (_) {}
+      }
+      return {};
+    }
+
     return ChecklistPreoperacional(
       id: parseInt(json['id']) ?? 0,
       vehiculoId: parseInt(json['vehiculo_id']) ?? 0,
       empleadoId: parseInt(json['empleado_id']) ?? 0,
-      fecha: DateTime.parse(json['fecha']),
+      fecha: parseDate(json['fecha'] ?? json['fecha_registro'] ?? json['created_at']),
       horometroActual: json['horometro_actual'] != null
           ? double.parse(json['horometro_actual'].toString())
           : null,
-      checklistData: Map<String, dynamic>.from(json['checklist_data']),
-      observaciones: json['observaciones'],
-      estado: json['estado'],
-      vehiculoPlaca: json['vehiculo']?['placa'],
-      usuarioNombre: json['usuario']?['name'],
+      checklistData: parseChecklistData(json['checklist_data']),
+      observaciones: parseOptionalString(json['observaciones']),
+      estado: parseString(json['estado'], fallback: 'pendiente'),
+      vehiculoPlaca: parseVehiculoPlaca(json),
+      usuarioNombre: parseUsuarioNombre(json),
     );
   }
 

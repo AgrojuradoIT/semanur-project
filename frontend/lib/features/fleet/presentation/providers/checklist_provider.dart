@@ -25,6 +25,7 @@ class ChecklistProvider extends ChangeNotifier {
 
     try {
       _checklists = await _repository.getChecklists(vehiculoId: vehiculoId);
+      _checklists = _checklists.where(_isValidChecklist).toList();
       _isLoading = false;
       notifyListeners();
 
@@ -53,6 +54,7 @@ class ChecklistProvider extends ChangeNotifier {
                 }
               })
               .whereType<ChecklistPreoperacional>()
+              .where(_isValidChecklist)
               .toList();
 
           if (_checklists.isNotEmpty) {
@@ -112,5 +114,15 @@ class ChecklistProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  bool _isValidChecklist(ChecklistPreoperacional checklist) {
+    if (checklist.id <= 0 || checklist.vehiculoId <= 0) {
+      return false;
+    }
+    if (checklist.fecha.year < 2010) {
+      return false;
+    }
+    return true;
   }
 }

@@ -45,10 +45,13 @@ class ListaChequeoSeeder extends Seeder
         // Borrar actuales para evitar duplicados en desarrollo iterativo
         ItemListaChequeo::where('lista_chequeo_id', $ractorAgricola->id)->delete();
         foreach ($itemsTractor as $item) {
-            ItemListaChequeo::create(array_merge($item, [
+            ItemListaChequeo::create([
                 'lista_chequeo_id' => $ractorAgricola->id,
-                'tipo_respuesta' => 'cumple_falla'
-            ]));
+                'pregunta' => $item['pregunta'],
+                'es_critico' => $item['es_critico'],
+                'orden' => $item['orden'],
+                'tipo_respuesta' => 'cumple_falla',
+            ]);
         }
 
         // 2. Plantilla para Tractor Aéreo
@@ -69,10 +72,13 @@ class ListaChequeoSeeder extends Seeder
 
         ItemListaChequeo::where('lista_chequeo_id', $ractorAereo->id)->delete();
         foreach ($itemsAereo as $item) {
-            ItemListaChequeo::create(array_merge($item, [
+            ItemListaChequeo::create([
                 'lista_chequeo_id' => $ractorAereo->id,
-                'tipo_respuesta' => 'cumple_falla'
-            ]));
+                'pregunta' => $item['pregunta'],
+                'es_critico' => $item['es_critico'],
+                'orden' => $item['orden'],
+                'tipo_respuesta' => 'cumple_falla',
+            ]);
         }
 
         // 3. Plantilla Genérica para Volquetas, Camionetas y Vehículos Pesados
@@ -90,30 +96,29 @@ class ListaChequeoSeeder extends Seeder
 
             ItemListaChequeo::where('lista_chequeo_id', $listaPesado->id)->delete();
             $itemsPesado = [
-                // Niveles
                 ['pregunta' => 'Aceite de Motor', 'es_critico' => true, 'orden' => 1],
                 ['pregunta' => 'Refrigerante', 'es_critico' => true, 'orden' => 2],
                 ['pregunta' => 'Líquido de Frenos', 'es_critico' => true, 'orden' => 3],
                 ['pregunta' => 'Dirección Hidráulica', 'es_critico' => true, 'orden' => 4],
-                // Llantas
                 ['pregunta' => 'Presión y Estado Llantas Principales', 'es_critico' => true, 'orden' => 5],
                 ['pregunta' => 'Pernos Completos', 'es_critico' => true, 'orden' => 6],
                 ['pregunta' => 'Llanta de Repuesto', 'es_critico' => false, 'orden' => 7],
-                // Luces y Eléctrico
                 ['pregunta' => 'Luces Altas y Bajas', 'es_critico' => false, 'orden' => 8],
                 ['pregunta' => 'Stop y Direccionales', 'es_critico' => false, 'orden' => 9],
                 ['pregunta' => 'Pito / Bocina', 'es_critico' => true, 'orden' => 10],
-                // Seguridad
                 ['pregunta' => 'Extintor Vigente', 'es_critico' => true, 'orden' => 11],
                 ['pregunta' => 'Botiquín de Primeros Auxilios', 'es_critico' => false, 'orden' => 12],
                 ['pregunta' => 'Cinturones de Seguridad Funcionales', 'es_critico' => true, 'orden' => 13],
             ];
 
             foreach ($itemsPesado as $item) {
-                ItemListaChequeo::create(array_merge($item, [
+                ItemListaChequeo::create([
                     'lista_chequeo_id' => $listaPesado->id,
-                    'tipo_respuesta' => 'cumple_falla'
-                ]));
+                    'pregunta' => $item['pregunta'],
+                    'es_critico' => $item['es_critico'],
+                    'orden' => $item['orden'],
+                    'tipo_respuesta' => 'cumple_falla',
+                ]);
             }
         }
     }

@@ -10,25 +10,27 @@ async function safeGet(path, fallback = []) {
   }
 }
 
+import { useCatalogsStore } from '../../../shared/stores/catalogs';
+
 export async function fetchDashboardSources() {
-  const [summary, fuelMonthly, maintenanceByVehicle, vehicles, fuelStock] = await Promise.all([
-    safeGet('/analytics/summary', {
-      total_fuel_cost: 0,
-      total_maintenance_cost: 0,
-      vehicle_count: 0,
-      open_orders: 0,
-    }),
-    safeGet('/analytics/fuel', []),
-    safeGet('/analytics/maintenance', []),
-    safeGet('/vehiculos', []),
-    safeGet('/analytics/fuel-stock', []),
-  ]);
+  const store = useCatalogsStore();
+  
+  // Única llamada BFF
+  const data = await safeGet('/dashboard/all', {
+    summary: { total_fuel_cost: 0, total_maintenance_cost: 0, vehicle_count: 0, open_orders: 0 },
+    fuelMonthly: [],
+    maintenanceByVehicle: [],
+    fuelStock: []
+  });
+
+  // Cargar vehículos desde el Caché local
+  const vehicles = await store.fetchVehiculos();
 
   return {
-    summary,
-    fuelMonthly,
-    maintenanceByVehicle,
+    summary: data.summary || { total_fuel_cost: 0, total_maintenance_cost: 0, vehicle_count: 0, open_orders: 0 },
+    fuelMonthly: extractList(data.fuelMonthly),
+    maintenanceByVehicle: extractList(data.maintenanceByVehicle),
     vehicles,
-    fuelStock,
+    fuelStock: extractList(data.fuelStock),
   };
 }

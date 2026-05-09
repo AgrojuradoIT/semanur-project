@@ -1,11 +1,11 @@
-﻿<template>
+<template>
   <div class="table-container">
     <div class="table-header">
       <h3 class="table-title">REGISTROS DE COMBUSTIBLE</h3>
       <div class="table-actions">
         <div class="table-search">
           <span class="material-icons-round">search</span>
-          <input v-model="search" type="text" placeholder="Buscar por placa o estacion..." />
+          <input v-model="search" type="text" placeholder="Buscar por placa, empleado, labor..." />
         </div>
         <button v-if="canCreate" class="btn btn-primary btn-sm" @click="openCreateModal">
           <span class="material-icons-round" style="font-size: 18px">local_gas_station</span>
@@ -14,56 +14,63 @@
       </div>
     </div>
 
-    <!-- Filtros -->
-    <div class="filters-row">
-      <div class="filter-group">
-        <label>Desde</label>
-        <input v-model="filterDesde" type="date" class="input input-sm" @change="applyFilters" />
-      </div>
-      <div class="filter-group">
-        <label>Hasta</label>
-        <input v-model="filterHasta" type="date" class="input input-sm" @change="applyFilters" />
-      </div>
-      <div class="filter-group">
-        <label>Tipo Comb.</label>
-        <select v-model="filterTipoCombustible" class="input input-sm" @change="applyFilters">
-          <option value="">Todos</option>
-          <option value="gasolina">Gasolina</option>
-          <option value="acpm">ACPM</option>
-        </select>
-      </div>
-      <div class="filter-group">
-        <label>Tipo Dest.</label>
-        <select v-model="filterTipoDestino" class="input input-sm" @change="applyFilters">
-          <option value="">Todos</option>
-          <option value="vehiculo">Vehículo</option>
-          <option value="empleado">Empleado</option>
-          <option value="tercero">Tercero</option>
-        </select>
-      </div>
-    </div>
+    <!-- Filtros Mejorados -->
+    <div class="filters-section">
+      <div class="filters-content">
+        <div class="filter-chips">
+          <button
+            class="chip"
+            :class="{ active: selectedPeriod === 'today' }"
+            @click="setPeriod('today')"
+          >
+            Hoy
+          </button>
+          <button
+            class="chip"
+            :class="{ active: selectedPeriod === 'week' }"
+            @click="setPeriod('week')"
+          >
+            Esta Semana
+          </button>
+          <button
+            class="chip"
+            :class="{ active: selectedPeriod === 'month' }"
+            @click="setPeriod('month')"
+          >
+            Este Mes
+          </button>
+          <button
+            class="chip"
+            :class="{ active: selectedPeriod === 'year' }"
+            @click="setPeriod('year')"
+          >
+            Este Año
+          </button>
+          <button
+            class="chip"
+            :class="{ active: selectedPeriod === 'all' }"
+            @click="setPeriod('all')"
+          >
+            Todo
+          </button>
+        </div>
 
-    <!-- Métricas -->
-    <div class="metrics-row" v-if="summary">
-      <div class="metric-card">
-        <span class="material-icons-round metric-icon" style="color: var(--info)">local_gas_station</span>
-        <div class="metric-info">
-          <span class="metric-value">{{ formatGallons(summary.gasolina_galones) }}</span>
-          <span class="metric-label">Gasolina (gal)</span>
-        </div>
-      </div>
-      <div class="metric-card">
-        <span class="material-icons-round metric-icon" style="color: var(--warning)">local_gas_station</span>
-        <div class="metric-info">
-          <span class="metric-value">{{ formatGallons(summary.acpm_galones) }}</span>
-          <span class="metric-label">ACPM (gal)</span>
-        </div>
-      </div>
-      <div class="metric-card">
-        <span class="material-icons-round metric-icon" style="color: var(--primary)">receipt_long</span>
-        <div class="metric-info">
-          <span class="metric-value">{{ summary.total_registros }}</span>
-          <span class="metric-label">Registros</span>
+        <!-- Métricas -->
+        <div class="metrics-inline" v-if="summary">
+          <div class="metric-card metric-card--small">
+            <span class="material-icons-round metric-icon" style="color: var(--info)">local_gas_station</span>
+            <div class="metric-info">
+              <span class="metric-value">{{ formatGallons(summary.gasolina_galones) }}</span>
+              <span class="metric-label">Gasolina</span>
+            </div>
+          </div>
+          <div class="metric-card metric-card--small">
+            <span class="material-icons-round metric-icon" style="color: var(--warning)">local_gas_station</span>
+            <div class="metric-info">
+              <span class="metric-value">{{ formatGallons(summary.acpm_galones) }}</span>
+              <span class="metric-label">ACPM</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -316,11 +323,9 @@ import {
   deleteFuelRecord,
   fetchFuelRecords,
   fetchFuelSummary,
-  fetchProductsForFuel,
-  fetchUsersForFuel,
-  fetchVehiclesForFuel,
 } from '../api/fuelService';
 import { useAuthStore } from '../../../shared/stores/auth';
+import { useCatalogsStore } from '../../../shared/stores/catalogs';
 
 const auth = useAuthStore();
 const userRole = computed(() => auth.user?.role || 'visualizador');
@@ -333,9 +338,13 @@ const route = useRoute();
 const records = ref([]);
 const vehicles = ref([]);
 const users = ref([]);
-const products = ref([]);
 
 const search = ref('');
+
+// Filtros mejorados
+const selectedPeriod = ref('all');
+const filterDesde = ref('');
+const filterHasta = ref('');
 
 const showCreate = ref(false);
 const showEdit = ref(false);
@@ -345,15 +354,11 @@ const form = ref(defaultForm());
 const editForm = ref({});
 const editingId = ref(null);
 
-// Pagination & Filters
+// Pagination
 const currentPage = ref(1);
 const totalPages = ref(1);
 const totalItems = ref(0);
 const summary = ref(null);
-const filterDesde = ref('');
-const filterHasta = ref('');
-const filterTipoCombustible = ref('');
-const filterTipoDestino = ref('');
 
 const isSelectedVehicleMachinery = computed(() => {
   if (form.value.tipo_destino !== 'vehiculo' || !form.value.vehiculo_id) return false;
@@ -365,7 +370,7 @@ const isSelectedVehicleMachinery = computed(() => {
 
 onMounted(async () => {
   await loadData();
-  
+
   if (route.query.action === 'new' && route.query.vehiculo_id) {
     showCreate.value = true;
     form.value.tipo_destino = 'vehiculo';
@@ -377,9 +382,40 @@ function buildFilterParams() {
   const params = { page: currentPage.value, per_page: 25 };
   if (filterDesde.value) params.fecha_desde = filterDesde.value;
   if (filterHasta.value) params.fecha_hasta = filterHasta.value;
-  if (filterTipoCombustible.value) params.tipo_combustible = filterTipoCombustible.value;
-  if (filterTipoDestino.value) params.tipo_destino = filterTipoDestino.value;
   return params;
+}
+
+function setPeriod(period) {
+  selectedPeriod.value = period;
+  const today = new Date();
+
+  if (period === 'today') {
+    filterDesde.value = formatDateForInput(today);
+    filterHasta.value = formatDateForInput(today);
+  } else if (period === 'week') {
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - today.getDay());
+    filterDesde.value = formatDateForInput(startOfWeek);
+    filterHasta.value = formatDateForInput(today);
+  } else if (period === 'month') {
+    filterDesde.value = formatDateForInput(new Date(today.getFullYear(), today.getMonth(), 1));
+    filterHasta.value = formatDateForInput(today);
+  } else if (period === 'year') {
+    filterDesde.value = formatDateForInput(new Date(today.getFullYear(), 0, 1));
+    filterHasta.value = formatDateForInput(today);
+  } else {
+    filterDesde.value = '';
+    filterHasta.value = '';
+  }
+
+  applyFilters();
+}
+
+function formatDateForInput(date) {
+  const d = new Date(date);
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${month}-${day}`;
 }
 
 async function applyFilters() {
@@ -396,26 +432,26 @@ function goPage(page) {
 async function loadData() {
   try {
     await run(async () => {
-    const params = buildFilterParams();
-    const [recordsRes, vehiclesData, usersData, productsData, summaryData] = await Promise.all([
-      fetchFuelRecords(params),
-      fetchVehiclesForFuel(),
-      fetchUsersForFuel(),
-      fetchProductsForFuel(),
-      fetchFuelSummary({ fecha_desde: filterDesde.value || undefined, fecha_hasta: filterHasta.value || undefined }),
-    ]);
+      const catalogsStore = useCatalogsStore();
+      await catalogsStore.fetchEssentialCatalogs();
+      
+      const params = buildFilterParams();
+      const [recordsRes, summaryData] = await Promise.all([
+        fetchFuelRecords(params),
+        fetchFuelSummary({ fecha_desde: filterDesde.value || undefined, fecha_hasta: filterHasta.value || undefined }),
+      ]);
 
-    records.value = recordsRes.data || [];
-    totalPages.value = recordsRes.meta?.last_page || 1;
-    totalItems.value = recordsRes.meta?.total || 0;
-    currentPage.value = recordsRes.meta?.current_page || 1;
-    vehicles.value = vehiclesData;
-    users.value = usersData;
-    products.value = productsData;
-    summary.value = summaryData;
+      records.value = recordsRes.data || [];
+      totalPages.value = recordsRes.meta?.last_page || 1;
+      totalItems.value = recordsRes.meta?.total || 0;
+      currentPage.value = recordsRes.meta?.current_page || 1;
+      
+      vehicles.value = catalogsStore.vehiculos;
+      users.value = catalogsStore.empleados;
+      summary.value = summaryData;
     }, 'Error al cargar combustible');
-  } catch {
-    // handled by composable
+  } catch (e) {
+    console.error('[Fuel] Error en loadData:', e);
   }
 }
 
@@ -438,20 +474,6 @@ const filteredRecords = computed(() => {
     return target.includes(q);
   });
 });
-
-const fuelProducts = computed(() =>
-  products.value.filter((product) => {
-    const name = String(productName(product)).toLowerCase();
-    const category = String(productCategory(product)).toLowerCase();
-    return (
-      name.includes('combustible') ||
-      name.includes('gasolina') ||
-      name.includes('acpm') ||
-      name.includes('diesel') ||
-      category.includes('combustible')
-    );
-  }),
-);
 
 function openCreateModal() {
   formError.value = '';
@@ -648,28 +670,94 @@ function productLabel(product) {
 </script>
 
 <style scoped>
-/* Filters */
-.filters-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-sm);
+/* --- Filtros Mejorados --- */
+.filters-section {
+  background: var(--surface);
+  border: 1px solid var(--surface-2);
+  border-radius: var(--radius-md);
+  padding: var(--sp-md);
   margin-bottom: var(--sp-md);
 }
-.filter-group {
+
+.filters-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-md);
+}
+
+.filter-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  padding: 6px 12px;
+  background: var(--surface-1);
+  border: 1px solid var(--surface-3);
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.chip:hover {
+  background: var(--surface-2);
+  border-color: var(--primary);
+  color: var(--text-main);
+}
+
+.chip.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+}
+
+/* Métricas en línea */
+.metrics-inline {
+  display: flex;
+  gap: var(--sp-md);
+  align-items: center;
+}
+
+.metric-card--small {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  background: var(--surface-1);
+  border: 1px solid var(--surface-3);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  min-width: 140px;
+}
+
+.metric-card--small .metric-icon {
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.metric-card--small .metric-info {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  line-height: 1.2;
 }
-.filter-group label {
+
+.metric-card--small .metric-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-main);
+  font-family: 'Oswald', sans-serif;
+}
+
+.metric-card--small .metric-label {
   font-size: 0.7rem;
   color: var(--text-gray);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-}
-.input-sm {
-  padding: 4px 8px;
-  font-size: 0.8rem;
-  min-width: 120px;
 }
 
 /* Pagination */
@@ -677,46 +765,10 @@ function productLabel(product) {
   display: flex;
   gap: 4px;
 }
+
 .table-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-}
-
-/* Metrics */
-.metrics-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: var(--sp-md);
-  margin-bottom: var(--sp-md);
-}
-.metric-card {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-sm);
-  background: var(--surface);
-  border: 1px solid var(--surface-2);
-  border-radius: var(--radius-md);
-  padding: var(--sp-md);
-}
-.metric-icon {
-  font-size: 28px;
-  opacity: 0.8;
-}
-.metric-info {
-  display: flex;
-  flex-direction: column;
-}
-.metric-value {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--text-main);
-  font-family: 'Oswald', sans-serif;
-}
-.metric-label {
-  font-size: 0.7rem;
-  color: var(--text-gray);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
 </style>

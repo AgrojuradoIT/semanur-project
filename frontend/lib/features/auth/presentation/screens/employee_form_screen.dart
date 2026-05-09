@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/core/widgets/semanur_scaffold.dart';
 import 'package:provider/provider.dart';
 import 'package:frontend/features/auth/presentation/providers/employee_provider.dart';
 import 'package:frontend/features/auth/data/models/empleado_model.dart';
@@ -184,7 +185,7 @@ class _EmployeeFormScreenState extends State<EmployeeFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return SemanurScaffold(
       appBar: AppBar(
         title: Text(
           widget.employee == null ? 'NUEVO EMPLEADO' : 'EDITAR EMPLEADO',

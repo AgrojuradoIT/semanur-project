@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/core/widgets/semanur_scaffold.dart';
 import 'package:provider/provider.dart';
 import 'package:frontend/features/inventory/presentation/providers/movement_provider.dart';
 import 'package:frontend/features/inventory/presentation/screens/add_movement_screen.dart';
@@ -24,7 +25,7 @@ class _MovementListScreenState extends State<MovementListScreen> {
   Widget build(BuildContext context) {
     final movementProvider = context.watch<MovementProvider>();
 
-    return Scaffold(
+    return SemanurScaffold(
       appBar: AppBar(
         title: const Text('Historial de Movimientos'),
         actions: [

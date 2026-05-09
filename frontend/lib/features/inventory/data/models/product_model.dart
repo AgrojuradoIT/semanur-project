@@ -8,6 +8,7 @@ class Producto {
   final String? unidadMedida;
   final double stockActual;
   final double alertaStockMinimo;
+  final double? capacidadMaxima;
   final double? precioCosto;
   final String? ubicacion;
   final Categoria? categoria;
@@ -20,6 +21,7 @@ class Producto {
     this.unidadMedida,
     required this.stockActual,
     required this.alertaStockMinimo,
+    this.capacidadMaxima,
     this.precioCosto,
     this.ubicacion,
     this.categoria,
@@ -40,22 +42,31 @@ class Producto {
       return null;
     }
 
-    return Producto(
-      id: parseInt(json['producto_id']) ?? 0,
-      categoriaId: parseInt(json['categoria_id']),
-      sku: json['producto_sku'] ?? '',
-      nombre: json['producto_nombre'] ?? '',
-      unidadMedida: json['producto_unidad_medida'],
-      stockActual: parseDouble(json['producto_stock_actual']),
-      alertaStockMinimo: parseDouble(json['producto_alerta_stock_minimo']),
-      precioCosto: json['producto_precio_costo'] != null
-          ? parseDouble(json['producto_precio_costo'])
-          : null,
-      ubicacion: json['producto_ubicacion'],
-      categoria: json['categoria'] != null
-          ? Categoria.fromJson(json['categoria'])
-          : null,
-    );
+    try {
+      return Producto(
+        id: parseInt(json['producto_id']) ?? 0,
+        categoriaId: parseInt(json['categoria_id']),
+        sku: json['producto_sku'] ?? '',
+        nombre: json['producto_nombre'] ?? '',
+        unidadMedida: json['producto_unidad_medida'],
+        stockActual: parseDouble(json['producto_stock_actual']),
+        alertaStockMinimo: parseDouble(json['producto_alerta_stock_minimo']),
+        capacidadMaxima: json['capacidad_maxima'] != null
+            ? parseDouble(json['capacidad_maxima'])
+            : null,
+        precioCosto: json['producto_precio_costo'] != null
+            ? parseDouble(json['producto_precio_costo'])
+            : null,
+        ubicacion: json['producto_ubicacion'],
+        categoria: json['categoria'] != null
+            ? Categoria.fromJson(json['categoria'])
+            : null,
+      );
+    } catch (e, stack) {
+      print('ERROR PARSEANDO PRODUCTO ${json['producto_nombre']}: $e');
+      print(stack);
+      rethrow;
+    }
   }
 
   Map<String, dynamic> toJson() {
@@ -67,6 +78,7 @@ class Producto {
       'producto_unidad_medida': unidadMedida,
       'producto_stock_actual': stockActual,
       'producto_alerta_stock_minimo': alertaStockMinimo,
+      'capacidad_maxima': capacidadMaxima,
       'producto_precio_costo': precioCosto,
       'producto_ubicacion': ubicacion,
       'categoria': categoria?.toJson(),

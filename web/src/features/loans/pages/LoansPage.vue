@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="table-container">
     <div class="table-header">
       <div style="display: flex; align-items: center; gap: var(--sp-md); flex-wrap: wrap">
@@ -200,11 +200,10 @@ import {
   productStock as mapProductStock,
 } from '../../../shared/adapters/productAdapter';
 import {
-  fetchEmployeesForLoan,
   fetchLoans,
-  fetchProductsForLoan,
   returnLoan,
 } from '../api/loansService';
+import { useCatalogsStore } from '../../../shared/stores/catalogs';
 
 const { loading, error, run, clearError } = useAsyncState('');
 const loans = ref([]);
@@ -244,15 +243,16 @@ onMounted(async () => {
 async function loadData() {
   try {
     await run(async () => {
-    const [loanData, productData, employeeData] = await Promise.all([
+    const catalogsStore = useCatalogsStore();
+    await catalogsStore.fetchEssentialCatalogs();
+
+    const [loanData] = await Promise.all([
       fetchLoans(),
-      fetchProductsForLoan(),
-      fetchEmployeesForLoan(),
     ]);
 
     loans.value = loanData;
-    products.value = productData;
-    employees.value = employeeData;
+    products.value = catalogsStore.productos;
+    employees.value = catalogsStore.empleados;
     }, 'Error al cargar prestamos');
   } catch {
     // handled by composable

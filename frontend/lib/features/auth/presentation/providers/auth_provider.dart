@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:frontend/features/auth/data/models/user_model.dart';
@@ -23,30 +25,43 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _user = await _authRepository.login(email, password);
-      _isLoading = false;
-      notifyListeners();
+      _user = await _authRepository
+          .login(email, password)
+          .timeout(const Duration(seconds: 65));
       return _user != null;
+    } on TimeoutException {
+      _user = null;
+      _error =
+          'Tiempo de espera agotado. Verifica tu conexion e intenta de nuevo.';
+      return false;
     } catch (e) {
-      _isLoading = false;
       debugPrint('AuthProvider: Login error: $e');
       if (e is DioException) {
         debugPrint(
           'AuthProvider: DioError details: ${e.response?.statusCode} - ${e.response?.data}',
         );
+        
+        // Extraer mensaje de error del backend
         final data = e.response?.data;
-        if (data is Map && data.containsKey('message')) {
-          _error = data['message'];
+        if (data is Map) {
+          // Buscar mensaje en diferentes formatos
+          _error = data['message']?.toString() ??
+                   data['email']?.first?.toString() ??  // Laravel ValidationException
+                   data['error']?.toString() ??
+                   e.message ??
+                   'Credenciales incorrectas';
         } else if (data is String) {
-          _error = data; // If it's a plain string response
+          _error = data;
         } else {
-          _error = e.message ?? 'Error desconocido';
+          _error = e.message ?? 'Credenciales incorrectas';
         }
       } else {
         _error = e.toString();
       }
-      notifyListeners();
       return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
@@ -71,7 +86,9 @@ class AuthProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     try {
-      final user = await _authRepository.restoreSession();
+      final user = await _authRepository
+          .restoreSession()
+          .timeout(const Duration(seconds: 65), onTimeout: () => null);
       _user = user;
     } catch (e) {
       _user = null;

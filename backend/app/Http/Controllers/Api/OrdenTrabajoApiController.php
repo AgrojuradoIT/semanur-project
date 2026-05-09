@@ -10,6 +10,7 @@ use App\Models\Producto;
 use App\Models\TransaccionInventario;
 use App\Models\User;
 use App\Services\MediaService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -61,7 +62,14 @@ class OrdenTrabajoApiController extends Controller
     public function show(Request $request, $id)
     {
         $user = $request->user();
-        $orden = OrdenTrabajo::with(['vehiculo', 'mecanico', 'movimientos_inventario.producto', 'sesiones.user'])->find($id);
+        // Cargar orden con todas las relaciones incluyendo sesiones
+        $orden = OrdenTrabajo::with([
+            'vehiculo',
+            'mecanico',
+            'movimientos_inventario.producto',
+            'sesiones.user',
+            'sesiones.empleado'
+        ])->find($id);
 
         if (!$orden) {
             return response()->json(['message' => 'Orden de trabajo no encontrada'], 404);
@@ -70,6 +78,9 @@ class OrdenTrabajoApiController extends Controller
         if (!$this->canAccessOrden($user, $orden)) {
             return response()->json(['message' => 'No autorizado para ver esta orden'], 403);
         }
+
+        // Debug: Log para verificar sesiones
+        \Log::info('OrdenTrabajo show: ID=' . $id . ', Sesiones count=' . $orden->sesiones->count());
 
         return response()->json($orden);
     }
@@ -101,8 +112,16 @@ class OrdenTrabajoApiController extends Controller
             $orden->prioridad = $request->prioridad;
             $orden->descripcion = $request->descripcion;
             $orden->estado = 'Abierta';
-            $orden->fecha_inicio = now();
+            
+            // Usar fecha y hora actual de Bogotá - now() ya está configurado en America/Bogota
+            // Importante: Asignar DESPUES de setear los otros campos y ANTES del save()
+            $currentDateTime = now();
+            \Log::info('Creando OT - Fecha actual: ' . $currentDateTime->toIso8601String());
+            
+            $orden->fecha_inicio = $currentDateTime;
             $orden->save();
+            
+            \Log::info('OT Creada - ID: ' . $orden->orden_trabajo_id . ' - Fecha guardada: ' . $orden->fecha_inicio->toIso8601String());
 
             // 2. Procesar repuestos (salidas de inventario)
             if ($request->has('repuestos')) {

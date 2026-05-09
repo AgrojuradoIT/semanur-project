@@ -2,12 +2,10 @@
 
 namespace App\Models;
 
-use Backpack\CRUD\app\Models\Traits\CrudTrait;
 use Illuminate\Database\Eloquent\Model;
 
 class Producto extends Model
 {
-    use CrudTrait;
     protected $primaryKey = 'producto_id';
 
     protected $fillable = [

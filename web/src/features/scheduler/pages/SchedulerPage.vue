@@ -85,9 +85,7 @@ import SchedulerToolbar from '../components/SchedulerToolbar.vue';
 import {
   createSchedule,
   deleteSchedule,
-  fetchEmployeesForSchedule,
   fetchScheduleRange,
-  fetchVehiclesForSchedule,
   reportScheduleIssue,
   updateSchedule,
 } from '../api/schedulerService';
@@ -103,6 +101,7 @@ import {
   stateClass,
   stateIcon,
 } from '../../../shared/utils/scheduler';
+import { useCatalogsStore } from '../../../shared/stores/catalogs';
 
 const { loading, error, run, clearError } = useAsyncState('');
 const employees = ref([]);
@@ -132,12 +131,11 @@ onMounted(async () => {
 async function loadDependencies() {
   try {
     await run(async () => {
-      const [employeeData, vehicleData] = await Promise.all([
-        fetchEmployeesForSchedule(),
-        fetchVehiclesForSchedule(),
-      ]);
-      employees.value = employeeData;
-      vehicles.value = vehicleData;
+      const catalogsStore = useCatalogsStore();
+      await catalogsStore.fetchEssentialCatalogs();
+
+      employees.value = catalogsStore.empleados;
+      vehicles.value = catalogsStore.vehiculos;
     }, 'Error al cargar dependencias');
   } catch {
     // handled by composable

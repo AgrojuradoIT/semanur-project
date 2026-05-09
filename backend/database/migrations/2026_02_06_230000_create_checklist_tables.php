@@ -32,9 +32,9 @@ return new class extends Migration
 
         Schema::create('respuestas_lista_chequeo', function (Blueprint $table) {
             $table->id('id');
-            $table->foreignId('lista_chequeo_id')->constrained('listas_chequeo');
+            $table->foreignId('lista_chequeo_id')->nullable()->constrained('listas_chequeo')->nullOnDelete();
             $table->foreignId('vehiculo_id')->constrained('vehiculos', 'vehiculo_id');
-            $table->foreignId('operador_id')->constrained('users', 'id');
+            $table->unsignedBigInteger('operador_id'); // Empleado ID, sin foreign key estricto
             $table->dateTime('fecha');
             $table->json('respuestas'); // { "item_1_id": "cumple", "item_2_id": "texto..." }
             $table->enum('estado', ['aprobado', 'rechazado'])->default('aprobado');

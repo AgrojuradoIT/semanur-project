@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/core/widgets/semanur_scaffold.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:frontend/core/theme/app_theme.dart';
 
@@ -50,8 +51,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return SemanurScaffold(
       backgroundColor: AppTheme.backgroundDark,
+      currentNav: SemanurNavItem.profile,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,

@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="table-container">
     <div class="table-header">
       <div style="display: flex; align-items: center; gap: var(--sp-md); flex-wrap: wrap">
@@ -305,13 +305,12 @@ import { useRoute } from 'vue-router';
 import { useAsyncState } from '../../../shared/composables/useAsyncState';
 import {
   createWorkOrder,
-  fetchFleetOptions,
   fetchWorkOrders,
   updateWorkOrderStatus,
   startWorkSession,
-  stopWorkSession,
-  fetchEmployees
+  stopWorkSession
 } from '../api/workOrdersService';
+import { useCatalogsStore } from '../../../shared/stores/catalogs';
 import { useRefresh } from '../../../shared/composables/useRefresh';
 
 const { refreshTrigger } = useRefresh();
@@ -373,14 +372,19 @@ watch(refreshTrigger, loadData);
 async function loadData() {
   try {
     await run(async () => {
-      const [ordersData, fleetData, empData] = await Promise.all([
+      const catalogsStore = useCatalogsStore();
+      await catalogsStore.fetchEssentialCatalogs();
+
+      const [ordersData] = await Promise.all([
         fetchWorkOrders(),
-        fetchFleetOptions(),
-        fetchEmployees(),
       ]);
+      
       orders.value = ordersData;
-      fleetOptions.value = fleetData;
-      employeeOptions.value = empData;
+      fleetOptions.value = catalogsStore.vehiculos;
+      employeeOptions.value = catalogsStore.empleados.filter(e => {
+        const c = (e.cargo || '').toLowerCase();
+        return c.includes('mecanico') || c.includes('mecánico');
+      });
     }, 'Error al cargar ordenes');
   } catch {
     // handled by composable

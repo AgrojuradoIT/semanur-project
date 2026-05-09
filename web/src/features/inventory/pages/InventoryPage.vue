@@ -586,7 +586,7 @@
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { useAsyncState } from '../../../shared/composables/useAsyncState';
 import { formatCurrencyCO } from '../../../shared/utils/formatters';
 import SearchableSelect from '../../../shared/components/SearchableSelect.vue';
@@ -627,6 +627,7 @@ const canCreate = computed(() => ['admin', 'jefe_taller', 'auxiliar_bodega'].inc
 const { refreshTrigger, triggerRefresh } = useRefresh();
 
 const router = useRouter();
+const route = useRoute();
 
 const { loading, error, run } = useAsyncState('');
 const search = ref('');
@@ -729,6 +730,21 @@ function stopProgress() {
 onMounted(async () => {
   await loadProducts();
   await loadEmpleados();
+
+  // Auto-abrir detalle si viene de una notificación con producto_id
+  const productoId = route.query.producto_id;
+  if (productoId) {
+    try {
+      const { data: producto } = await http.get(`/productos/${productoId}`);
+      if (producto) {
+        goToProduct(producto);
+      }
+    } catch (e) {
+      console.warn('No se encontró el producto de la notificación:', e);
+    }
+    // Limpiar query param para evitar re-apertura
+    router.replace({ query: {} });
+  }
 });
 
 watch(refreshTrigger, async () => {

@@ -13,7 +13,9 @@ class AuthRepository {
   static const String _deviceNameKey = 'device_name';
 
   final ApiClient _apiClient;
-  final _storage = const FlutterSecureStorage();
+  final _storage = const FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
 
   AuthRepository(this._apiClient);
 
@@ -27,6 +29,11 @@ class AuthRepository {
           'password': password,
           'device_name': deviceName,
         },
+        options: Options(
+          connectTimeout: const Duration(seconds: 60),
+          sendTimeout: const Duration(seconds: 60),
+          receiveTimeout: const Duration(seconds: 60),
+        ),
       );
 
       if (response.statusCode == 200) {
@@ -38,12 +45,28 @@ class AuthRepository {
         await _storage.write(key: _userDataKey, value: jsonEncode(userData));
 
         return User.fromJson(userData);
+      } else {
+        // Manejo de errores por statusCode
+        if (response.statusCode == 401 || response.statusCode == 422) {
+          final message = response.data?['message'] ?? 
+                         response.data?['email']?.first ?? 
+                         'Credenciales incorrectas';
+          throw DioException(
+            requestOptions: response.requestOptions,
+            response: response,
+            message: message,
+          );
+        }
+        throw DioException(
+          requestOptions: response.requestOptions,
+          response: response,
+          message: 'Error del servidor: ${response.statusCode}',
+        );
       }
     } on DioException catch (e) {
       debugPrint('Error en login: ${e.message}');
       rethrow;
     }
-    return null;
   }
 
   Future<void> logout() async {
@@ -89,7 +112,13 @@ class AuthRepository {
     if (token == null) return null;
 
     try {
-      final response = await _apiClient.dio.get(ApiConstants.user);
+      final response = await _apiClient.dio.get(
+        ApiConstants.user,
+        options: Options(
+          connectTimeout: const Duration(seconds: 60),
+          receiveTimeout: const Duration(seconds: 60),
+        ),
+      );
       if (response.statusCode == 200) {
         await _storage.write(
           key: _userDataKey,
@@ -98,7 +127,9 @@ class AuthRepository {
         return User.fromJson(response.data);
       }
     } on DioException catch (e) {
-      debugPrint('Error restaurando sesion API: $e');
+      if (kDebugMode) {
+        debugPrint('Error restaurando sesion API: $e');
+      }
 
       if (e.type == DioExceptionType.connectionTimeout ||
           e.type == DioExceptionType.receiveTimeout ||
@@ -107,12 +138,19 @@ class AuthRepository {
           e.type == DioExceptionType.unknown) {
         final cachedUser = await _storage.read(key: _userDataKey);
         if (cachedUser != null) {
-          debugPrint('Restaurando sesion desde cache (OFFLINE MODE)');
+          if (kDebugMode) {
+            debugPrint('Restaurando sesion desde cache (OFFLINE MODE)');
+          }
           return User.fromJson(jsonDecode(cachedUser));
         }
+        // No hay cache: limpiar token obsoleto para ir directo a login
+        debugPrint('No cached user data, clearing stale token');
+        await _storage.delete(key: _authTokenKey);
       }
     } catch (e) {
-      debugPrint('Error general restaurando sesion: $e');
+      if (kDebugMode) {
+        debugPrint('Error general restaurando sesion: $e');
+      }
     }
     return null;
   }

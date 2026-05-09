@@ -4,6 +4,7 @@ import 'package:frontend/core/network/api_client.dart';
 import '../../data/models/session_model.dart';
 import 'package:frontend/core/providers/sync_provider.dart';
 import 'package:frontend/core/database/database_helper.dart';
+import 'package:timezone/timezone.dart' as tz;
 
 class SessionProvider extends ChangeNotifier {
   final ApiClient _apiClient;
@@ -40,7 +41,7 @@ class SessionProvider extends ChangeNotifier {
         _activeSession = null;
         // Si servidor dice null, limpiar local también
         await DatabaseHelper().closeActiveSessionLocal(
-          DateTime.now().toIso8601String(),
+          tz.TZDateTime.now(tz.local).toIso8601String(),
         );
       }
       _isLoading = false;
@@ -107,7 +108,7 @@ class SessionProvider extends ChangeNotifier {
               (e.type == DioExceptionType.connectionTimeout ||
                   e.type == DioExceptionType.connectionError ||
                   e.error.toString().contains('SocketException'))) {
-        final now = DateTime.now();
+        final now = tz.TZDateTime.now(tz.local);
         // 1. Guardar en DB local (Optimistic UI)
         final tempSession = {
           'sesion_id': null, // No tenemos ID del server aún
@@ -170,7 +171,7 @@ class SessionProvider extends ChangeNotifier {
               (e.type == DioExceptionType.connectionTimeout ||
                   e.type == DioExceptionType.connectionError ||
                   e.error.toString().contains('SocketException'))) {
-        final now = DateTime.now();
+        final now = tz.TZDateTime.now(tz.local);
         await DatabaseHelper().closeActiveSessionLocal(
           now.toIso8601String(),
           notas: notas,

@@ -13,9 +13,32 @@ use App\Http\Controllers\Api\HorometroApiController;
 use App\Http\Controllers\Api\ChecklistApiController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 // Rutas públicas
 Route::post('/login', [AuthController::class, 'login']);
+
+// Ruta temporal para verificar timezone (pública para testing)
+Route::get('/verificar-hora', function() {
+    $now = now();
+    
+    try {
+        $mysqlNow = DB::select('SELECT NOW() as now')[0]->now;
+    } catch (\Exception $e) {
+        $mysqlNow = 'Error: ' . $e->getMessage();
+    }
+    
+    return [
+        'timezone_php' => date_default_timezone_get(),
+        'carbon_now' => $now->toIso8601String(),
+        'carbon_timezone' => $now->tzName,
+        'offset' => $now->offsetHours . ' horas',
+        'mysql_now' => $mysqlNow,
+        'mensaje' => 'Si offset es -5, está correcto para Bogotá',
+        'timestamp_unix' => $now->timestamp
+    ];
+});
 // Rutas protegidas
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
@@ -83,7 +106,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/sesiones-trabajo/{id}/stop', [\App\Http\Controllers\Api\WorkSessionApiController::class, 'stop']);
     Route::get('/sesiones-trabajo/active', [\App\Http\Controllers\Api\WorkSessionApiController::class, 'activeSession']);
 
-    // Analítica
+    // Analítica y BFF (Backend For Frontend)
+    Route::get('/dashboard/all', [\App\Http\Controllers\Api\AnalyticsApiController::class, 'getDashboard']);
+    Route::get('/history/all', [\App\Http\Controllers\Api\HistoryApiController::class, 'getHistoryAll']);
     Route::get('/analytics/summary', [\App\Http\Controllers\Api\AnalyticsApiController::class, 'getSummary']);
     Route::get('/analytics/fuel', [\App\Http\Controllers\Api\AnalyticsApiController::class, 'getFuelMonthly']);
     Route::get('/analytics/maintenance', [\App\Http\Controllers\Api\AnalyticsApiController::class, 'getMaintenanceByVehicle']);
@@ -100,4 +125,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/media', [MediaApiController::class, 'index']);
     Route::post('/media', [MediaApiController::class, 'store']);
     Route::delete('/media/{id}', [MediaApiController::class, 'destroy']);
+    // Notifications
+    Route::get('notifications', [App\Http\Controllers\Api\NotificacionApiController::class, 'index']);
+    Route::post('notifications/{id}/read', [App\Http\Controllers\Api\NotificacionApiController::class, 'markAsRead']);
+    Route::post('notifications/read-all', [App\Http\Controllers\Api\NotificacionApiController::class, 'markAllAsRead']);
 });

@@ -1,4 +1,5 @@
 import 'package:frontend/features/auth/data/models/empleado_model.dart';
+import 'package:timezone/timezone.dart' as tz;
 
 class SessionTrabajo {
   final int id;
@@ -31,12 +32,29 @@ class SessionTrabajo {
       id: parseInt(json['sesion_id']) ?? 0,
       empleadoId: parseInt(json['empleado_id']) ?? 0,
       ordenTrabajoId: parseInt(json['orden_trabajo_id']) ?? 0,
-      fechaInicio: DateTime.parse(json['fecha_inicio']),
+      fechaInicio: _parseDateTime(json['fecha_inicio']),
       fechaFin: json['fecha_fin'] != null
-          ? DateTime.parse(json['fecha_fin'])
+          ? _parseDateTime(json['fecha_fin'])
           : null,
       notas: json['notas'],
       empleado: json['empleado'] != null ? Empleado.fromJson(json['empleado']) : null,
+    );
+  }
+
+  /// Parsea fecha ISO 8601 manteniendo la hora de Bogotá
+  static DateTime _parseDateTime(String dateString) {
+    final dateTime = DateTime.parse(dateString);
+    final bogota = tz.getLocation('America/Bogota');
+    final tzDateTime = tz.TZDateTime.from(dateTime, bogota);
+    return DateTime(
+      tzDateTime.year,
+      tzDateTime.month,
+      tzDateTime.day,
+      tzDateTime.hour,
+      tzDateTime.minute,
+      tzDateTime.second,
+      tzDateTime.millisecond,
+      tzDateTime.microsecond,
     );
   }
 

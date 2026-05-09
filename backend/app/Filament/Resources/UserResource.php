@@ -3,27 +3,21 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\UserResource\Pages;
-use App\Filament\Resources\UserResource\RelationManagers;
 use App\Models\User;
 use Filament\Forms;
-use BackedEnum;
-use Filament\Schemas\Schema;
-use Illuminate\Contracts\Support\Htmlable;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Actions;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Filament\Schemas\Schema;
+use BackedEnum;
+use Illuminate\Support\Facades\Hash;
 
 class UserResource extends Resource
 {
     protected static ?string $model = User::class;
 
-    public static function getNavigationIcon(): string | BackedEnum | Htmlable | null
-    {
-        return 'heroicon-o-rectangle-stack';
-    }
+    protected static string | BackedEnum | null $navigationIcon = 'heroicon-o-users';
 
     public static function form(Schema $schema): Schema
     {
@@ -36,11 +30,16 @@ class UserResource extends Resource
                     ->email()
                     ->required()
                     ->maxLength(255),
-                Forms\Components\DateTimePicker::make('email_verified_at'),
                 Forms\Components\TextInput::make('password')
                     ->password()
-                    ->required()
+                    ->dehydrateStateUsing(fn ($state) => Hash::make($state))
+                    ->required(fn ($livewire) => $livewire instanceof Pages\CreateUser)
                     ->maxLength(255),
+                Forms\Components\TextInput::make('role')
+                    ->maxLength(255),
+                Forms\Components\TextInput::make('phone')
+                    ->tel()
+                    ->maxLength(20),
             ]);
     }
 
@@ -52,14 +51,9 @@ class UserResource extends Resource
                     ->searchable(),
                 Tables\Columns\TextColumn::make('email')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('email_verified_at')
-                    ->dateTime()
-                    ->sortable(),
+                Tables\Columns\TextColumn::make('role')
+                    ->searchable(),
                 Tables\Columns\TextColumn::make('created_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('updated_at')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),

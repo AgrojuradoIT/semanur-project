@@ -1,19 +1,40 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/core/widgets/semanur_scaffold.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:frontend/core/theme/app_theme.dart';
 import 'package:frontend/features/notifications/presentation/providers/notification_provider.dart';
+import 'package:frontend/features/notifications/data/models/notification_item.dart';
+import 'package:frontend/features/inventory/presentation/screens/inventory_screen.dart';
+import 'package:frontend/features/inventory/presentation/screens/product_detail_screen.dart';
+import 'package:frontend/features/inventory/data/models/product_model.dart';
+import 'package:frontend/core/network/api_client.dart';
+import 'package:frontend/features/workshop/presentation/screens/work_order_list_screen.dart';
+import 'package:frontend/features/fleet/presentation/screens/vehicle_list_screen.dart';
+import 'package:frontend/features/fleet/presentation/screens/vehicle_resume_screen.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
-class NotificationListScreen extends StatelessWidget {
+
+class NotificationListScreen extends StatefulWidget {
   const NotificationListScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // Marcar todo como leido al salir (o al entrar, depende de preferencia UX)
-    // Lo haremos al construir la pantalla o con un botón "Marcar todo"
+  State<NotificationListScreen> createState() => _NotificationListScreenState();
+}
 
-    return Scaffold(
+class _NotificationListScreenState extends State<NotificationListScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Sincronizar con MySQL al abrir la pantalla
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<NotificationProvider>().syncFromServer();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SemanurScaffold(
       backgroundColor: AppTheme.backgroundDark,
       appBar: AppBar(
         title: Text(
@@ -82,7 +103,6 @@ class NotificationListScreen extends StatelessWidget {
                 ),
                 onDismissed: (_) {
                   // Implementar borrar individual si se desea
-                  // Por ahora solo UI visual
                 },
                 child: Card(
                   color: item.isRead
@@ -108,7 +128,7 @@ class NotificationListScreen extends StatelessWidget {
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
-                        _getIconForType(item.type),
+                        _getIconForAlertType(item.alertType, item.type),
                         color: _getColorForType(item.type),
                       ),
                     ),
@@ -130,18 +150,33 @@ class NotificationListScreen extends StatelessWidget {
                           style: const TextStyle(color: AppTheme.textGray),
                         ),
                         const SizedBox(height: 8),
-                        Text(
-                          timeago.format(item.timestamp, locale: 'es'),
-                          style: const TextStyle(
-                            fontSize: 10,
-                            color: AppTheme.textGray,
-                            fontStyle: FontStyle.italic,
-                          ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              timeago.format(item.timestamp, locale: 'es'),
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: AppTheme.textGray,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                            if (_canNavigate(item.alertType))
+                              Text(
+                                'Ver detalle →',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: AppTheme.primaryYellow,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                          ],
                         ),
                       ],
                     ),
                     onTap: () {
                       provider.markAsRead(item.id);
+                      _navigateTo(context, item);
                     },
                   ),
                 ),
@@ -151,6 +186,90 @@ class NotificationListScreen extends StatelessWidget {
         },
       ),
     );
+  }
+
+  bool _canNavigate(String alertType) {
+    return alertType != 'general';
+  }
+
+  void _navigateTo(BuildContext context, NotificationItem item) {
+    switch (item.alertType) {
+      case 'stock_bajo':
+      case 'inventory_alert':
+        _navigateToProducto(context, item.relacionadoId);
+        break;
+
+      case 'work_order':
+      case 'orden_trabajo':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const WorkOrderListScreen()),
+        );
+        break;
+
+      case 'fleet_alert':
+      case 'vencimiento_soat':
+      case 'vencimiento_tecnomecanica':
+      case 'mantenimiento_preventivo':
+        // relacionadoId = 'vehiculoId|placa'
+        final partes = item.relacionadoId?.split('|');
+        final vehiculoId = int.tryParse(partes?.first ?? '');
+        final placa = partes != null && partes.length > 1 ? partes[1] : 'VH';
+
+        if (vehiculoId != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => VehicleResumeScreen(
+                vehiculoId: vehiculoId,
+                placa: placa,
+              ),
+            ),
+          );
+        } else {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const VehicleListScreen()),
+          );
+        }
+        break;
+
+      default:
+        break;
+    }
+  }
+
+  /// Navega al detalle del producto por su ID desde la API.
+  Future<void> _navigateToProducto(BuildContext context, String? relacionadoId) async {
+    final int? productoId = int.tryParse(relacionadoId ?? '');
+    if (productoId == null) {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => const InventoryScreen()));
+      return;
+    }
+
+    try {
+      final apiClient = ApiClient();
+      final response = await apiClient.dio.get('/productos/$productoId');
+      if (response.statusCode == 200 && response.data != null) {
+        final data = response.data is Map<String, dynamic>
+            ? response.data
+            : response.data['data'] ?? response.data;
+        final producto = Producto.fromJson(data);
+        if (context.mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => ProductDetailScreen(producto: producto)),
+          );
+        }
+        return;
+      }
+    } catch (e) {
+      debugPrint("Error buscando producto para notificación in-app: $e");
+    }
+
+    if (context.mounted) {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => const InventoryScreen()));
+    }
   }
 
   Color _getColorForType(String type) {
@@ -166,16 +285,32 @@ class NotificationListScreen extends StatelessWidget {
     }
   }
 
-  IconData _getIconForType(String type) {
-    switch (type) {
-      case 'error':
-        return Icons.error_outline;
-      case 'warning':
+  IconData _getIconForAlertType(String alertType, String type) {
+    switch (alertType) {
+      case 'stock_bajo':
+        return Icons.inventory_2_outlined;
+      case 'inventory_alert':
         return Icons.warning_amber_rounded;
-      case 'success':
-        return Icons.check_circle_outline;
+      case 'work_order':
+      case 'orden_trabajo':
+        return Icons.build_circle_outlined;
+      case 'fleet_alert':
+      case 'vencimiento_soat':
+      case 'vencimiento_tecnomecanica':
+      case 'mantenimiento_preventivo':
+        return Icons.directions_car_outlined;
       default:
-        return Icons.info_outline;
+        // Fallback por tipo UI
+        switch (type) {
+          case 'error':
+            return Icons.error_outline;
+          case 'warning':
+            return Icons.warning_amber_rounded;
+          case 'success':
+            return Icons.check_circle_outline;
+          default:
+            return Icons.info_outline;
+        }
     }
   }
 }

@@ -2,13 +2,12 @@
 
 namespace App\Models;
 
-use Backpack\CRUD\app\Models\Traits\CrudTrait;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Carbon\Carbon;
 
 class OrdenTrabajo extends Model
 {
-    use CrudTrait;
     protected $primaryKey = 'orden_trabajo_id';
 
     protected $fillable = [
@@ -21,6 +20,36 @@ class OrdenTrabajo extends Model
         'descripcion',
         'foto_evidencia',
     ];
+
+    protected $casts = [
+        'fecha_inicio' => 'datetime:Y-m-d H:i:s',
+        'fecha_fin' => 'datetime:Y-m-d H:i:s',
+        'mecanico_asignado_id' => 'integer',
+        'vehiculo_id' => 'integer',
+    ];
+
+    /**
+     * Obtener el nombre de la ruta para route model binding
+     * Esto soluciona el error de Backpack con la primary key personalizada
+     */
+    public function getRouteKeyName(): string
+    {
+        return 'orden_trabajo_id';
+    }
+
+    /**
+     * Preparar el modelo para serialización JSON con timezone local
+     * Se sobrescribe para asegurar que las fechas se serialicen en Bogota
+     */
+    protected function serializeDate(\DateTimeInterface $date): string
+    {
+        $carbon = Carbon::instance($date);
+        // Asegurar que la fecha esté en timezone de Bogotá antes de serializar
+        if ($carbon->tzName !== 'America/Bogota') {
+            $carbon = $carbon->setTimezone('America/Bogota');
+        }
+        return $carbon->toIso8601String();
+    }
 
     public function vehiculo(): BelongsTo
     {

@@ -117,6 +117,26 @@ class MovimientoInventarioApiController extends Controller
             if (in_array($request->transaccion_tipo, ['salida', 'transferencia'])) {
                 if ($producto->producto_stock_actual <= $producto->producto_alerta_stock_minimo) {
                     $warning = 'Se ha alcanzado o superado el stock mínimo de alerta para este producto.';
+
+                    // Generar notificación inmediata en MySQL con deduplicación 24h
+                    $yaExiste = DB::table('notificaciones')
+                        ->where('tipo', 'stock_bajo')
+                        ->where('relacionado_id', (string) $producto->producto_id)
+                        ->where('created_at', '>=', now()->subHours(24))
+                        ->exists();
+
+                    if (!$yaExiste) {
+                        DB::table('notificaciones')->insert([
+                            'user_id'    => $request->user()->id,
+                            'tipo'       => 'stock_bajo',
+                            'titulo'     => 'Stock bajo: ' . $producto->producto_nombre,
+                            'mensaje'    => "El producto {$producto->producto_nombre} ({$producto->producto_sku}) tiene {$producto->producto_stock_actual} unidades. Mínimo requerido: {$producto->producto_alerta_stock_minimo}.",
+                            'prioridad'  => $producto->producto_stock_actual <= 0 ? 'alta' : 'media',
+                            'relacionado_id' => (string) $producto->producto_id,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+                    }
                 }
             }
 

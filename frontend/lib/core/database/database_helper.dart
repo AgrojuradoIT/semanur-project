@@ -25,7 +25,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 14,
+      version: 18,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -64,9 +64,6 @@ class DatabaseHelper {
     }
     if (oldVersion < 7) {
       await _createSesionTrabajoLocalTable(db);
-    }
-    if (oldVersion < 8) {
-      await _createAnalyticsTable(db);
     }
     if (oldVersion < 9) {
       await _createBodegasTable(db);
@@ -145,6 +142,37 @@ class DatabaseHelper {
         debugPrint('Error upgrading to v14 (empleado_id in sessions): $e');
       }
     }
+    if (oldVersion < 15) {
+      await _createNotificationsTable(db);
+    }
+    if (oldVersion < 16) {
+      try {
+        await db.execute('ALTER TABLE productos ADD COLUMN capacidad_maxima REAL');
+      } catch (e) {
+        debugPrint('Error adding column capacidad_maxima to productos: $e');
+      }
+    }
+    if (oldVersion < 17) {
+      // Forzar que capacidad_maxima exista (fix para BD corruptas)
+      try {
+        final cols = await db.rawQuery("PRAGMA table_info(productos)");
+        final hasCol = cols.any((c) => c['name'] == 'capacidad_maxima');
+        if (!hasCol) {
+          await db.execute('ALTER TABLE productos ADD COLUMN capacidad_maxima REAL');
+        }
+      } catch (e) {
+        debugPrint('v17 migration: recreating productos table: $e');
+        await db.execute('DROP TABLE IF EXISTS productos');
+        await _createProductosTable(db);
+      }
+    }
+    if (oldVersion < 18) {
+      // Versión 18: Tabla productos con capacidad_maxima explícita
+      // Recrear tabla para asegurar schema correcto
+      debugPrint('v18 migration: recreating productos table with explicit capacidad_maxima');
+      await db.execute('DROP TABLE IF EXISTS productos');
+      await _createProductosTable(db);
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -156,11 +184,134 @@ class DatabaseHelper {
     await _createChecklistsTable(db);
     await _createCombustibleTable(db);
     await _createSesionTrabajoLocalTable(db);
-    await _createAnalyticsTable(db);
     await _createBodegasTable(db);
     await _createBodegaProductoTable(db);
     await _createUsersTable(db);
     await _createEmpleadosTable(db);
+    await _createNotificationsTable(db);
+  }
+
+  Future<void> _createNotificationsTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS notificaciones (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tipo TEXT,
+        titulo TEXT,
+        mensaje TEXT,
+        relacionado_id TEXT,
+        fecha_creacion TEXT,
+        fecha_leido TEXT,
+        fecha_proximo_recordatorio TEXT,
+        estado TEXT DEFAULT 'pendiente'
+      )
+    ''');
+  }
+
+  // Métodos de utilidad: Notificaciones
+  Future<int> saveNotification({
+    required String tipo,
+    required String titulo,
+    required String mensaje,
+    String? relacionadoId,
+    String? fechaProximoRecordatorio,
+  }) async {
+    final db = await database;
+    return await db.insert('notificaciones', {
+      'tipo': tipo,
+      'titulo': titulo,
+      'mensaje': mensaje,
+      'relacionado_id': relacionadoId,
+      'fecha_creacion': DateTime.now().toIso8601String(),
+      'fecha_proximo_recordatorio': fechaProximoRecordatorio,
+      'estado': 'pendiente',
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> getUnreadNotifications() async {
+    final db = await database;
+    return await db.query(
+      'notificaciones',
+      where: "estado = 'pendiente'",
+      orderBy: 'fecha_creacion DESC',
+    );
+  }
+
+  Future<Map<String, dynamic>?> getNotificationById(int id) async {
+    final db = await database;
+    final results = await db.query(
+      'notificaciones',
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+
+    if (results.isNotEmpty) {
+      return results.first;
+    }
+    return null;
+  }
+
+  Future<void> markNotificationAsRead(int id) async {
+    final db = await database;
+    await db.update(
+      'notificaciones',
+      {
+        'estado': 'leido',
+        'fecha_leido': DateTime.now().toIso8601String(),
+        'fecha_proximo_recordatorio': null,
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getDueNotifications() async {
+    final db = await database;
+    final String now = DateTime.now().toIso8601String();
+    return await db.query(
+      'notificaciones',
+      where: "estado = 'pendiente' AND fecha_proximo_recordatorio <= ?",
+      whereArgs: [now],
+    );
+  }
+
+  /// Verifica si ya existe una notificación del mismo tipo y recurso creada hoy.
+  /// Evita emitir push duplicadas del SO.
+  Future<bool> hasNotificationToday({
+    required String tipo,
+    String? relacionadoId,
+  }) async {
+    final db = await database;
+    final hoy = DateTime.now().toIso8601String().split('T')[0]; // YYYY-MM-DD
+    
+    String where;
+    List<dynamic> whereArgs;
+    
+    if (relacionadoId != null) {
+      where = "tipo = ? AND relacionado_id = ? AND fecha_creacion LIKE ?";
+      whereArgs = [tipo, relacionadoId, '$hoy%'];
+    } else {
+      where = "tipo = ? AND relacionado_id IS NULL AND fecha_creacion LIKE ?";
+      whereArgs = [tipo, '$hoy%'];
+    }
+    
+    final results = await db.query(
+      'notificaciones',
+      where: where,
+      whereArgs: whereArgs,
+      limit: 1,
+    );
+    return results.isNotEmpty;
+  }
+
+  Future<void> updateNotificationReminder(int id, String nextDate) async {
+    final db = await database;
+    await db.update(
+      'notificaciones',
+      {'fecha_proximo_recordatorio': nextDate},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 
   Future<void> _createVehiculosTable(Database db) async {
@@ -196,9 +347,10 @@ class DatabaseHelper {
         producto_unidad_medida TEXT,
         producto_stock_actual REAL,
         producto_alerta_stock_minimo REAL,
+        capacidad_maxima REAL,
         producto_precio_costo REAL,
         producto_ubicacion TEXT,
-        categoria TEXT, 
+        categoria TEXT,
         last_updated TEXT
       )
     ''');
@@ -279,6 +431,12 @@ class DatabaseHelper {
       );
     }
     await batch.commit(noResult: true);
+  }
+
+  Future<void> deleteProductos() async {
+    final db = await database;
+    await db.delete('productos');
+    debugPrint('DatabaseHelper: Productos eliminados de la caché');
   }
 
   Future<List<Map<String, dynamic>>> getProductos() async {
@@ -484,6 +642,29 @@ class DatabaseHelper {
     await batch.commit(noResult: true);
   }
 
+  /// Guarda una orden de trabajo individual en caché (para detalle)
+  Future<void> saveOrdenTrabajoLocal(Map<String, dynamic> ordenJson) async {
+    final db = await database;
+    final map = Map<String, dynamic>.from(ordenJson);
+    final orderId = map['orden_trabajo_id'] ?? map['id'];
+    
+    if (orderId == null) return;
+
+    await db.insert(
+      'ordenes_trabajo',
+      {
+        'id': orderId,
+        'vehiculo_id': map['vehiculo_id'],
+        'prioridad': map['prioridad'],
+        'estado': map['estado'],
+        'descripcion': map['descripcion'],
+        'full_json': jsonEncode(map),
+        'last_updated': DateTime.now().toIso8601String(),
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
   Future<List<Map<String, dynamic>>> getOrdenesTrabajo({int? id}) async {
     final db = await database;
 
@@ -524,9 +705,17 @@ class DatabaseHelper {
     ''');
   }
 
-  Future<void> saveChecklists(List<dynamic> checklistsJson) async {
+  Future<void> saveChecklists(
+    List<dynamic> checklistsJson, {
+    int? vehiculoId,
+  }) async {
     final db = await database;
     final batch = db.batch();
+    if (vehiculoId != null) {
+      await db.delete('checklists', where: 'vehiculo_id = ?', whereArgs: [vehiculoId]);
+    } else {
+      await db.delete('checklists');
+    }
     for (var c in checklistsJson) {
       batch.insert('checklists', {
         'id': c['id'],
@@ -684,40 +873,6 @@ class DatabaseHelper {
       'fecha_fin': fechaFin,
       'notas': notas,
     }, where: 'fecha_fin IS NULL');
-  }
-
-  // Métodos de utilidad: Analytics Cache
-  Future<void> _createAnalyticsTable(Database db) async {
-    await db.execute('''
-      CREATE TABLE IF NOT EXISTS analytics_cache (
-        key TEXT PRIMARY KEY,
-        data TEXT,
-        last_updated TEXT
-      )
-    ''');
-  }
-
-  Future<void> saveAnalyticsCache(String key, dynamic data) async {
-    final db = await database;
-    await db.insert('analytics_cache', {
-      'key': key,
-      'data': jsonEncode(data),
-      'last_updated': DateTime.now().toIso8601String(),
-    }, conflictAlgorithm: ConflictAlgorithm.replace);
-  }
-
-  Future<dynamic> getAnalyticsCache(String key) async {
-    final db = await database;
-    final results = await db.query(
-      'analytics_cache',
-      where: 'key = ?',
-      whereArgs: [key],
-    );
-
-    if (results.isNotEmpty) {
-      return jsonDecode(results.first['data'] as String);
-    }
-    return null;
   }
 
   // Métodos de utilidad: Bodegas e Inventario

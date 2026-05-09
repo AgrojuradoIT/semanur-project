@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import 'package:frontend/core/theme/app_theme.dart';
+import 'package:frontend/core/widgets/semanur_scaffold.dart';
 import 'package:frontend/features/auth/presentation/providers/auth_provider.dart';
 import 'package:frontend/features/inventory/presentation/providers/inventory_provider.dart';
 import 'package:frontend/features/notifications/presentation/providers/notification_provider.dart';
@@ -14,7 +15,6 @@ import 'package:frontend/features/fleet/presentation/screens/vehicle_list_screen
 import 'package:frontend/features/inventory/presentation/screens/loan_list_screen.dart';
 import 'package:frontend/features/auth/presentation/screens/employee_list_screen.dart';
 import 'package:frontend/features/scheduler/presentation/screens/weekly_calendar_screen.dart';
-import 'package:frontend/features/fleet/presentation/screens/checklist_dashboard_screen.dart';
 
 class HomeWebDashboard extends StatefulWidget {
   const HomeWebDashboard({super.key});
@@ -30,7 +30,7 @@ class _HomeWebDashboardState extends State<HomeWebDashboard> {
   Widget build(BuildContext context) {
     final authProvider = context.read<AuthProvider>();
 
-    return Scaffold(
+    return SemanurScaffold(
       body: Row(
         children: [
           // SIDEBAR (Fijo a la izquierda)
@@ -190,20 +190,6 @@ class _HomeWebDashboardState extends State<HomeWebDashboard> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const LoanListScreen()),
-                    );
-                  },
-                ),
-                _buildSidebarItem(
-                  context,
-                  5,
-                  Icons.playlist_add_check,
-                  'Checklists',
-                  () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const ChecklistDashboardScreen(),
-                      ),
                     );
                   },
                 ),
@@ -749,19 +735,6 @@ class _HomeWebDashboardState extends State<HomeWebDashboard> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const LoanListScreen()),
-                    );
-                  },
-                ),
-                _HoverableQuickAccessCard(
-                  context: context,
-                  title: 'AuditorÃ­a / Checklists',
-                  icon: Icons.playlist_add_check,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const ChecklistDashboardScreen(),
-                      ),
                     );
                   },
                 ),

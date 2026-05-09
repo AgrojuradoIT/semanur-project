@@ -14,8 +14,12 @@ export async function fetchChecklistTemplates(vehicleType = '') {
 }
 
 export async function createChecklist(payload) {
-  const { data } = await http.post('/checklists', payload);
-  return data;
+  try {
+    const { data } = await http.post('/checklists', payload);
+    return data;
+  } catch (error) {
+    throw error;
+  }
 }
 
 export async function fetchVehiclesForChecklist() {

@@ -11,13 +11,20 @@ async function safeGet(path) {
 }
 
 export async function fetchHistorySources() {
-  const [movimientos, ordenes, combustible, prestamos, checklists] = await Promise.all([
-    safeGet('/movimientos'),
-    safeGet('/ordenes-trabajo'),
-    safeGet('/combustible'),
-    safeGet('/prestamos'),
-    safeGet('/checklists/history'),
-  ]);
-
-  return { movimientos, ordenes, combustible, prestamos, checklists };
+  const fallback = { movimientos: [], ordenes: [], combustible: [], prestamos: [], checklists: [] };
+  
+  try {
+    const { data } = await http.get('/history/all');
+    const result = data || fallback;
+    
+    return {
+      movimientos: extractList(result.movimientos),
+      ordenes: extractList(result.ordenes),
+      combustible: extractList(result.combustible),
+      prestamos: extractList(result.prestamos),
+      checklists: extractList(result.checklists),
+    };
+  } catch {
+    return fallback;
+  }
 }

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:frontend/core/widgets/semanur_scaffold.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:frontend/features/auth/data/models/user_model.dart';
@@ -127,7 +128,7 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return SemanurScaffold(
       backgroundColor: backgroundDark,
       body: SafeArea(
         child: Column(

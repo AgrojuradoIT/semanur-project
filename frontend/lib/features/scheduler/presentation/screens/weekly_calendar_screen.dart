@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/core/widgets/semanur_scaffold.dart';
 import 'package:provider/provider.dart';
 import 'incident_report_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -95,7 +96,7 @@ class _WeeklyCalendarScreenState extends State<WeeklyCalendarScreen> {
         ).apply(bodyColor: Colors.white, displayColor: Colors.white),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      child: Scaffold(
+      child: SemanurScaffold(
         backgroundColor: backgroundDark,
         body: SafeArea(
           child: Column(

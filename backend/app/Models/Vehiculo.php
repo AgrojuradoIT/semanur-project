@@ -2,13 +2,11 @@
 
 namespace App\Models;
 
-use Backpack\CRUD\app\Models\Traits\CrudTrait;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Vehiculo extends Model
 {
-    use CrudTrait;
     protected $primaryKey = 'vehiculo_id';
 
     protected $fillable = [

@@ -30,7 +30,8 @@ class ProductoApiController extends Controller
 
         $query->orderBy('producto_nombre');
 
-        $perPage = min((int) $request->get('per_page', 25), 100);
+        // Permitir hasta 1000 productos por página para la app móvil
+        $perPage = min((int) $request->get('per_page', 100), 1000);
 
         $paginated = $query->paginate($perPage);
 
@@ -71,6 +72,7 @@ class ProductoApiController extends Controller
             'producto_alerta_stock_minimo' => 'nullable|numeric|min:0',
             'producto_precio_costo' => 'nullable|numeric|min:0',
             'producto_ubicacion' => 'nullable|string|max:255',
+            'capacidad_maxima' => 'nullable|numeric|min:0',
         ]);
 
         $producto = Producto::create([
@@ -83,6 +85,7 @@ class ProductoApiController extends Controller
             'producto_alerta_stock_minimo' => $validated['producto_alerta_stock_minimo'] ?? 5,
             'producto_precio_costo' => $validated['producto_precio_costo'] ?? 0,
             'producto_ubicacion' => $validated['producto_ubicacion'] ?? null,
+            'capacidad_maxima' => $validated['capacidad_maxima'] ?? null,
         ]);
 
         return response()->json([
@@ -119,6 +122,7 @@ class ProductoApiController extends Controller
             'producto_alerta_stock_minimo' => 'nullable|numeric|min:0',
             'producto_precio_costo' => 'nullable|numeric|min:0',
             'producto_ubicacion' => 'nullable|string|max:255',
+            'capacidad_maxima' => 'nullable|numeric|min:0',
         ]);
 
         $producto->update($validated);

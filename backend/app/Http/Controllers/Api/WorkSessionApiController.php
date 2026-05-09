@@ -66,7 +66,7 @@ class WorkSessionApiController extends Controller
         $session = WorkSession::create([
             'empleado_id' => $empleadoId,
             'orden_trabajo_id' => $request->orden_trabajo_id,
-            'fecha_inicio' => Carbon::now(),
+            'fecha_inicio' => now(),
         ]);
 
         return response()->json([
@@ -79,7 +79,18 @@ class WorkSessionApiController extends Controller
     {
         $user = $request->user();
         $empleadoId = Empleado::where('user_id', $user->id)->value('id');
+        
+        \Log::info('Stop Session - ID: ' . $id . ', Empleado ID: ' . $empleadoId);
+        
         $session = WorkSession::findOrFail($id);
+
+        \Log::info('Stop Session - Found session: ' . json_encode([
+            'sesion_id' => $session->sesion_id,
+            'empleado_id' => $session->empleado_id,
+            'orden_trabajo_id' => $session->orden_trabajo_id,
+            'fecha_inicio' => $session->fecha_inicio,
+            'fecha_fin' => $session->fecha_fin,
+        ]));
 
         if (
             !$this->isAdmin($user)
@@ -93,9 +104,11 @@ class WorkSessionApiController extends Controller
         }
 
         $session->update([
-            'fecha_fin' => Carbon::now(),
+            'fecha_fin' => now(),
             'notas' => $request->notas,
         ]);
+        
+        \Log::info('Stop Session - Updated session with fecha_fin: ' . $session->fecha_fin);
 
         return response()->json([
             'message' => 'Sesion finalizada correctamente',

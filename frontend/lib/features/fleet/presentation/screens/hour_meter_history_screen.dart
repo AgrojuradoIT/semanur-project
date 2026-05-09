@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/core/widgets/semanur_scaffold.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -121,8 +122,9 @@ class _HourMeterHistoryScreenState extends State<HourMeterHistoryScreen> {
   Widget build(BuildContext context) {
     final provider = context.watch<HorometroProvider>();
 
-    return Scaffold(
+    return SemanurScaffold(
       backgroundColor: AppTheme.backgroundDark,
+      showBottomNav: false,
       body: provider.isLoading
           ? const Center(child: CircularProgressIndicator())
           : _buildList(provider.registros),

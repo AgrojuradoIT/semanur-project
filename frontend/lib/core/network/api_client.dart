@@ -27,7 +27,9 @@ class ApiClient {
     ),
   );
 
-  final FlutterSecureStorage _storage = const FlutterSecureStorage();
+  final FlutterSecureStorage _storage = const FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
   final VoidCallback? onUnauthorized;
 
   Completer<String?>? _refreshCompleter;
@@ -41,10 +43,14 @@ class ApiClient {
           final token = await _storage.read(key: _authTokenKey);
           if (token != null && token.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $token';
+            debugPrint('ApiClient: Token agregado a ${options.path} (length: ${token.length})');
+          } else {
+            debugPrint('ApiClient: SIN TOKEN para ${options.path}');
           }
           return handler.next(options);
         },
         onResponse: (response, handler) {
+          debugPrint('ApiClient: Respuesta ${response.statusCode} de ${response.requestOptions.path}');
           return handler.next(response);
         },
         onError: (DioException e, handler) async {
@@ -59,7 +65,11 @@ class ApiClient {
                 final response = await _dio.fetch<dynamic>(retryOptions);
                 return handler.resolve(response);
               } catch (retryError) {
-                debugPrint('ApiClient: retry after refresh failed: $retryError');
+                if (kDebugMode) {
+                  debugPrint(
+                    'ApiClient: retry after refresh failed: $retryError',
+                  );
+                }
               }
             }
           }
@@ -164,7 +174,9 @@ class ApiClient {
       _refreshCompleter!.complete(null);
       return _refreshCompleter!.future;
     } catch (e) {
-      debugPrint('ApiClient: token refresh failed: $e');
+      if (kDebugMode) {
+        debugPrint('ApiClient: token refresh failed: $e');
+      }
       _refreshCompleter!.complete(null);
       return _refreshCompleter!.future;
     } finally {
@@ -192,9 +204,11 @@ class ApiClient {
             .toSet();
 
     if (configuredPins.isEmpty) {
-      debugPrint(
-        'ApiClient: TLS pinning enabled but TLS_PIN_SHA256 is empty. Skipping pinning.',
-      );
+      if (kDebugMode) {
+        debugPrint(
+          'ApiClient: TLS pinning enabled but TLS_PIN_SHA256 is empty. Skipping pinning.',
+        );
+      }
       return;
     }
 

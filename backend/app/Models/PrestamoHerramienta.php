@@ -2,13 +2,10 @@
 
 namespace App\Models;
 
-use Backpack\CRUD\app\Models\Traits\CrudTrait;
 use Illuminate\Database\Eloquent\Model;
 
 class PrestamoHerramienta extends Model
 {
-    use CrudTrait;
-
     protected $table = 'prestamos_herramientas';
     protected $primaryKey = 'prestamo_id';
 

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Permitir cleartext temporalmente para desarrollo -->
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <!-- Confiar en certificados CA del sistema -->
+            <certificates src="system" />
+            <!-- Confiar en certificados definidos por el usuario para debugging -->
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+    
+    <!-- Configuración específica para el backend -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">backsm.agrojurado.com</domain>
+        <domain includeSubdomains="true">agrojurado.com</domain>
+        <domain includeSubdomains="true">10.0.2.2</domain>
+        <domain includeSubdomains="true">192.168.0.0</domain>
+        <domain includeSubdomains="true">localhost</domain>
+    </domain-config>
+</network-security-config>

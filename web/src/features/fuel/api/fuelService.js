@@ -31,6 +31,11 @@ export async function fetchVehiclesForFuel() {
   return extractList(data);
 }
 
+export async function fetchEmployeesForFuel() {
+  const { data } = await http.get('/empleados');
+  return extractList(data);
+}
+
 export async function fetchUsersForFuel() {
   const { data } = await http.get('/empleados');
   return extractList(data);

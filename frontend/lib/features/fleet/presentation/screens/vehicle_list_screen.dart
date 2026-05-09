@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/core/widgets/semanur_scaffold.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:frontend/features/fleet/presentation/providers/fleet_provider.dart';
@@ -7,6 +8,7 @@ import 'package:frontend/core/theme/app_theme.dart';
 import 'package:frontend/features/fleet/presentation/screens/vehicle_category_list_screen.dart';
 import 'package:frontend/features/profile/presentation/screens/profile_screen.dart';
 import 'package:frontend/features/fleet/presentation/screens/add_vehicle_screen.dart';
+import 'package:frontend/core/utils/debounce_util.dart';
 
 class VehicleListScreen extends StatefulWidget {
   const VehicleListScreen({super.key});
@@ -16,6 +18,8 @@ class VehicleListScreen extends StatefulWidget {
 }
 
 class _VehicleListScreenState extends State<VehicleListScreen> {
+  final _debouncer = Debouncer(milliseconds: 500);
+
   @override
   void initState() {
     super.initState();
@@ -25,10 +29,16 @@ class _VehicleListScreenState extends State<VehicleListScreen> {
   }
 
   @override
+  void dispose() {
+    _debouncer.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final fleetProvider = context.watch<FleetProvider>();
 
-    return Scaffold(
+    return SemanurScaffold(
       backgroundColor: AppTheme.backgroundDark,
       body: Stack(
         children: [
@@ -136,7 +146,7 @@ class _VehicleListScreenState extends State<VehicleListScreen> {
             ],
           ),
           const SizedBox(height: 20),
-          // Buscador
+          // Buscador con debounce
           Container(
             height: 45,
             decoration: BoxDecoration(
@@ -144,8 +154,12 @@ class _VehicleListScreenState extends State<VehicleListScreen> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: TextField(
-              onChanged: (value) =>
-                  context.read<FleetProvider>().searchVehiculos(value),
+              onChanged: (value) {
+                // Usar debounce para evitar búsquedas en cada tecla
+                _debouncer.run(() {
+                  context.read<FleetProvider>().searchVehiculos(value);
+                });
+              },
               style: const TextStyle(color: Colors.white, fontSize: 14),
               decoration: InputDecoration(
                 hintText: 'Buscar placa, tipo o estado...',
@@ -207,118 +221,152 @@ class _VehicleListScreenState extends State<VehicleListScreen> {
     final int totalActivos = provider.vehiculos.length;
     final int enAlerta = provider.alertsCount;
 
-    return RefreshIndicator(
-      onRefresh: () => provider.fetchVehiculos(),
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Resumen Cards
-          Row(
-            children: [
-              Expanded(
-                child: _buildSummaryCard(
-                  'Total Activos',
-                  totalActivos.toString(),
-                  '+3 este mes',
-                  Icons.inventory_2,
-                  AppTheme.primaryYellow,
-                ),
-              ),
-              const SizedBox(width: 15),
-              Expanded(
-                child: _buildSummaryCard(
-                  'Alertas Hoy',
-                  enAlerta.toString(),
-                  enAlerta > 0 ? 'Requieren acción' : 'Todo operativo',
-                  Icons.warning_amber_rounded,
-                  enAlerta > 0 ? Colors.red : Colors.green,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 25),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'CATEGORÍAS',
-                style: GoogleFonts.oswald(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  letterSpacing: 1,
-                ),
-              ),
-              const Text(
-                'Ver todo',
-                style: TextStyle(
-                  color: AppTheme.primaryYellow,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 15),
-          // Cuadrícula de Categorías
-          GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 2,
-            crossAxisSpacing: 15,
-            mainAxisSpacing: 15,
-            childAspectRatio: 1.0,
-            children: [
-              _buildCategoryCard(
-                'Tractores',
-                provider.vehiculos
-                    .where((v) => v.tipo.toLowerCase() == 'tractor')
-                    .length,
-                Icons.agriculture,
-                () => _navigateToCategory(context, 'Tractores', 'tractor'),
-              ),
-              _buildCategoryCard(
-                'Volquetas',
-                provider.vehiculos
-                    .where((v) => v.tipo.toLowerCase() == 'volqueta')
-                    .length,
-                Icons.local_shipping,
-                () => _navigateToCategory(context, 'Volquetas', 'volqueta'),
-              ),
-              _buildCategoryCard(
-                'Camionetas',
-                provider.vehiculos
-                    .where((v) => v.tipo.toLowerCase() == 'camioneta')
-                    .length,
-                Icons.directions_car,
-                () => _navigateToCategory(context, 'Camionetas', 'camioneta'),
-              ),
-              _buildCategoryCard(
-                'Motos',
-                provider.vehiculos
-                    .where((v) => v.tipo.toLowerCase() == 'moto')
-                    .length,
-                Icons.two_wheeler,
-                () => _navigateToCategory(context, 'Motos', 'moto'),
-              ),
-            ],
-          ),
+    // Usar vehículos paginados
+    final paginatedVehiculos = provider.vehiculosPaginados;
 
-          const SizedBox(height: 15),
-          _buildWideCategoryCard(
-            'Maquinaria Amarilla',
-            provider.vehiculos
-                .where((v) => v.tipo.toLowerCase() == 'maquinaria')
-                .length,
-            'Excavadoras, Retroexcavadoras...',
-            Icons.construction,
-            () => _navigateToCategory(
-              context,
-              'Maquinaria Amarilla',
-              'maquinaria',
+    return RefreshIndicator(
+      onRefresh: () async {
+        provider.resetPagination();
+        await provider.fetchVehiculos();
+      },
+      child: NotificationListener<ScrollNotification>(
+        onNotification: (notification) {
+          // Cargar más vehículos cuando el usuario llega al final
+          if (notification is ScrollEndNotification &&
+              notification.metrics.pixels >=
+                  notification.metrics.maxScrollExtent - 200) {
+            provider.loadMoreVehiculos();
+          }
+          return false;
+        },
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            // Resumen Cards
+            Row(
+              children: [
+                Expanded(
+                  child: _buildSummaryCard(
+                    'Total Activos',
+                    totalActivos.toString(),
+                    '+3 este mes',
+                    Icons.inventory_2,
+                    AppTheme.primaryYellow,
+                  ),
+                ),
+                const SizedBox(width: 15),
+                Expanded(
+                  child: _buildSummaryCard(
+                    'Alertas Hoy',
+                    enAlerta.toString(),
+                    enAlerta > 0 ? 'Requieren acción' : 'Todo operativo',
+                    Icons.warning_amber_rounded,
+                    enAlerta > 0 ? Colors.red : Colors.green,
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
+            const SizedBox(height: 25),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'CATEGORÍAS',
+                  style: GoogleFonts.oswald(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: 1,
+                  ),
+                ),
+                const Text(
+                  'Ver todo',
+                  style: TextStyle(
+                    color: AppTheme.primaryYellow,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 15),
+            // Cuadrícula de Categorías
+            GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 2,
+              crossAxisSpacing: 15,
+              mainAxisSpacing: 15,
+              childAspectRatio: 1.0,
+              children: [
+                _buildCategoryCard(
+                  'Tractores',
+                  provider.vehiculos
+                      .where((v) => v.tipo.toLowerCase() == 'tractor')
+                      .length,
+                  Icons.agriculture,
+                  () => _navigateToCategory(context, 'Tractores', 'tractor'),
+                ),
+                _buildCategoryCard(
+                  'Volquetas',
+                  provider.vehiculos
+                      .where((v) => v.tipo.toLowerCase() == 'volqueta')
+                      .length,
+                  Icons.local_shipping,
+                  () => _navigateToCategory(context, 'Volquetas', 'volqueta'),
+                ),
+                _buildCategoryCard(
+                  'Camionetas',
+                  provider.vehiculos
+                      .where((v) => v.tipo.toLowerCase() == 'camioneta')
+                      .length,
+                  Icons.directions_car,
+                  () => _navigateToCategory(context, 'Camionetas', 'camioneta'),
+                ),
+                _buildCategoryCard(
+                  'Motos',
+                  provider.vehiculos
+                      .where((v) => v.tipo.toLowerCase() == 'moto')
+                      .length,
+                  Icons.two_wheeler,
+                  () => _navigateToCategory(context, 'Motos', 'moto'),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 15),
+            _buildWideCategoryCard(
+              'Maquinaria Amarilla',
+              provider.vehiculos
+                  .where((v) => v.tipo.toLowerCase() == 'maquinaria')
+                  .length,
+              'Excavadoras, Retroexcavadoras...',
+              Icons.construction,
+              () => _navigateToCategory(
+                context,
+                'Maquinaria Amarilla',
+                'maquinaria',
+              ),
+            ),
+            // Indicador de carga para pagination
+            if (provider.isLoadingMore)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                child: Center(
+                  child: SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        AppTheme.primaryYellow,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

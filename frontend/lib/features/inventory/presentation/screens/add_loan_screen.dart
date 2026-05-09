@@ -1,4 +1,5 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
+import 'package:frontend/core/widgets/semanur_scaffold.dart';
 import 'package:provider/provider.dart';
 import 'package:frontend/features/inventory/presentation/providers/loan_provider.dart';
 import 'package:frontend/features/inventory/presentation/providers/inventory_provider.dart';
@@ -59,7 +60,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return SemanurScaffold(
       appBar: AppBar(title: const Text('Nuevo Prestamo')),
       body: Consumer<InventoryProvider>(
         builder: (context, invProvider, child) {

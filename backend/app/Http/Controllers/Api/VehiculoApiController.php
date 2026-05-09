@@ -47,6 +47,10 @@ class VehiculoApiController extends Controller
             $validated['mecanico_asignado_id'] = $validated['mecanico_asignado_id'] ? (int) $validated['mecanico_asignado_id'] : null;
         }
 
+        if (array_key_exists('placa', $validated)) {
+            $validated['placa'] = strtoupper(trim($validated['placa']));
+        }
+
         $vehiculo = Vehiculo::create($validated);
         
         // Recargar relaciones
@@ -112,6 +116,10 @@ class VehiculoApiController extends Controller
 
         if (array_key_exists('mecanico_asignado_id', $validated)) {
             $validated['mecanico_asignado_id'] = $validated['mecanico_asignado_id'] ? (int) $validated['mecanico_asignado_id'] : null;
+        }
+
+        if (array_key_exists('placa', $validated)) {
+            $validated['placa'] = strtoupper(trim($validated['placa']));
         }
 
         $vehiculo->update($validated);

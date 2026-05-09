@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/core/widgets/semanur_scaffold.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:frontend/features/workshop/data/models/work_order_model.dart';
@@ -7,7 +8,6 @@ import 'package:frontend/features/workshop/presentation/providers/workshop_provi
 import 'package:frontend/features/workshop/presentation/screens/work_order_detail_screen.dart';
 import 'package:frontend/features/workshop/presentation/screens/add_work_order_screen.dart';
 import 'package:frontend/core/theme/app_theme.dart';
-import 'package:intl/intl.dart';
 import 'package:frontend/features/profile/presentation/screens/profile_screen.dart';
 
 class WorkOrderListScreen extends StatefulWidget {
@@ -19,6 +19,16 @@ class WorkOrderListScreen extends StatefulWidget {
 
 class _WorkOrderListScreenState extends State<WorkOrderListScreen> {
   String _selectedFilter = 'Todos';
+
+  /// Formatea la fecha de entrega (fecha inicio + 4 horas)
+  String _formatFechaEntrega(DateTime fechaInicio) {
+    final entrega = fechaInicio.add(const Duration(hours: 4));
+    final hour = entrega.hour.toString().padLeft(2, '0');
+    final minute = entrega.minute.toString().padLeft(2, '0');
+    final ampm = entrega.hour >= 12 ? 'PM' : 'AM';
+    final hour12 = entrega.hour > 12 ? entrega.hour - 12 : (entrega.hour == 0 ? 12 : entrega.hour);
+    return '$hour12:${minute} $ampm';
+  }
 
   @override
   void initState() {
@@ -50,7 +60,7 @@ class _WorkOrderListScreenState extends State<WorkOrderListScreen> {
       return true;
     }).toList();
 
-    return Scaffold(
+    return SemanurScaffold(
       backgroundColor: AppTheme.backgroundDark,
       body: Stack(
         children: [
@@ -527,11 +537,7 @@ class _WorkOrderListScreenState extends State<WorkOrderListScreen> {
                                   ),
                                 ),
                                 Text(
-                                  DateFormat('HH:mm a').format(
-                                    orden.fechaInicio.add(
-                                      const Duration(hours: 4),
-                                    ),
-                                  ), // Simulando entrega
+                                  _formatFechaEntrega(orden.fechaInicio),
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 11,

@@ -63,6 +63,11 @@ class Empleado extends Model
         return $this->hasMany(ChecklistPreoperacional::class, 'empleado_id', 'id');
     }
 
+    public function respuestasListaChequeo()
+    {
+        return $this->hasMany(RespuestaListaChequeo::class, 'operador_id', 'id');
+    }
+
     public function sesiones()
     {
         return $this->hasMany(WorkSession::class, 'empleado_id', 'id');

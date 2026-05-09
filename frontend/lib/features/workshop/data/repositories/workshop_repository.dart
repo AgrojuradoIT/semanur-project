@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:frontend/core/network/api_client.dart';
 import '../models/work_order_model.dart';
 import 'package:frontend/core/database/database_helper.dart';
@@ -54,25 +55,71 @@ class WorkOrderRepository {
     }
   }
 
-  Future<OrdenTrabajo> getOrdenTrabajo(int id) async {
+  Future<OrdenTrabajo> getOrdenTrabajo(int id, {bool forceRefresh = false}) async {
+    // Si es force refresh, ignorar caché local e ir directo al servidor
+    if (forceRefresh) {
+      debugPrint('WorkOrderRepository: Forzando refresh desde servidor para orden $id');
+      try {
+        final response = await _apiClient.dio.get('/ordenes-trabajo/$id');
+        if (response.statusCode == 200) {
+          debugPrint('WorkOrderRepository: Datos recibidos del servidor para orden $id');
+          final orden = OrdenTrabajo.fromJson(response.data);
+          debugPrint('WorkOrderRepository: Orden tiene ${orden.sesiones?.length ?? 0} sesiones');
+          // Actualizar caché local con los datos más recientes
+          await DatabaseHelper().saveOrdenTrabajoLocal(orden.toJson());
+          return orden;
+        } else {
+          debugPrint('WorkOrderRepository: Error en respuesta del servidor: ${response.statusCode}');
+        }
+      } catch (e) {
+        debugPrint('WorkOrderRepository: Excepción al fetch del servidor (force refresh): $e');
+        // Continuar con fallback a caché si falla el servidor
+      }
+    }
+    
     try {
       final response = await _apiClient.dio.get('/ordenes-trabajo/$id');
       if (response.statusCode == 200) {
-        return OrdenTrabajo.fromJson(response.data);
+        final orden = OrdenTrabajo.fromJson(response.data);
+
+        // Actualizar cache local con el detalle más reciente
+        await DatabaseHelper().saveOrdenTrabajoLocal(orden.toJson());
+
+        return orden;
       }
       throw Exception('Orden de trabajo no encontrada');
     } catch (e) {
+      // Si es error de conexión o error del servidor (500), intentamos cargar local
       if (e is DioException &&
           (e.type == DioExceptionType.connectionTimeout ||
               e.type == DioExceptionType.receiveTimeout ||
               e.type == DioExceptionType.connectionError ||
+              e.type == DioExceptionType.badResponse || // Incluye 500
               e.error.toString().contains('SocketException'))) {
-        // Buscar en cache local por ID. getOrdenesTrabajo ahora soporta filtrado.
+
+        // Buscar en cache local por ID
         final cachedData = await DatabaseHelper().getOrdenesTrabajo(id: id);
         if (cachedData.isNotEmpty) {
+          debugPrint('WorkOrderRepository: Usando caché local para orden $id');
           return OrdenTrabajo.fromJson(cachedData.first);
         }
+
+        // Intentar buscar en la tabla de ordenes generales
+        final allCached = await DatabaseHelper().getOrdenesTrabajo();
+        Map<String, dynamic>? found;
+        for (var o in allCached) {
+          if (o['orden_trabajo_id'] == id || o['id'] == id) {
+            found = o;
+            break;
+          }
+        }
+        if (found != null) {
+          debugPrint('WorkOrderRepository: Usando caché general para orden $id');
+          return OrdenTrabajo.fromJson(found);
+        }
       }
+
+      debugPrint('WorkOrderRepository: Error cargando detalle orden $id: $e');
       throw Exception('Error al cargar detalle de la orden: $e');
     }
   }
@@ -99,6 +146,8 @@ class WorkOrderRepository {
     String? localImagePath,
   }) async {
     try {
+      // NO enviamos fecha_inicio - el backend la pone automáticamente con now()
+      // que está configurado en America/Bogota
       final Map<String, dynamic> data = {
         'vehiculo_id': vehiculoId,
         'prioridad': prioridad,

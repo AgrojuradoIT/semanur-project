@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/core/widgets/semanur_scaffold.dart';
 import 'package:provider/provider.dart';
 import 'package:frontend/core/theme/app_theme.dart';
 import '../../data/models/checklist_model.dart';
 import '../providers/checklist_provider.dart';
 import 'package:frontend/features/fleet/presentation/providers/fleet_provider.dart';
 import 'package:frontend/features/fleet/data/models/vehicle_model.dart';
+import 'package:frontend/features/auth/presentation/providers/auth_provider.dart';
 
 class ChecklistFormScreen extends StatefulWidget {
   final Checklist checklist;
@@ -34,7 +36,7 @@ class _ChecklistFormScreenState extends State<ChecklistFormScreen> {
   Widget build(BuildContext context) {
     final provider = context.watch<ChecklistProvider>();
 
-    return Scaffold(
+    return SemanurScaffold(
       appBar: AppBar(title: Text(widget.checklist.nombre)),
       body: Form(
         key: _formKey,
@@ -229,11 +231,24 @@ class _ChecklistFormScreenState extends State<ChecklistFormScreen> {
       }
     }
 
+    // Obtener usuario actual para empleado_id
+    final authProvider = context.read<AuthProvider>();
+    final usuarioActual = authProvider.user;
+    
+    if (usuarioActual == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error: Usuario no autenticado')),
+      );
+      return;
+    }
+
+    // Usar formato Flutter (el que espera el backend)
     final data = {
-      'lista_chequeo_id': widget.checklist.id,
       'vehiculo_id': _selectedVehicle!.id,
-      'respuestas': _respuestas,
-      'observaciones_generales': _observacionesController.text,
+      'empleado_id': usuarioActual.id,  // Usar empleado_id en lugar de operador_id
+      'checklist_data': _respuestas,    // Usar checklist_data en lugar de respuestas
+      'estado': 'aprobado',              // Estado requerido
+      'observaciones': _observacionesController.text,
     };
 
     final success = await context.read<ChecklistProvider>().submitChecklist(

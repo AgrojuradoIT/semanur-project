@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/core/widgets/semanur_scaffold.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:frontend/core/theme/app_theme.dart';
 import 'package:frontend/features/fleet/data/models/checklist_model.dart';
@@ -11,7 +12,7 @@ class ChecklistDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return SemanurScaffold(
       backgroundColor: AppTheme.backgroundDark,
       appBar: AppBar(
         backgroundColor: AppTheme.surfaceDark,
@@ -95,6 +96,19 @@ class ChecklistDetailScreen extends StatelessWidget {
   }
 
   Widget _buildInfoSection() {
+    final String placaLabel =
+        (checklist.vehiculoPlaca != null &&
+                checklist.vehiculoPlaca!.trim().isNotEmpty)
+            ? checklist.vehiculoPlaca!
+            : (checklist.vehiculoId > 0
+                ? 'Vehículo #${checklist.vehiculoId}'
+                : 'Sin placa');
+    final String operadorLabel =
+        (checklist.usuarioNombre != null &&
+                checklist.usuarioNombre!.trim().isNotEmpty)
+            ? checklist.usuarioNombre!
+            : 'Operador sin nombre';
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -106,11 +120,11 @@ class ChecklistDetailScreen extends StatelessWidget {
         children: [
           _buildInfoRow(
             'VEHÍCULO',
-            checklist.vehiculoPlaca ?? 'N/A',
+            placaLabel,
             isPrimary: true,
           ),
           const Divider(color: AppTheme.surfaceDark2, height: 20),
-          _buildInfoRow('OPERADOR', checklist.usuarioNombre ?? 'N/A'),
+          _buildInfoRow('OPERADOR', operadorLabel),
           _buildInfoRow(
             'FECHA',
             DateFormat('dd/MM/yyyy HH:mm').format(checklist.fecha),

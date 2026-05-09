@@ -14,6 +14,16 @@ use Carbon\Carbon;
 
 class AnalyticsApiController extends Controller
 {
+    public function getDashboard()
+    {
+        return response()->json([
+            'summary' => $this->getSummary()->original,
+            'fuelMonthly' => $this->getFuelMonthly()->original,
+            'maintenanceByVehicle' => $this->getMaintenanceByVehicle()->original,
+            'fuelStock' => $this->getFuelStock()->original,
+        ]);
+    }
+
     public function getSummary()
     {
         $totalFuel = RegistroCombustible::sum('valor_total');

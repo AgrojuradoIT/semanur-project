@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/core/widgets/semanur_scaffold.dart';
 import 'package:provider/provider.dart';
 import 'package:frontend/features/auth/presentation/providers/employee_provider.dart';
 import 'package:frontend/features/auth/data/models/empleado_model.dart';
@@ -54,7 +55,7 @@ class _EmployeeListScreenState extends State<EmployeeListScreen> {
       return matchesSearch && cargo.contains(_selectedRole.toLowerCase());
     }).toList();
 
-    return Scaffold(
+    return SemanurScaffold(
       backgroundColor: const Color(0xFF121212),
       body: Stack(
         children: [

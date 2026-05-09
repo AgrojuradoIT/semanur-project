@@ -85,13 +85,13 @@ class WorkshopProvider extends ChangeNotifier {
     }
   }
 
-  Future<OrdenTrabajo?> fetchOrdenDetalle(int id) async {
+  Future<OrdenTrabajo?> fetchOrdenDetalle(int id, {bool forceRefresh = false}) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      final orden = await _repository.getOrdenTrabajo(id);
+      final orden = await _repository.getOrdenTrabajo(id, forceRefresh: forceRefresh);
 
       // Actualizar en la lista local si existe
       final index = _ordenes.indexWhere((o) => o.id == id);

@@ -1,7 +1,8 @@
 import 'package:frontend/features/fleet/data/models/vehicle_model.dart';
 import 'package:frontend/features/inventory/data/models/movement_model.dart';
 import 'package:frontend/features/auth/data/models/empleado_model.dart';
-import 'session_model.dart';
+import 'package:frontend/features/workshop/data/models/session_model.dart';
+import 'package:timezone/timezone.dart' as tz;
 
 class OrdenTrabajo {
   final int id;
@@ -46,9 +47,9 @@ class OrdenTrabajo {
       id: parseInt(json['orden_trabajo_id']) ?? 0,
       vehiculoId: parseInt(json['vehiculo_id']) ?? 0,
       mecanicoAsignadoId: parseInt(json['mecanico_asignado_id']),
-      fechaInicio: DateTime.parse(json['fecha_inicio']),
+      fechaInicio: _parseDateTime(json['fecha_inicio']),
       fechaFin: json['fecha_fin'] != null
-          ? DateTime.parse(json['fecha_fin'])
+          ? _parseDateTime(json['fecha_fin'])
           : null,
       estado: json['estado'] ?? 'Abierta',
       prioridad: json['prioridad'] ?? 'Media',
@@ -71,6 +72,52 @@ class OrdenTrabajo {
           ? Empleado.fromJson(json['mecanico'])
           : null,
     );
+  }
+
+  /// Parsea fecha ISO 8601 de la API (viene en America/Bogota UTC-5)
+  /// Usamos timezone package para mantener la hora correcta de Bogotá
+  static DateTime _parseDateTime(String dateString) {
+    // Parsear la fecha ISO 8601
+    final dateTime = DateTime.parse(dateString);
+    
+    // Obtener timezone de Bogotá
+    final bogota = tz.getLocation('America/Bogota');
+    
+    // Crear TZDateTime en Bogotá - esto mantiene la hora local de Bogotá
+    final tzDateTime = tz.TZDateTime.from(dateTime, bogota);
+    
+    // Convertir a DateTime normal pero manteniendo la hora de Bogotá
+    // Esto es importante para que al formatear muestre la hora correcta
+    return DateTime(
+      tzDateTime.year,
+      tzDateTime.month,
+      tzDateTime.day,
+      tzDateTime.hour,
+      tzDateTime.minute,
+      tzDateTime.second,
+      tzDateTime.millisecond,
+      tzDateTime.microsecond,
+    );
+  }
+
+  /// Obtiene la fecha de inicio formateada para mostrar (timezone Bogotá)
+  String get fechaInicioString {
+    return _formatDateTime(fechaInicio);
+  }
+
+  /// Obtiene la fecha de fin formateada para mostrar (timezone Bogotá)
+  String? get fechaFinString {
+    return fechaFin != null ? _formatDateTime(fechaFin!) : null;
+  }
+
+  /// Formatea una fecha en formato dd/MM/yyyy hh:mm A
+  String _formatDateTime(DateTime dateTime) {
+    final year = dateTime.year.toString().padLeft(4, '0');
+    final month = dateTime.month.toString().padLeft(2, '0');
+    final day = dateTime.day.toString().padLeft(2, '0');
+    final hour = dateTime.hour.toString().padLeft(2, '0');
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    return '$day/$month/$year $hour:$minute';
   }
 
   Map<String, dynamic> toJson() {

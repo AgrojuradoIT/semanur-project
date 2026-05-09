@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="table-container">
     <div class="table-header">
       <div style="display: flex; align-items: center; gap: var(--sp-md); flex-wrap: wrap">
@@ -692,12 +692,14 @@
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { useAsyncState } from '../../../shared/composables/useAsyncState';
 import { fetchFleetVehicles, uploadVehicleImage, getVehicleDetails, getVehicleFuelHistory, getVehicleHourMeters, getVehiclePreoperacionales, getVehicleDocuments, createVehicleDocument, createVehicle, updateVehicle, fetchMechanics, fetchOperators } from '../api/fleetService';
 import { useRefresh } from '../../../shared/composables/useRefresh';
+import { useCatalogsStore } from '../../../shared/stores/catalogs';
 
 const router = useRouter();
+const route = useRoute();
 const { refreshTrigger } = useRefresh();
 
 const { loading, error, run } = useAsyncState('');
@@ -754,21 +756,39 @@ const typeFilters = [
 const loadData = async () => {
   try {
     await run(async () => {
-      const [vData, oData, mData] = await Promise.all([
-        fetchFleetVehicles(),
-        fetchOperators(),
-        fetchMechanics()
-      ]);
-      vehicles.value = vData;
-      operatorsList.value = oData;
-      mechanicsList.value = mData;
+      const catalogsStore = useCatalogsStore();
+      await catalogsStore.fetchEssentialCatalogs();
+      
+      vehicles.value = catalogsStore.vehiculos;
+      operatorsList.value = catalogsStore.empleados.filter(e => {
+        const c = (e.cargo || '').toLowerCase();
+        return c.includes('operador') || c.includes('conductor');
+      });
+      mechanicsList.value = catalogsStore.empleados.filter(e => {
+        const c = (e.cargo || '').toLowerCase();
+        return c.includes('mecanico') || c.includes('mecánico');
+      });
     }, 'Error al cargar datos');
   } catch {
     // handled by composable
   }
 };
 
-onMounted(loadData);
+onMounted(async () => {
+  await loadData();
+
+  // Auto-abrir detalle si viene de una notificación con vehiculo_id
+  const vehiculoId = route.query.vehiculo_id;
+  if (vehiculoId) {
+    const vehicle = vehicles.value.find(
+      (v) => String(v.vehiculo_id || v.id) === String(vehiculoId)
+    );
+    if (vehicle) {
+      goToVehicle(vehicle);
+    }
+    router.replace({ query: {} });
+  }
+});
 
 watch(refreshTrigger, loadData);
 

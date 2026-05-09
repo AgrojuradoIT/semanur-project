@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:frontend/core/widgets/semanur_scaffold.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:frontend/features/workshop/data/models/work_order_model.dart';
@@ -8,7 +9,6 @@ import 'package:frontend/features/workshop/presentation/providers/session_provid
 import 'package:frontend/features/workshop/data/models/session_model.dart';
 import 'package:frontend/core/theme/app_theme.dart';
 import 'package:frontend/features/inventory/presentation/screens/add_movement_screen.dart';
-import 'package:intl/intl.dart';
 
 class WorkOrderDetailScreen extends StatefulWidget {
   final OrdenTrabajo orden;
@@ -19,40 +19,95 @@ class WorkOrderDetailScreen extends StatefulWidget {
   State<WorkOrderDetailScreen> createState() => _WorkOrderDetailScreenState();
 }
 
-class _WorkOrderDetailScreenState extends State<WorkOrderDetailScreen> {
+class _WorkOrderDetailScreenState extends State<WorkOrderDetailScreen> with WidgetsBindingObserver {
   Timer? _timer;
   Duration _currentDuration = Duration.zero;
+  bool _triedFetchingDetail = false;
+
+  /// Formatea una fecha en dd/MM/yyyy
+  String _formatFecha(DateTime fecha) {
+    return '${fecha.day.toString().padLeft(2, '0')}/${fecha.month.toString().padLeft(2, '0')}/${fecha.year}';
+  }
+
+  /// Formatea una hora en HH:mm
+  String _formatHora(DateTime fecha) {
+    return '${fecha.hour.toString().padLeft(2, '0')}:${fecha.minute.toString().padLeft(2, '0')}';
+  }
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<WorkshopProvider>().fetchOrdenDetalle(widget.orden.id);
-      context.read<SessionProvider>().fetchActiveSession().then((_) {
-        _startTimerIfNeeded();
-      });
+    WidgetsBinding.instance.addObserver(this);
+    // Iniciar timer inmediatamente con la sesión activa
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Primero cargar el detalle actualizado con sesiones
+      await _fetchOrdenDetalle();
+      // Luego iniciar el timer
+      _startTimerIfNeeded();
     });
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Cuando la app vuelve a primer plano, refrescar el timer y el detalle
+    if (state == AppLifecycleState.resumed) {
+      _startTimerIfNeeded();
+      // Refrescar el detalle para obtener sesiones actualizadas
+      _fetchOrdenDetalle();
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
     super.dispose();
   }
 
-  void _startTimerIfNeeded() {
-    final activeSession = context.read<SessionProvider>().activeSession;
-    if (activeSession != null &&
-        activeSession.ordenTrabajoId == widget.orden.id) {
-      _timer?.cancel();
-      _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-        setState(() {
-          _currentDuration = activeSession.duration;
-        });
-      });
-    } else {
-      _timer?.cancel();
+  Future<void> _fetchOrdenDetalle({bool forceRefresh = false}) async {
+    if (!forceRefresh && _triedFetchingDetail) return;
+    
+    if (forceRefresh) {
+      _triedFetchingDetail = false; // Resetear para permitir refresh
     }
+    
+    _triedFetchingDetail = true;
+
+    try {
+      final result = await context.read<WorkshopProvider>().fetchOrdenDetalle(widget.orden.id);
+      if (result != null) {
+        final sessionCount = result.sesiones?.length ?? 0;
+        debugPrint('WorkOrderDetailScreen: Orden ${widget.orden.id} cargada con $sessionCount sesiones');
+        if (sessionCount > 0) {
+          debugPrint('WorkOrderDetailScreen: Primeras sesiones: ${result.sesiones?.map((s) => 'Sesion #${s.id}').join(', ')}');
+        }
+      }
+    } catch (e) {
+      // Silenciosamente fallamos - usamos los datos que ya tenemos
+      debugPrint('WorkOrderDetailScreen: No se pudo actualizar detalle: $e');
+    }
+  }
+
+  void _startTimerIfNeeded() {
+    if (!mounted) return;
+    
+    final sessionProvider = context.read<SessionProvider>();
+    sessionProvider.fetchActiveSession().then((_) {
+      if (!mounted) return;
+      
+      final activeSession = sessionProvider.activeSession;
+      if (activeSession != null &&
+          activeSession.ordenTrabajoId == widget.orden.id) {
+        _timer?.cancel();
+        _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+          if (mounted) {
+            setState(() {
+              _currentDuration = activeSession.duration;
+            });
+          }
+        });
+      }
+    });
   }
 
   String _formatDuration(Duration d) {
@@ -80,7 +135,7 @@ class _WorkOrderDetailScreenState extends State<WorkOrderDetailScreen> {
     final bool isSessionHere =
         activeSession != null && activeSession.ordenTrabajoId == orden.id;
 
-    return Scaffold(
+    return SemanurScaffold(
       backgroundColor: AppTheme.backgroundDark,
       appBar: AppBar(
         backgroundColor: AppTheme.surfaceDark,
@@ -145,7 +200,7 @@ class _WorkOrderDetailScreenState extends State<WorkOrderDetailScreen> {
                     ),
                     _buildInfoRow(
                       'FECHA INICIO',
-                      DateFormat('dd/MM/yyyy HH:mm').format(orden.fechaInicio),
+                      orden.fechaInicioString,
                     ),
                     const Divider(color: AppTheme.surfaceDark2, height: 30),
                     Text(
@@ -269,7 +324,7 @@ class _WorkOrderDetailScreenState extends State<WorkOrderDetailScreen> {
         itemBuilder: (context, index) {
           final s = sortedSesiones[index];
           final endStr = s.fechaFin != null
-              ? DateFormat('HH:mm').format(s.fechaFin!)
+              ? _formatHora(s.fechaFin!)
               : 'En curso';
 
           return Padding(
@@ -294,7 +349,7 @@ class _WorkOrderDetailScreenState extends State<WorkOrderDetailScreen> {
                             ),
                           ),
                           Text(
-                            '${DateFormat('dd/MM/yyyy').format(s.fechaInicio)} | ${DateFormat('HH:mm').format(s.fechaInicio)} - $endStr',
+                            '${_formatFecha(s.fechaInicio)} | ${_formatHora(s.fechaInicio)} - $endStr',
                             style: const TextStyle(
                               color: Colors.white70,
                               fontSize: 11,
@@ -763,6 +818,8 @@ class _WorkOrderDetailScreenState extends State<WorkOrderDetailScreen> {
     if (confirm != true || !mounted) return;
 
     final sessionProvider = context.read<SessionProvider>();
+    final workshopProvider = context.read<WorkshopProvider>();
+    
     final success = await sessionProvider.stopSession(
       sessionId,
       notas: notesController.text,
@@ -771,10 +828,23 @@ class _WorkOrderDetailScreenState extends State<WorkOrderDetailScreen> {
 
     if (success) {
       _timer?.cancel();
-      context.read<WorkshopProvider>().fetchOrdenDetalle(widget.orden.id);
+      
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Sesión finalizada')));
+      
+      // Pequeño delay para asegurar que el backend terminó de guardar
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      // Recargar el detalle de la orden desde el servidor
+      // Esto es CRÍTICO para que la UI muestre la sesión guardada
+      debugPrint('WorkOrderDetailScreen: Refreshing orden ${widget.orden.id} after stopping session...');
+      await _fetchOrdenDetalle(forceRefresh: true);
+      debugPrint('WorkOrderDetailScreen: Refresh completed');
+      
+      // Forzar rebuild de la UI
+      if (mounted) setState(() {});
+      debugPrint('WorkOrderDetailScreen: UI rebuilt');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

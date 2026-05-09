@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/core/widgets/semanur_scaffold.dart';
 import 'package:provider/provider.dart';
 import 'package:frontend/features/inventory/presentation/providers/inventory_provider.dart';
 import 'package:frontend/features/inventory/presentation/providers/movement_provider.dart';
@@ -101,7 +102,7 @@ class _AddMovementScreenState extends State<AddMovementScreen> {
     final userProvider = context.watch<UserProvider>();
     final movementProvider = context.watch<MovementProvider>();
 
-    return Scaffold(
+    return SemanurScaffold(
       appBar: AppBar(title: const Text('Registrar Movimiento')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),

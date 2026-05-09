@@ -15,22 +15,22 @@
                     <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                         {{ __('Dashboard') }}
                     </x-nav-link>
-                    <x-nav-link :href="route('categorias.index')" :active="request()->routeIs('categorias.*')">
+                    <x-nav-link :href="url('/admin/categorias')" :active="request()->routeIs('filament.admin.resources.categorias.*')">
                         Categorías
                     </x-nav-link>
-                    <x-nav-link :href="route('productos.index')" :active="request()->routeIs('productos.*')">
+                    <x-nav-link :href="url('/admin/productos')" :active="request()->routeIs('filament.admin.resources.productos.*')">
                         Productos
                     </x-nav-link>
-                    <x-nav-link :href="route('vehiculos.index')" :active="request()->routeIs('vehiculos.*')">
+                    <x-nav-link :href="url('/admin/vehiculos')" :active="request()->routeIs('filament.admin.resources.vehiculos.*')">
                         Vehículos
                     </x-nav-link>
-                    <x-nav-link :href="route('ordenes-trabajo.index')" :active="request()->routeIs('ordenes-trabajo.*')">
+                    <x-nav-link :href="url('/admin/orden-trabajos')" :active="request()->routeIs('filament.admin.resources.orden-trabajos.*')">
                         Órdenes de Trabajo
                     </x-nav-link>
-                    <x-nav-link :href="route('transacciones-inventario.index')" :active="request()->routeIs('transacciones-inventario.*')">
+                    <x-nav-link :href="url('/admin/transaccion-inventarios')" :active="request()->routeIs('filament.admin.resources.transaccion-inventarios.*')">
                         Transacciones Inventario
                     </x-nav-link>
-                    <x-nav-link :href="route('users.index')" :active="request()->routeIs('users.*')">
+                    <x-nav-link :href="url('/admin/users')" :active="request()->routeIs('filament.admin.resources.users.*')">
                         Usuarios
                     </x-nav-link>
                 </div>

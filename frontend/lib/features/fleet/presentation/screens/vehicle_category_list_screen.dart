@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/core/widgets/semanur_scaffold.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:frontend/features/fleet/presentation/providers/fleet_provider.dart';
@@ -24,7 +25,7 @@ class VehicleCategoryListScreen extends StatelessWidget {
         .where((v) => v.tipo.toLowerCase() == filterType.toLowerCase())
         .toList();
 
-    return Scaffold(
+    return SemanurScaffold(
       backgroundColor: AppTheme.backgroundDark,
       appBar: AppBar(
         backgroundColor: AppTheme.surfaceDark,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/core/widgets/semanur_scaffold.dart';
 import 'package:provider/provider.dart';
 import 'package:frontend/features/fleet/data/models/vehicle_model.dart';
 import 'package:frontend/features/fleet/data/models/checklist_model.dart';
@@ -136,7 +137,7 @@ class _ChecklistFormScreenState extends State<ChecklistFormScreen> {
   Widget build(BuildContext context) {
     final provider = context.watch<ChecklistProvider>();
 
-    return Scaffold(
+    return SemanurScaffold(
       appBar: AppBar(title: Text('Checklist: ${widget.vehiculo.placa}')),
       body: Form(
         key: _formKey,

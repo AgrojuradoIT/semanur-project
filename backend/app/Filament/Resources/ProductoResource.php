@@ -3,36 +3,44 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\ProductoResource\Pages;
-use App\Filament\Resources\ProductoResource\RelationManagers;
 use App\Models\Producto;
 use Filament\Forms;
-use BackedEnum;
-use Filament\Schemas\Schema;
-use Illuminate\Contracts\Support\Htmlable;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Actions;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Filament\Schemas\Schema;
+use BackedEnum;
 
 class ProductoResource extends Resource
 {
     protected static ?string $model = Producto::class;
 
-    public static function getNavigationIcon(): string | BackedEnum | Htmlable | null
-    {
-        return 'heroicon-o-rectangle-stack';
-    }
+    protected static string | BackedEnum | null $navigationIcon = 'heroicon-o-rectangle-stack';
 
     public static function form(Schema $schema): Schema
     {
         return $schema
             ->schema([
-                Forms\Components\TextInput::make('name')
+                Forms\Components\Select::make('categoria_id')
+                    ->relationship('categoria', 'categoria_nombre')
+                    ->searchable()
+                    ->preload(),
+                Forms\Components\TextInput::make('producto_sku')
                     ->required()
                     ->maxLength(255),
-                Forms\Components\TextInput::make('description')
+                Forms\Components\TextInput::make('producto_nombre')
+                    ->required()
+                    ->maxLength(255),
+                Forms\Components\TextInput::make('producto_unidad_medida')
+                    ->maxLength(255),
+                Forms\Components\TextInput::make('producto_stock_actual')
+                    ->numeric()
+                    ->default(0),
+                Forms\Components\TextInput::make('producto_precio_costo')
+                    ->numeric()
+                    ->prefix('$'),
+                Forms\Components\TextInput::make('producto_ubicacion')
                     ->maxLength(255),
             ]);
     }
@@ -41,14 +49,16 @@ class ProductoResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('name')
+                Tables\Columns\TextColumn::make('producto_sku')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('description'),
+                Tables\Columns\TextColumn::make('producto_nombre')
+                    ->searchable(),
+                Tables\Columns\TextColumn::make('categoria.categoria_nombre')
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('producto_stock_actual')
+                    ->numeric()
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('updated_at')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),

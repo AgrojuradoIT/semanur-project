@@ -22,7 +22,7 @@ class ChecklistRepository {
         final List<dynamic> data = response.data;
 
         // Guardar en cache
-        await DatabaseHelper().saveChecklists(data);
+        await DatabaseHelper().saveChecklists(data, vehiculoId: vehiculoId);
 
         return data
             .map((json) => ChecklistPreoperacional.fromJson(json))

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/core/widgets/semanur_scaffold.dart';
 import 'package:provider/provider.dart';
 import 'package:frontend/features/fleet/presentation/providers/fleet_provider.dart';
 import 'package:frontend/features/auth/presentation/providers/employee_provider.dart';
@@ -79,7 +80,7 @@ class _VehicleResumeScreenState extends State<VehicleResumeScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return SemanurScaffold(
       appBar: AppBar(
         title: Text('HV: ${widget.placa}'),
         actions: [
@@ -140,6 +141,7 @@ class _VehicleResumeScreenState extends State<VehicleResumeScreen>
                 FuelHistoryScreen(
                   vehiculoId: widget.vehiculoId,
                   placa: widget.placa,
+                  showNavMenu: false, // No mostrar menú en hoja de vida
                 ),
               ],
             ),
@@ -318,293 +320,583 @@ class _VehicleResumeScreenState extends State<VehicleResumeScreen>
     );
   }
 
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: const TextStyle(
+        color: AppTheme.textGray,
+        fontSize: 10,
+        fontWeight: FontWeight.bold,
+      ),
+    );
+  }
+
   Widget _buildSummaryTab() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildInfoCard(),
-          const SizedBox(height: 24),
-          const Text(
-            'INDICADORES CLAVE',
-            style: TextStyle(
+          _buildVehicleHeader(),
+          const SizedBox(height: 20),
+          _buildQuickStats(),
+          const SizedBox(height: 20),
+          _buildPersonalSection(),
+          const SizedBox(height: 20),
+          _buildMaintenanceSection(),
+          const SizedBox(height: 20),
+          _buildDocumentationSection(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVehicleHeader() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.primaryYellow.withValues(alpha: 0.2),
+            AppTheme.surfaceDark2,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppTheme.primaryYellow.withValues(alpha: 0.3),
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryYellow.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(
+                  _isMachinery ? Icons.construction : Icons.directions_car,
+                  color: AppTheme.primaryYellow,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _vehiculo!.placa,
+                      style: GoogleFonts.oswald(
+                        color: AppTheme.primaryYellow,
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${_vehiculo!.marca} ${_vehiculo!.modelo}',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppTheme.surfaceDark2,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        _vehiculo!.tipo.toUpperCase(),
+                        style: const TextStyle(
+                          color: AppTheme.primaryYellow,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatItem(
+                  Icons.speed_outlined,
+                  'Kilometraje',
+                  '${_vehiculo!.kilometrajeActual.toStringAsFixed(0)} km',
+                  Colors.blue,
+                ),
+              ),
+              if (_isMachinery) ...[
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildStatItem(
+                    Icons.timer_outlined,
+                    'Horómetro',
+                    '${_vehiculo!.horometroActual.toStringAsFixed(0)} h',
+                    Colors.orange,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatItem(
+    IconData icon,
+    String label,
+    String value,
+    Color color,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: GoogleFonts.oswald(
+              color: Colors.white,
+              fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: Colors.grey,
-              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppTheme.textGray,
+              fontSize: 9,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickStats() {
+    final totalOrdenes = _vehiculo?.ordenesTrabajo?.length ?? 0;
+    final totalRepuestos = _calculateTotalParts();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceDark,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.surfaceDark2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'ESTADÍSTICAS RÁPIDAS',
+            style: TextStyle(
+              color: AppTheme.textGray,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1,
             ),
           ),
           const SizedBox(height: 12),
           Row(
             children: [
-              _buildKpiCard(
-                'Órdenes',
-                '${_vehiculo?.ordenesTrabajo?.length ?? 0}',
-                Icons.assignment,
-                Colors.blue,
+              Expanded(
+                child: _buildQuickStatCard(
+                  Icons.assignment_outlined,
+                  'Órdenes',
+                  totalOrdenes.toString(),
+                  Colors.blue,
+                ),
               ),
               const SizedBox(width: 12),
-              _buildKpiCard(
-                'Repuestos',
-                '${_calculateTotalParts()}',
-                Icons.inventory_2,
-                Colors.orange,
+              Expanded(
+                child: _buildQuickStatCard(
+                  Icons.inventory_2_outlined,
+                  'Repuestos',
+                  totalRepuestos.toString(),
+                  Colors.orange,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildQuickStatCard(
+                  Icons.history_outlined,
+                  'Combustible',
+                  '-',
+                  Colors.green,
+                ),
               ),
             ],
-          ),
-
-          // ASIGNACIONES DE PERSONAL
-          const SizedBox(height: 24),
-          _buildSectionTitle('PERSONAL ASIGNADO'),
-          const SizedBox(height: 12),
-          _buildAssignmentCard(
-            'Operador / Conductor',
-            _vehiculo?.operadorAsignado?.nombreCompleto,
-            Icons.person,
-            () =>
-                _showAssignmentDialog('operador', _vehiculo?.operadorAsignado),
-          ),
-          const SizedBox(height: 12),
-          _buildAssignmentCard(
-            'Mecánico Responsable',
-            _vehiculo?.mecanicoAsignado?.nombreCompleto,
-            Icons.engineering,
-            () =>
-                _showAssignmentDialog('mecanico', _vehiculo?.mecanicoAsignado),
-          ),
-
-          // Alertas de Mantenimiento
-          const SizedBox(height: 24),
-          _buildSectionTitle('MANTENIMIENTO PREVENTIVO'),
-          const SizedBox(height: 12),
-          _buildMaintenanceCard(
-            'Por Kilometraje',
-            _vehiculo?.kilometrajeActual ?? 0,
-            _vehiculo?.kilometrajeProximoMantenimiento,
-            'Km',
-          ),
-          if (_isMachinery) ...[
-            const SizedBox(height: 12),
-            _buildMaintenanceCard(
-              'Por Horas (Horómetro)',
-              _vehiculo?.horometroActual ?? 0,
-              _vehiculo?.horometroProximoMantenimiento,
-              'Horas',
-            ),
-          ],
-
-          // Alertas de Documentación
-          const SizedBox(height: 24),
-          _buildSectionTitle('DOCUMENTACIÓN REGULATORIA'),
-          const SizedBox(height: 12),
-          _buildExpirationCard('SOAT', _vehiculo?.fechaVencimientoSoat),
-          const SizedBox(height: 12),
-          _buildExpirationCard(
-            'Tecnomecánica',
-            _vehiculo?.fechaVencimientoTecnomecanica,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildInfoCard() {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
+  Widget _buildQuickStatCard(
+    IconData icon,
+    String label,
+    String value,
+    Color color,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 22),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: GoogleFonts.oswald(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppTheme.textGray,
+              fontSize: 9,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPersonalSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceDark,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.surfaceDark2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'PERSONAL ASIGNADO',
+            style: TextStyle(
+              color: AppTheme.textGray,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildPersonalCard(
+            'Operador / Conductor',
+            _vehiculo?.operadorAsignado?.nombreCompleto,
+            Icons.person_outline,
+            Colors.blue,
+            () =>
+                _showAssignmentDialog('operador', _vehiculo?.operadorAsignado),
+          ),
+          const SizedBox(height: 10),
+          _buildPersonalCard(
+            'Mecánico Responsable',
+            _vehiculo?.mecanicoAsignado?.nombreCompleto,
+            Icons.engineering_outlined,
+            Colors.orange,
+            () =>
+                _showAssignmentDialog('mecanico', _vehiculo?.mecanicoAsignado),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPersonalCard(
+    String role,
+    String? name,
+    IconData icon,
+    Color color,
+    VoidCallback onTap,
+  ) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: 0.15)),
+        ),
+        child: Row(
           children: [
-            _buildInfoRow('Placa', _vehiculo!.placa, isTitle: true),
-            const Divider(),
-            _buildInfoRow('Tipo', _vehiculo!.tipo),
-            _buildInfoRow('Marca', _vehiculo!.marca),
-            _buildInfoRow('Modelo', _vehiculo!.modelo),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: color, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    role,
+                    style: const TextStyle(
+                      color: AppTheme.textGray,
+                      fontSize: 9,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    name ?? 'Sin asignar',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.edit,
+              color: color,
+              size: 18,
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildInfoRow(String label, String value, {bool isTitle = false}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _buildMaintenanceSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceDark,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.surfaceDark2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: TextStyle(color: Colors.grey.shade600)),
-          Text(
-            value,
+          const Text(
+            'MANTENIMIENTO PREVENTIVO',
             style: TextStyle(
-              fontWeight: isTitle ? FontWeight.bold : FontWeight.normal,
-              fontSize: isTitle ? 18 : 16,
+              color: AppTheme.textGray,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1,
             ),
           ),
+          const SizedBox(height: 12),
+          _buildMaintenanceIndicator(
+            'Kilometraje',
+            _vehiculo?.kilometrajeActual ?? 0,
+            _vehiculo?.kilometrajeProximoMantenimiento,
+            'Km',
+            Icons.speed_outlined,
+            Colors.blue,
+          ),
+          if (_isMachinery) ...[
+            const SizedBox(height: 10),
+            _buildMaintenanceIndicator(
+              'Horómetro',
+              _vehiculo?.horometroActual ?? 0,
+              _vehiculo?.horometroProximoMantenimiento,
+              'Horas',
+              Icons.timer_outlined,
+              Colors.orange,
+            ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        fontWeight: FontWeight.bold,
-        color: Colors.grey,
-        fontSize: 12,
-      ),
-    );
-  }
-
-  Widget _buildExpirationCard(String title, DateTime? expirationDate) {
-    if (expirationDate == null) {
-      return _buildAlertCard(
-        title,
-        'No registrada',
-        Colors.grey.shade800,
+  Widget _buildMaintenanceIndicator(
+    String type,
+    double current,
+    double? target,
+    String unit,
+    IconData icon,
+    Color color,
+  ) {
+    if (target == null || target == 0) {
+      return _buildMaintenanceAlert(
+        type,
+        'Meta no definida',
         Colors.grey,
         Icons.help_outline,
       );
     }
 
-    final daysLeft = expirationDate.difference(DateTime.now()).inDays;
-    Color color;
-    IconData icon;
-    String status;
-
-    if (daysLeft < 0) {
-      color = Colors.red;
-      icon = Icons.warning;
-      status = 'VENCIDO hace ${daysLeft.abs()} días';
-    } else if (daysLeft <= 30) {
-      color = Colors.orange;
-      icon = Icons.access_time;
-      status = 'Vence en $daysLeft días';
-    } else {
-      color = Colors.green;
-      icon = Icons.check_circle_outline;
-      status =
-          'Vigente (Vence: ${DateFormat('dd/MM/yyyy').format(expirationDate)})';
-    }
-
-    return _buildAlertCard(
-      title,
-      status,
-      color.withValues(alpha: 0.1),
-      color,
-      icon,
-    );
-  }
-
-  Widget _buildMaintenanceCard(
-    String title,
-    double current,
-    double? target,
-    String unit,
-  ) {
-    if (target == null || target == 0) {
-      return _buildAlertCard(
-        title,
-        'Meta no definida',
-        Colors.grey.shade800,
-        Colors.grey,
-        Icons.settings_suggest,
-      );
-    }
-
     final diff = target - current;
-    Color color;
-    IconData icon;
-    String status;
+    final percentage = ((current / target) * 100).clamp(0, 100);
+
+    Color statusColor;
+    IconData statusIcon;
 
     if (diff <= 0) {
-      color = Colors.red;
-      icon = Icons.warning;
-      status =
-          'REQ. MANTENIMIENTO (Pasado por ${diff.abs().toStringAsFixed(0)} $unit)';
+      statusColor = Colors.red;
+      statusIcon = Icons.warning;
     } else if (diff <= (unit == 'Km' ? 500 : 50)) {
-      color = Colors.orange;
-      icon = Icons.access_time;
-      status = 'Próximo (Faltan ${diff.toStringAsFixed(0)} $unit)';
+      statusColor = Colors.orange;
+      statusIcon = Icons.access_time;
     } else {
-      color = Colors.green;
-      icon = Icons.check_circle_outline;
-      status = 'Operativo (Faltan ${diff.toStringAsFixed(0)} $unit)';
+      statusColor = Colors.green;
+      statusIcon = Icons.check_circle_outline;
     }
 
-    return _buildAlertCard(
-      title,
-      status,
-      color.withValues(alpha: 0.1),
-      color,
-      icon,
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: statusColor.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: statusColor.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: color, size: 18),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      type,
+                      style: const TextStyle(
+                        color: AppTheme.textGray,
+                        fontSize: 9,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$current / $target $unit',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(statusIcon, color: statusColor, size: 20),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: percentage / 100,
+              backgroundColor: statusColor.withValues(alpha: 0.2),
+              valueColor: AlwaysStoppedAnimation<Color>(statusColor),
+              minHeight: 6,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${percentage.toStringAsFixed(0)}% completado',
+                style: const TextStyle(
+                  color: AppTheme.textGray,
+                  fontSize: 9,
+                ),
+              ),
+              Text(
+                diff <= 0
+                    ? 'Vencido por ${diff.abs().toStringAsFixed(0)} $unit'
+                    : 'Faltan ${diff.toStringAsFixed(0)} $unit',
+                style: TextStyle(
+                  color: statusColor,
+                  fontSize: 9,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildAlertCard(
-    String title,
-    String status,
-    Color bgColor,
-    Color accentColor,
+  Widget _buildMaintenanceAlert(
+    String type,
+    String message,
+    Color color,
     IconData icon,
   ) {
-    bool isCritical = accentColor == Colors.red;
-
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isCritical ? Colors.red.withValues(alpha: 0.15) : bgColor,
+        color: color.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: accentColor.withValues(alpha: isCritical ? 0.8 : 0.5),
-          width: isCritical ? 2 : 1,
-        ),
+        border: Border.all(color: color.withValues(alpha: 0.15)),
       ),
       child: Row(
         children: [
-          Icon(icon, color: accentColor, size: isCritical ? 32 : 28),
-          const SizedBox(width: 16),
+          Icon(icon, color: color, size: 18),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      title,
-                      style: GoogleFonts.oswald(
-                        fontSize: 16,
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    if (isCritical)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          'ALERTA',
-                          style: GoogleFonts.oswald(
-                            fontSize: 10,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
                 Text(
-                  status,
-                  style: TextStyle(
-                    color: isCritical ? Colors.white : accentColor,
-                    fontWeight: isCritical ? FontWeight.bold : FontWeight.w600,
+                  type,
+                  style: const TextStyle(
+                    color: AppTheme.textGray,
+                    fontSize: 9,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  message,
+                  style: const TextStyle(
+                    color: Colors.white,
                     fontSize: 13,
                   ),
                 ),
@@ -616,29 +908,118 @@ class _VehicleResumeScreenState extends State<VehicleResumeScreen>
     );
   }
 
-  Widget _buildKpiCard(String label, String value, IconData icon, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: color),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+  Widget _buildDocumentationSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceDark,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.surfaceDark2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'DOCUMENTACIÓN REGULATORIA',
+            style: TextStyle(
+              color: AppTheme.textGray,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1,
             ),
-            Text(
-              label,
-              style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
+          ),
+          const SizedBox(height: 12),
+          _buildDocumentCard('SOAT', _vehiculo?.fechaVencimientoSoat),
+          const SizedBox(height: 10),
+          _buildDocumentCard(
+            'Tecnomecánica',
+            _vehiculo?.fechaVencimientoTecnomecanica,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDocumentCard(String title, DateTime? expirationDate) {
+    if (expirationDate == null) {
+      return _buildDocumentItem(
+        title,
+        'No registrada',
+        Colors.grey,
+        Icons.help_outline,
+      );
+    }
+
+    final daysLeft = expirationDate.difference(DateTime.now()).inDays;
+    Color color;
+    String status;
+    IconData icon;
+
+    if (daysLeft < 0) {
+      color = Colors.red;
+      status = 'Vencido hace ${daysLeft.abs()} días';
+      icon = Icons.warning;
+    } else if (daysLeft <= 30) {
+      color = Colors.orange;
+      status = 'Vence en $daysLeft días';
+      icon = Icons.access_time;
+    } else {
+      color = Colors.green;
+      status = 'Vigente - ${DateFormat('dd/MM/yyyy').format(expirationDate)}';
+      icon = Icons.check_circle_outline;
+    }
+
+    return _buildDocumentItem(title, status, color, icon);
+  }
+
+  Widget _buildDocumentItem(
+    String title,
+    String status,
+    Color color,
+    IconData icon,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.15)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8),
             ),
-          ],
-        ),
+            child: Icon(icon, color: color, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppTheme.textGray,
+                    fontSize: 9,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  status,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -658,7 +1039,7 @@ class _VehicleResumeScreenState extends State<VehicleResumeScreen>
           margin: const EdgeInsets.only(bottom: 12),
           child: ListTile(
             title: Text('OT #${ot.id} - ${ot.descripcion}'),
-            subtitle: Text(DateFormat('dd/MM/yyyy').format(ot.fechaInicio)),
+            subtitle: Text(ot.fechaInicioString.split(' ')[0]), // Solo la fecha
             trailing: _buildStatusChip(ot.estado),
           ),
         );
@@ -705,15 +1086,33 @@ class _VehicleResumeScreenState extends State<VehicleResumeScreen>
       }
     });
 
-    if (allMovements.isEmpty) {
+    // Filtrar movimientos de combustible
+    final partsMovements = allMovements.where((m) {
+      final motivo = (m.motivo ?? '').toLowerCase();
+      final categoriaNombre = (m.producto?.categoria?.nombre ?? '').toLowerCase();
+      final categoriaTipo = (m.producto?.categoria?.tipo ?? '').toLowerCase();
+      final productoNombre = (m.producto?.nombre ?? '').toLowerCase();
+
+      // Excluir si es combustible
+      if (motivo.contains('combustible')) return false;
+      if (categoriaNombre.contains('combustible')) return false;
+      if (categoriaTipo.contains('combustible')) return false;
+      if (productoNombre.contains('combustible')) return false;
+      if (productoNombre.contains('acpm')) return false;
+      if (productoNombre.contains('gasolina')) return false;
+
+      return true;
+    }).toList();
+
+    if (partsMovements.isEmpty) {
       return const Center(child: Text('No hay repuestos registrados'));
     }
 
     return ListView.builder(
-      itemCount: allMovements.length,
+      itemCount: partsMovements.length,
       padding: const EdgeInsets.all(16),
       itemBuilder: (context, index) {
-        final m = allMovements[index];
+        final m = partsMovements[index];
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
           child: ListTile(

@@ -21,11 +21,17 @@
       </nav>
 
       <div class="sidebar-footer">
-        <div class="sidebar-item" style="cursor: default; opacity: 0.7;">
+        <button class="sidebar-item sidebar-about-btn" @click="showAboutModal = true">
           <span class="material-icons-round">info</span>
-          Semanur HUB 0.5-alpha
-        </div>
+          <div class="sidebar-about-text">
+            <span class="sidebar-about-title">Semanur HUB</span>
+            <span class="sidebar-about-version">0.5-alpha</span>
+          </div>
+        </button>
       </div>
+
+      <!-- About Modal -->
+      <AboutModal :visible="showAboutModal" @close="showAboutModal = false" />
     </aside>
 
     <main class="main-content">
@@ -38,10 +44,59 @@
             <span class="material-icons-round">refresh</span>
           </button>
 
-          <button class="btn-icon" title="Notificaciones" style="position: relative;">
-            <span class="material-icons-round">notifications</span>
-            <span class="notification-badge">3</span>
-          </button>
+          <!-- Panel de Notificaciones -->
+          <div class="notif-container" ref="notifContainerRef">
+            <button class="btn-icon" title="Notificaciones" @click="toggleNotifPanel" style="position: relative;">
+              <span class="material-icons-round">notifications</span>
+              <span v-if="notifStore.unreadCount > 0" class="notification-badge">
+                {{ notifStore.unreadCount > 9 ? '9+' : notifStore.unreadCount }}
+              </span>
+            </button>
+
+            <div v-if="notifPanelOpen" class="notif-panel">
+              <div class="notif-panel-header">
+                <span>Notificaciones</span>
+                <button v-if="notifStore.unreadCount > 0" class="notif-mark-all" @click="markAllRead">
+                  Marcar todas como leídas
+                </button>
+              </div>
+
+              <div v-if="notifStore.loading" class="notif-empty">
+                <span class="material-icons-round" style="font-size: 32px; color: var(--text-gray);">hourglass_empty</span>
+                <p>Cargando...</p>
+              </div>
+
+              <div v-else-if="notifStore.sinLeer.length === 0" class="notif-empty">
+                <span class="material-icons-round" style="font-size: 32px; color: var(--text-gray);">check_circle</span>
+                <p>Sin notificaciones pendientes</p>
+              </div>
+
+              <ul v-else class="notif-list">
+                <li
+                  v-for="n in notifStore.sinLeer"
+                  :key="n.id"
+                  class="notif-item"
+                  @click="handleNotifClick(n)"
+                >
+                  <span class="material-icons-round notif-icon" :class="prioridadClass(n.prioridad)">
+                    {{ notifStore.iconoPorTipo(n.tipo) }}
+                  </span>
+                  <div class="notif-body">
+                    <p class="notif-title">{{ n.titulo }}</p>
+                    <p class="notif-msg">{{ n.mensaje }}</p>
+                  </div>
+                  <button class="notif-close" title="Marcar como leída" @click.stop="notifStore.marcarLeida(n.id)">
+                    <span class="material-icons-round" style="font-size: 16px;">close</span>
+                  </button>
+                </li>
+              </ul>
+
+              <RouterLink to="/notifications" class="notif-panel-footer" @click="notifPanelOpen = false">
+                Ver centro de notificaciones
+                <span class="material-icons-round" style="font-size: 16px;">arrow_forward</span>
+              </RouterLink>
+            </div>
+          </div>
 
           <button class="btn-icon" :title="isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'" @click="toggleTheme">
             <span class="material-icons-round">{{ isDark ? 'light_mode' : 'dark_mode' }}</span>
@@ -88,31 +143,79 @@
 import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { useRouter, useRoute, RouterLink, RouterView } from 'vue-router';
 import { useAuthStore } from '../../shared/stores/auth';
+import { useNotificacionesStore } from '../../shared/stores/notificaciones';
 import { useRefresh } from '../../shared/composables/useRefresh';
+import AboutModal from '../../shared/components/AboutModal.vue';
 
 const auth = useAuthStore();
+const notifStore = useNotificacionesStore();
 const router = useRouter();
 const route = useRoute();
 const { triggerRefresh } = useRefresh();
 
+// About Modal
+const showAboutModal = ref(false);
+
 const profileMenuOpen = ref(false);
+const notifPanelOpen = ref(false);
+const notifContainerRef = ref(null);
 
 function toggleProfileMenu() {
   profileMenuOpen.value = !profileMenuOpen.value;
+  notifPanelOpen.value = false;
 }
 
-function closeProfileMenu(e) {
+function toggleNotifPanel() {
+  notifPanelOpen.value = !notifPanelOpen.value;
+  profileMenuOpen.value = false;
+}
+
+function closeMenus(e) {
   if (!e.target.closest('.header-profile-container')) {
     profileMenuOpen.value = false;
   }
+  if (notifContainerRef.value && !notifContainerRef.value.contains(e.target)) {
+    notifPanelOpen.value = false;
+  }
 }
 
-onMounted(() => {
-  document.addEventListener('click', closeProfileMenu);
+async function handleNotifClick(n) {
+  await notifStore.marcarLeida(n.id);
+  const ruta = notifStore.rutaPorNotificacion(n.tipo, n.relacionado_id);
+  if (ruta) router.push(ruta);
+  notifPanelOpen.value = false;
+}
+
+async function markAllRead() {
+  await notifStore.marcarTodasLeidas();
+}
+
+function prioridadClass(prioridad) {
+  if (prioridad === 'alta') return 'notif-icon--alta';
+  if (prioridad === 'media') return 'notif-icon--media';
+  return 'notif-icon--baja';
+}
+
+onMounted(async () => {
+  document.addEventListener('click', closeMenus);
+  
+  // Inicializar tema
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme === 'light') {
+    isDark.value = false;
+    updateTheme();
+  }
+
+  // Cargar notificaciones (no bloquear si falla)
+  try {
+    await notifStore.fetchNotificaciones();
+  } catch (e) {
+    console.warn('No se pudieron cargar notificaciones:', e);
+  }
 });
 
 onUnmounted(() => {
-  document.removeEventListener('click', closeProfileMenu);
+  document.removeEventListener('click', closeMenus);
 });
 
 function handleRefresh() {
@@ -121,7 +224,6 @@ function handleRefresh() {
 
 function handleManageProfile() {
   profileMenuOpen.value = false;
-  // Logica para abrir modal de perfil o navegar
   alert('Gestión de perfil en construcción. ¡Pronto disponible!');
 }
 
@@ -139,6 +241,7 @@ const admin = computed(() => [
   { path: '/history', icon: 'history', label: 'Actividad' },
   { path: '/employees', icon: 'people', label: 'Empleados' },
   { path: '/scheduler', icon: 'calendar_month', label: 'Programacion' },
+  { path: '/notifications', icon: 'notifications', label: 'Notificaciones' },
 ]);
 
 async function onLogout() {
@@ -163,18 +266,8 @@ function updateTheme() {
     localStorage.setItem('theme', 'light');
   }
 }
-
-onMounted(() => {
-  document.addEventListener('click', closeProfileMenu);
-  
-  // Initialize theme
-  const savedTheme = localStorage.getItem('theme');
-  if (savedTheme === 'light') {
-    isDark.value = false;
-    updateTheme();
-  }
-});
 </script>
+
 
 <style scoped>
 #app-shell {
@@ -294,5 +387,190 @@ onMounted(() => {
 
 .dropdown-danger:hover .material-icons-round {
   color: var(--danger);
+}
+
+/* ── Notificaciones ─────────────────────────────────────── */
+.notif-container {
+  position: relative;
+}
+
+.notif-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: -8px;
+  width: 360px;
+  max-height: 480px;
+  background: var(--surface);
+  border: 1px solid var(--surface-2);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 1001;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: dropdownFade 0.2s ease;
+}
+
+.notif-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--surface-2);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.notif-mark-all {
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0;
+}
+
+.notif-mark-all:hover {
+  text-decoration: underline;
+}
+
+.notif-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.notif-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--surface-2);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.notif-item:last-child { border-bottom: none; }
+
+.notif-item:hover {
+  background: var(--surface-2);
+}
+
+.notif-icon {
+  font-size: 22px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.notif-icon--alta  { color: var(--danger); }
+.notif-icon--media { color: var(--warning, #f59e0b); }
+.notif-icon--baja  { color: var(--primary); }
+
+.notif-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.notif-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-main);
+  margin: 0 0 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notif-msg {
+  font-size: 0.75rem;
+  color: var(--text-gray);
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.notif-close {
+  background: none;
+  border: none;
+  color: var(--text-gray);
+  cursor: pointer;
+  padding: 2px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.notif-item:hover .notif-close { opacity: 1; }
+.notif-close:hover { background: var(--surface-2); color: var(--text-main); }
+
+.notif-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 16px;
+  gap: 8px;
+  color: var(--text-gray);
+  font-size: 0.8rem;
+}
+.notif-panel-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--surface-2);
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--primary);
+  text-decoration: none;
+  transition: background 0.15s;
+}
+
+.notif-panel-footer:hover {
+  background: var(--surface-2);
+}
+
+/* Sidebar About Button */
+.sidebar-about-btn {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sidebar-about-btn:hover {
+  background: var(--surface-2);
+}
+
+.sidebar-about-btn .material-icons-round {
+  color: var(--primary);
+}
+
+.sidebar-about-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sidebar-about-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.sidebar-about-version {
+  font-size: 0.7rem;
+  color: var(--text-gray);
+  font-weight: 500;
 }
 </style>

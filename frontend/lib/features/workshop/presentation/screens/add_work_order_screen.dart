@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/core/widgets/semanur_scaffold.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:frontend/features/workshop/presentation/providers/workshop_provider.dart';
@@ -30,12 +31,9 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
   Empleado? _selectedMechanic;
 
   final List<String> _priorities = ['Baja', 'Media', 'Alta'];
-
-  // Listas de items seleccionados
   final List<Map<String, dynamic>> _selectedSpares = [];
   final List<Map<String, dynamic>> _selectedTools = [];
 
-  // Controllers para dropdowns temporales
   Producto? _tempSpare;
   Producto? _tempTool;
   final _spareQtyController = TextEditingController(text: '1');
@@ -44,9 +42,20 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<FleetProvider>().fetchVehiculos();
-      context.read<InventoryProvider>().fetchProductos();
-      context.read<EmployeeProvider>().loadEmployees();
+      // Solo fetch si no hay datos cargados
+      final fleetProvider = context.read<FleetProvider>();
+      final inventoryProvider = context.read<InventoryProvider>();
+      final employeeProvider = context.read<EmployeeProvider>();
+      
+      if (fleetProvider.vehiculos.isEmpty) {
+        fleetProvider.fetchVehiculos();
+      }
+      if (inventoryProvider.productos.isEmpty) {
+        inventoryProvider.fetchProductos();
+      }
+      if (employeeProvider.employees.isEmpty) {
+        employeeProvider.loadEmployees();
+      }
     });
   }
 
@@ -70,415 +79,966 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     }
   }
 
+  Color _getPriorityColor(String priority) {
+    switch (priority.toLowerCase()) {
+      case 'alta':
+        return const Color(0xFFFF4B2B);
+      case 'media':
+        return const Color(0xFFFFD600);
+      case 'baja':
+        return const Color(0xFF00E676);
+      default:
+        return Colors.grey;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final fleetProvider = context.watch<FleetProvider>();
     final workshopProvider = context.watch<WorkshopProvider>();
     final employeeProvider = context.watch<EmployeeProvider>();
 
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundDark,
+    return SemanurScaffold(
+      backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
-        backgroundColor: AppTheme.surfaceDark,
+        backgroundColor: const Color(0xFF121212),
         elevation: 0,
-        title: Text(
-          'NUEVA ORDEN DE TRABAJO',
-          style: GoogleFonts.oswald(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1,
-            color: Colors.white,
-          ),
-        ),
+        leadingWidth: 60,
         leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios_new,
-            color: Colors.white,
-            size: 20,
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E1E1E),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Icon(
+              Icons.arrow_back_ios_new,
+              color: Colors.white,
+              size: 18,
+            ),
           ),
           onPressed: () => Navigator.pop(context),
         ),
+        title: Text(
+          'NUEVA ORDEN',
+          style: GoogleFonts.oswald(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 2,
+            color: Colors.white,
+          ),
+        ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            _buildVehicleSection(fleetProvider),
+            const SizedBox(height: 16),
+            _buildPrioritySection(),
+            const SizedBox(height: 16),
+            _buildMechanicSection(employeeProvider),
+            const SizedBox(height: 16),
+            _buildDescriptionSection(),
+            const SizedBox(height: 16),
+            _buildEvidenceSection(),
+            const SizedBox(height: 16),
+            _buildSparesSection(),
+            const SizedBox(height: 16),
+            _buildToolsSection(),
+            const SizedBox(height: 24),
+            _buildSubmitButton(workshopProvider),
+            const SizedBox(height: 40),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVehicleSection(FleetProvider provider) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E1E),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF333333)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              _buildSectionTitle('VEHÍCULO / MAQUINARIA'),
-              _buildVehicleDropdown(fleetProvider),
-              const SizedBox(height: 25),
-
-              _buildSectionTitle('PRIORIDAD DE LA ORDEN'),
-              _buildPrioritySelector(),
-
-              const SizedBox(height: 25),
-
-              _buildSectionTitle('MECÁNICO ASIGNADO (OPCIONAL)'),
-              _buildMechanicDropdown(employeeProvider),
-              const SizedBox(height: 25),
-
-              _buildSectionTitle('DESCRIPCIÓN DEL TRABAJO / FALLA'),
-              _buildDescriptionField(),
-              const SizedBox(height: 25),
-
-              _buildSectionTitle('EVIDENCIA FOTOGRÁFICA'),
-              _buildPhotoSection(),
-              const SizedBox(height: 25),
-
-              _buildSectionTitle('REPUESTOS REQUERIDOS (OPCIONAL)'),
-              _buildSparesSelector(context),
-              _buildSparesList(),
-              const SizedBox(height: 25),
-
-              _buildSectionTitle('HERRAMIENTAS A UTILIZAR (OPCIONAL)'),
-              _buildToolsSelector(context),
-              _buildToolsList(),
-              const SizedBox(height: 40),
-
-              _buildSubmitButton(workshopProvider),
-              const SizedBox(height: 50),
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryYellow.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Icon(
+                  Icons.directions_car_outlined,
+                  color: AppTheme.primaryYellow,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'VEHÍCULO / MAQUINARIA',
+                style: GoogleFonts.oswald(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade300,
+                  letterSpacing: 1,
+                ),
+              ),
             ],
           ),
-        ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<Vehiculo>(
+            value: _selectedVehicle,
+            dropdownColor: const Color(0xFF1E1E1E),
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              hintText: 'Seleccione Vehículo...',
+              hintStyle: TextStyle(color: Colors.grey.shade600),
+              filled: true,
+              fillColor: const Color(0xFF121212),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: const Color(0xFF333333)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: const Color(0xFF333333)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: AppTheme.primaryYellow),
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            ),
+            items: provider.vehiculos.map((v) {
+              return DropdownMenuItem(
+                value: v,
+                child: Text(
+                  '${v.placa} - ${v.marca} ${v.modelo}',
+                  style: const TextStyle(fontSize: 13),
+                ),
+              );
+            }).toList(),
+            onChanged: (val) => setState(() => _selectedVehicle = val),
+            validator: (val) => val == null ? 'Seleccione un vehículo' : null,
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildPhotoSection() {
-    return GestureDetector(
-      onTap: _takePhoto,
-      child: Container(
-        height: 160,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: AppTheme.surfaceDark,
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(
-            color: _imageFile != null ? Colors.green : AppTheme.surfaceDark2,
-            width: 2,
+  Widget _buildPrioritySection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E1E),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF333333)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryYellow.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Icon(
+                  Icons.warning_outlined,
+                  color: AppTheme.primaryYellow,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'NIVEL DE PRIORIDAD',
+                style: GoogleFonts.oswald(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade300,
+                  letterSpacing: 1,
+                ),
+              ),
+            ],
           ),
-        ),
-        child: _imageFile != null
-            ? Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(13),
-                    child: Image.file(
-                      _imageFile!,
-                      width: double.infinity,
-                      height: double.infinity,
-                      fit: BoxFit.cover,
+          const SizedBox(height: 12),
+          Row(
+            children: _priorities.map((priority) {
+              final isSelected = _priority == priority;
+              final color = _getPriorityColor(priority);
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(() => _priority = priority),
+                  child: Container(
+                    margin: EdgeInsets.only(
+                      right: priority != _priorities.last ? 8 : 0,
                     ),
-                  ),
-                  Positioned(
-                    right: 10,
-                    top: 10,
-                    child: CircleAvatar(
-                      backgroundColor: Colors.black54,
-                      child: IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.white),
-                        onPressed: _takePhoto,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: isSelected ? color.withValues(alpha: 0.1) : const Color(0xFF121212),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isSelected ? color : const Color(0xFF333333),
+                        width: 2,
                       ),
                     ),
-                  ),
-                ],
-              )
-            : Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.camera_alt_outlined,
-                    size: 40,
-                    color: Colors.white38,
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'CAPTURAR EVIDENCIA',
-                    style: GoogleFonts.oswald(
-                      color: Colors.white38,
-                      fontSize: 12,
-                      letterSpacing: 1.2,
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 14,
+                          height: 14,
+                          decoration: BoxDecoration(
+                            color: color,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          priority.toUpperCase(),
+                          style: GoogleFonts.oswald(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: isSelected ? color : Colors.grey.shade500,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
-      ),
-    );
-  }
-
-  Widget _buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Text(
-        title,
-        style: GoogleFonts.oswald(
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-          color: AppTheme.primaryYellow,
-          letterSpacing: 1.2,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildVehicleDropdown(FleetProvider provider) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceDark,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: AppTheme.surfaceDark2),
-      ),
-      child: DropdownButtonFormField<Vehiculo>(
-        initialValue: _selectedVehicle,
-        dropdownColor: AppTheme.surfaceDark,
-        style: const TextStyle(color: Colors.white),
-        decoration: const InputDecoration(
-          contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 5),
-          border: InputBorder.none,
-          hintText: 'Seleccionar vehículo...',
-          hintStyle: TextStyle(color: AppTheme.textGray, fontSize: 14),
-        ),
-        items: provider.vehiculos.map((v) {
-          return DropdownMenuItem(
-            value: v,
-            child: Text(
-              '${v.placa} - ${v.marca} ${v.modelo}',
-              style: const TextStyle(fontSize: 14),
-            ),
-          );
-        }).toList(),
-        onChanged: (val) => setState(() => _selectedVehicle = val),
-        validator: (val) =>
-            val == null ? 'Por favor seleccione un vehículo' : null,
-      ),
-    );
-  }
-
-  Widget _buildPrioritySelector() {
-    return Row(
-      children: _priorities.map((p) {
-        final isSelected = _priority == p;
-        Color priorityColor = Colors.grey;
-        if (p == 'Alta') priorityColor = Colors.red;
-        if (p == 'Media') priorityColor = AppTheme.primaryYellow;
-        if (p == 'Baja') priorityColor = Colors.green;
-
-        return Expanded(
-          child: GestureDetector(
-            onTap: () => setState(() => _priority = p),
-            child: Container(
-              margin: EdgeInsets.only(right: p != _priorities.last ? 10 : 0),
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? priorityColor.withValues(alpha: 0.2)
-                    : AppTheme.surfaceDark,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: isSelected ? priorityColor : AppTheme.surfaceDark2,
-                  width: 2,
                 ),
-              ),
-              child: Center(
-                child: Text(
-                  p.toUpperCase(),
-                  style: GoogleFonts.oswald(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: isSelected ? priorityColor : Colors.white60,
-                  ),
-                ),
-              ),
-            ),
+              );
+            }).toList(),
           ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildDescriptionField() {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceDark,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: AppTheme.surfaceDark2),
-      ),
-      child: TextFormField(
-        controller: _descriptionController,
-        maxLines: 5,
-        style: const TextStyle(color: Colors.white, fontSize: 14),
-        decoration: const InputDecoration(
-          contentPadding: EdgeInsets.all(20),
-          border: InputBorder.none,
-          hintText:
-              'Especifique el motivo de la orden, fallas detectadas o mantenimiento requerido...',
-          hintStyle: TextStyle(color: AppTheme.textGray, fontSize: 13),
-        ),
-        validator: (val) => val == null || val.isEmpty
-            ? 'Por favor ingrese una descripción'
-            : null,
+        ],
       ),
     );
   }
 
-  Widget _buildMechanicDropdown(EmployeeProvider provider) {
-    // Filtrar solo mecánicos si es necesario
+  Widget _buildMechanicSection(EmployeeProvider provider) {
     final mechanics = provider.employees
         .where((e) => e.cargo?.toLowerCase().contains('mecanico') ?? false)
         .toList();
-    // If no mechanics found (maybe cargo name mismatches), show all or handle?
-    // Let's show all for now if list is empty, or better, just show mechanics.
-    // If mechanics list is empty, maybe fallback to all or empty list.
-    // To be safe, let's just use provider.employees but maybe sort/filter.
-    // Ideally we want only mechanics.
 
     return Container(
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceDark,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: AppTheme.surfaceDark2),
+        color: const Color(0xFF1E1E1E),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF333333)),
       ),
-      child: DropdownButtonFormField<Empleado>(
-        key: ValueKey(_selectedMechanic),
-        initialValue: _selectedMechanic,
-        dropdownColor: AppTheme.surfaceDark,
-        style: const TextStyle(color: Colors.white),
-        decoration: const InputDecoration(
-          contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 5),
-          border: InputBorder.none,
-          hintText: 'Seleccionar mecánico...',
-          hintStyle: TextStyle(color: AppTheme.textGray, fontSize: 14),
-        ),
-        items: mechanics.map((e) {
-          return DropdownMenuItem(
-            value: e,
-            child: Text(e.nombreCompleto, style: const TextStyle(fontSize: 14)),
-          );
-        }).toList(),
-        onChanged: (val) => setState(() => _selectedMechanic = val),
-        validator: (val) => null, // Optional
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryYellow.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Icon(
+                  Icons.person_outline,
+                  color: AppTheme.primaryYellow,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'ASIGNAR MECÁNICO',
+                style: GoogleFonts.oswald(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade300,
+                  letterSpacing: 1,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<Empleado>(
+            value: _selectedMechanic,
+            dropdownColor: const Color(0xFF1E1E1E),
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              hintText: 'Seleccione responsable...',
+              hintStyle: TextStyle(color: Colors.grey.shade600),
+              filled: true,
+              fillColor: const Color(0xFF121212),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: const Color(0xFF333333)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: const Color(0xFF333333)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: AppTheme.primaryYellow),
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            ),
+            items: mechanics.map((e) {
+              return DropdownMenuItem(
+                value: e,
+                child: Text(e.nombreCompleto, style: const TextStyle(fontSize: 13)),
+              );
+            }).toList(),
+            onChanged: (val) => setState(() => _selectedMechanic = val),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDescriptionSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E1E),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF333333)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryYellow.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Icon(
+                  Icons.notes_outlined,
+                  color: AppTheme.primaryYellow,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'DESCRIPCIÓN DE FALLA',
+                style: GoogleFonts.oswald(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade300,
+                  letterSpacing: 1,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _descriptionController,
+            maxLines: 5,
+            style: const TextStyle(color: Colors.white, fontSize: 13),
+            decoration: InputDecoration(
+              hintText: 'Describa detalladamente el problema...',
+              hintStyle: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+              filled: true,
+              fillColor: const Color(0xFF121212),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: const Color(0xFF333333)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: const Color(0xFF333333)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: AppTheme.primaryYellow),
+              ),
+              contentPadding: const EdgeInsets.all(12),
+            ),
+            validator: (val) => val == null || val.isEmpty ? 'Requerido' : null,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEvidenceSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E1E),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF333333)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryYellow.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Icon(
+                  Icons.photo_camera_outlined,
+                  color: AppTheme.primaryYellow,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'EVIDENCIA FOTOGRÁFICA',
+                style: GoogleFonts.oswald(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade300,
+                  letterSpacing: 1,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              GestureDetector(
+                onTap: _takePhoto,
+                child: Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: _imageFile != null 
+                          ? AppTheme.primaryYellow 
+                          : const Color(0xFF333333),
+                      width: 2,
+                      style: _imageFile != null ? BorderStyle.solid : BorderStyle.none,
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                    color: const Color(0xFF121212),
+                  ),
+                  child: _imageFile != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.file(
+                            _imageFile!,
+                            fit: BoxFit.cover,
+                          ),
+                        )
+                      : Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.camera_alt_outlined,
+                              color: Colors.grey.shade600,
+                              size: 28,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'CÁMARA',
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+              if (_imageFile != null) ...[
+                const SizedBox(width: 12),
+                GestureDetector(
+                  onTap: () => setState(() => _imageFile = null),
+                  child: Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFF333333)),
+                    ),
+                    child: Stack(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.file(
+                            _imageFile!,
+                            fit: BoxFit.cover,
+                            opacity: const AlwaysStoppedAnimation(0.5),
+                          ),
+                        ),
+                        Positioned(
+                          top: 4,
+                          right: 4,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFEF4444),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.close,
+                              color: Colors.white,
+                              size: 14,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSparesSection() {
+    final inventoryProvider = context.watch<InventoryProvider>();
+    final spares = inventoryProvider.productos
+        .where((p) => (p.categoria?.tipo?.toLowerCase() ?? '') == 'repuesto')
+        .toList();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E1E),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF333333)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryYellow.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Icon(
+                  Icons.build_outlined,
+                  color: AppTheme.primaryYellow,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'SOLICITUD DE REPUESTOS',
+                style: GoogleFonts.oswald(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade300,
+                  letterSpacing: 1,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                flex: 3,
+                child: DropdownSearch<Producto>(
+                  selectedItem: _tempSpare,
+                  decoratorProps: DropDownDecoratorProps(
+                    decoration: InputDecoration(
+                      hintText: 'Buscar SKU...',
+                      hintStyle: TextStyle(color: Colors.grey.shade600, fontSize: 11),
+                      filled: true,
+                      fillColor: const Color(0xFF121212),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: const Color(0xFF333333)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: const Color(0xFF333333)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: AppTheme.primaryYellow),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    ),
+                  ),
+                  popupProps: PopupProps.menu(
+                    showSearchBox: true,
+                    searchFieldProps: TextFieldProps(
+                      decoration: InputDecoration(
+                        hintText: 'Buscar...',
+                        hintStyle: TextStyle(color: Colors.grey.shade600),
+                        filled: true,
+                        fillColor: const Color(0xFF121212),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                    menuProps: MenuProps(
+                      backgroundColor: const Color(0xFF1E1E1E),
+                    ),
+                  ),
+                  items: (filter, loadProps) => Future.value(
+                    spares.where((e) => 
+                      e.nombre.toLowerCase().contains(filter.toLowerCase()) ||
+                      e.sku.toLowerCase().contains(filter.toLowerCase())
+                    ).toList(),
+                  ),
+                  itemAsString: (p) => '${p.sku} - ${p.nombre}',
+                  onChanged: (val) => setState(() => _tempSpare = val),
+                  compareFn: (item, sItem) => item.id == sItem.id,
+                ),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 60,
+                child: TextFormField(
+                  controller: _spareQtyController,
+                  keyboardType: TextInputType.number,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white, fontSize: 12),
+                  decoration: InputDecoration(
+                    hintText: 'Cant.',
+                    hintStyle: TextStyle(color: Colors.grey.shade600, fontSize: 11),
+                    filled: true,
+                    fillColor: const Color(0xFF121212),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: const Color(0xFF333333)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: const Color(0xFF333333)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: AppTheme.primaryYellow),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: _addSpare,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'AGREGAR',
+                    style: GoogleFonts.oswald(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (_selectedSpares.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _selectedSpares.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                final item = _selectedSpares[index];
+                return Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF121212),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFF333333)),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item['nombre'].toString().toUpperCase(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${item['cantidad']} Unidades - ${item['sku']}',
+                              style: TextStyle(
+                                color: Colors.grey.shade500,
+                                fontSize: 9,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          setState(() => _selectedSpares.removeAt(index));
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEF4444).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Icon(
+                            Icons.delete_outline,
+                            color: Color(0xFFEF4444),
+                            size: 18,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildToolsSection() {
+    final inventoryProvider = context.watch<InventoryProvider>();
+    final tools = inventoryProvider.productos
+        .where((p) => (p.categoria?.tipo?.toLowerCase() ?? '') == 'herramienta')
+        .toList();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E1E),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF333333)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryYellow.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Icon(
+                  Icons.settings_outlined,
+                  color: AppTheme.primaryYellow,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'PRÉSTAMO DE HERRAMIENTAS',
+                style: GoogleFonts.oswald(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade300,
+                  letterSpacing: 1,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: DropdownSearch<Producto>(
+                  selectedItem: _tempTool,
+                  decoratorProps: DropDownDecoratorProps(
+                    decoration: InputDecoration(
+                      hintText: 'Seleccione herramienta...',
+                      hintStyle: TextStyle(color: Colors.grey.shade600, fontSize: 11),
+                      filled: true,
+                      fillColor: const Color(0xFF121212),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: const Color(0xFF333333)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: const Color(0xFF333333)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: AppTheme.primaryYellow),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    ),
+                  ),
+                  popupProps: PopupProps.menu(
+                    showSearchBox: true,
+                    searchFieldProps: TextFieldProps(
+                      decoration: InputDecoration(
+                        hintText: 'Buscar...',
+                        hintStyle: TextStyle(color: Colors.grey.shade600),
+                        filled: true,
+                        fillColor: const Color(0xFF121212),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                    menuProps: MenuProps(
+                      backgroundColor: const Color(0xFF1E1E1E),
+                    ),
+                  ),
+                  items: (filter, loadProps) => Future.value(
+                    tools.where((e) => 
+                      e.nombre.toLowerCase().contains(filter.toLowerCase())
+                    ).toList(),
+                  ),
+                  itemAsString: (p) => '${p.sku} - ${p.nombre}',
+                  onChanged: (val) => setState(() => _tempTool = val),
+                  compareFn: (item, sItem) => item.id == sItem.id,
+                ),
+              ),
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: _addTool,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'AGREGAR',
+                    style: GoogleFonts.oswald(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (_selectedTools.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _selectedTools.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                final item = _selectedTools[index];
+                return Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF121212),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFF333333)),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          item['nombre'].toString().toUpperCase(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          setState(() => _selectedTools.removeAt(index));
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEF4444).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Icon(
+                            Icons.delete_outline,
+                            color: Color(0xFFEF4444),
+                            size: 18,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
+        ],
       ),
     );
   }
 
   Widget _buildSubmitButton(WorkshopProvider provider) {
-    return SizedBox(
+    return Container(
       width: double.infinity,
-      height: 55,
+      height: 56,
+      decoration: BoxDecoration(
+        color: AppTheme.primaryYellow,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryYellow.withValues(alpha: 0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: ElevatedButton(
         onPressed: provider.isLoading ? null : _submit,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppTheme.primaryYellow,
           foregroundColor: Colors.black,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
+            borderRadius: BorderRadius.circular(12),
           ),
-          elevation: 5,
-          shadowColor: AppTheme.primaryYellow.withValues(alpha: 0.3),
+          elevation: 0,
         ),
         child: provider.isLoading
             ? const SizedBox(
-                height: 20,
-                width: 20,
+                height: 24,
+                width: 24,
                 child: CircularProgressIndicator(
                   color: Colors.black,
-                  strokeWidth: 2,
+                  strokeWidth: 2.5,
                 ),
               )
             : Text(
-                'CREAR ORDEN DE TRABAJO',
+                'CREAR ORDEN',
                 style: GoogleFonts.oswald(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  letterSpacing: 1.5,
+                  letterSpacing: 3,
                 ),
               ),
       ),
-    );
-  }
-
-  Widget _buildSparesSelector(BuildContext context) {
-    final inventoryProvider = context.watch<InventoryProvider>();
-    final spares = inventoryProvider.productos
-        .where((p) => (p.categoria?.tipo?.toLowerCase() ?? '') == 'repuesto')
-        .toList();
-
-    return Row(
-      children: [
-        Expanded(
-          flex: 2,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'REPUESTO A SOLICITAR',
-                  style: GoogleFonts.roboto(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.textGray,
-                    letterSpacing: 1,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              DropdownSearch<Producto>(
-                key: ValueKey('spare_${_tempSpare?.id}'),
-                items: (filter, loadProps) => Future.value(
-                  spares
-                      .where(
-                        (element) => element.nombre.toLowerCase().contains(
-                          filter.toLowerCase(),
-                        ),
-                      )
-                      .toList(),
-                ),
-                itemAsString: (Producto p) => '${p.nombre} (${p.sku})',
-                selectedItem: _tempSpare,
-                onChanged: (val) => setState(() => _tempSpare = val),
-                compareFn: (item, sItem) => item.id == sItem.id,
-                popupProps: const PopupProps.menu(
-                  showSearchBox: true,
-                  searchFieldProps: TextFieldProps(
-                    decoration: InputDecoration(
-                      hintText: "Buscar por nombre o SKU...",
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 10),
-        SizedBox(
-          width: 70,
-          child: TextFormField(
-            controller: _spareQtyController,
-            keyboardType: TextInputType.number,
-            style: const TextStyle(color: Colors.white),
-            decoration: InputDecoration(
-              hintText: 'Cant.',
-              hintStyle: const TextStyle(color: Colors.grey),
-              filled: true,
-              fillColor: AppTheme.surfaceDark,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        IconButton(
-          icon: const Icon(Icons.add_circle, color: Colors.green),
-          onPressed: _addSpare,
-          tooltip: 'Agregar Repuesto',
-        ),
-      ],
     );
   }
 
@@ -486,15 +1046,15 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     if (_tempSpare == null) return;
     final qty = double.tryParse(_spareQtyController.text) ?? 0;
     if (qty <= 0) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Cantidad inválida')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cantidad inválida')),
+      );
       return;
     }
     if (qty > _tempSpare!.stockActual) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Stock insuficiente')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Stock insuficiente: ${_tempSpare!.stockActual}')),
+      );
       return;
     }
 
@@ -508,96 +1068,6 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
       _tempSpare = null;
       _spareQtyController.text = '1';
     });
-  }
-
-  Widget _buildSparesList() {
-    if (_selectedSpares.isEmpty) return const SizedBox.shrink();
-    return Column(
-      children: _selectedSpares.map((item) {
-        return ListTile(
-          dense: true,
-          title: Text(
-            '${item['sku']} - ${item['nombre']}',
-            style: const TextStyle(color: Colors.white),
-          ),
-          subtitle: Text(
-            'Cantidad: ${item['cantidad']}',
-            style: const TextStyle(color: Colors.grey),
-          ),
-          trailing: IconButton(
-            icon: const Icon(Icons.delete, color: Colors.red, size: 20),
-            onPressed: () {
-              setState(() {
-                _selectedSpares.remove(item);
-              });
-            },
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildToolsSelector(BuildContext context) {
-    final inventoryProvider = context.watch<InventoryProvider>();
-    final tools = inventoryProvider.productos
-        .where((p) => (p.categoria?.tipo?.toLowerCase() ?? '') == 'herramienta')
-        .toList();
-
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'HERRAMIENTA A SOLICITAR',
-                  style: GoogleFonts.roboto(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.textGray,
-                    letterSpacing: 1,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              DropdownSearch<Producto>(
-                key: ValueKey('tool_${_tempTool?.id}'),
-                items: (filter, loadProps) => Future.value(
-                  tools
-                      .where(
-                        (element) => element.nombre.toLowerCase().contains(
-                          filter.toLowerCase(),
-                        ),
-                      )
-                      .toList(),
-                ),
-                itemAsString: (Producto p) => '${p.nombre} (${p.sku})',
-                selectedItem: _tempTool,
-                onChanged: (val) => setState(() => _tempTool = val),
-                compareFn: (item, sItem) => item.id == sItem.id,
-                popupProps: const PopupProps.menu(
-                  showSearchBox: true,
-                  searchFieldProps: TextFieldProps(
-                    decoration: InputDecoration(
-                      hintText: "Buscar por nombre o SKU...",
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 10),
-        IconButton(
-          icon: const Icon(Icons.add_circle, color: Colors.blue),
-          onPressed: _addTool,
-          tooltip: 'Agregar Herramienta',
-        ),
-      ],
-    );
   }
 
   void _addTool() {
@@ -620,31 +1090,16 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     });
   }
 
-  Widget _buildToolsList() {
-    if (_selectedTools.isEmpty) return const SizedBox.shrink();
-    return Column(
-      children: _selectedTools.map((item) {
-        return ListTile(
-          dense: true,
-          title: Text(
-            '${item['sku']} - ${item['nombre']}',
-            style: const TextStyle(color: Colors.white),
-          ),
-          trailing: IconButton(
-            icon: const Icon(Icons.delete, color: Colors.red, size: 20),
-            onPressed: () {
-              setState(() {
-                _selectedTools.remove(item);
-              });
-            },
-          ),
-        );
-      }).toList(),
-    );
-  }
-
   void _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    
+    // Validar que haya vehículo seleccionado
+    if (_selectedVehicle == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Seleccione un vehículo')),
+      );
+      return;
+    }
 
     final provider = context.read<WorkshopProvider>();
     final messenger = ScaffoldMessenger.of(context);
@@ -653,9 +1108,8 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     final success = await provider.crearOrden(
       vehiculoId: _selectedVehicle!.id,
       prioridad: _priority,
-
       descripcion: _descriptionController.text,
-      mecanicoId: _selectedMechanic?.id, // Ahora envia ID de empleado
+      mecanicoId: _selectedMechanic?.id,
       repuestos: _selectedSpares,
       herramientas: _selectedTools,
       localImagePath: _imageFile?.path,

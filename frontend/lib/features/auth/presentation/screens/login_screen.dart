@@ -183,6 +183,27 @@ class _LoginScreenState extends State<LoginScreen> {
                               final navigator = Navigator.of(context);
                               final messenger = ScaffoldMessenger.of(context);
 
+                              // Validar campos vacíos
+                              if (_emailController.text.trim().isEmpty) {
+                                messenger.showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Ingrese su correo electrónico'),
+                                    backgroundColor: Colors.orange,
+                                  ),
+                                );
+                                return;
+                              }
+
+                              if (_passwordController.text.isEmpty) {
+                                messenger.showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Ingrese su contraseña'),
+                                    backgroundColor: Colors.orange,
+                                  ),
+                                );
+                                return;
+                              }
+
                               try {
                                 final success = await authProvider.login(
                                   _emailController.text,
@@ -198,13 +219,28 @@ class _LoginScreenState extends State<LoginScreen> {
                                     ),
                                   );
                                 } else {
+                                  // Mostrar error específico
+                                  String errorMessage = authProvider.error ??
+                                      'Credenciales incorrectas. Verifique su usuario y contraseña.';
+                                  
+                                  // Limpiar campo de contraseña
+                                  _passwordController.clear();
+
                                   messenger.showSnackBar(
                                     SnackBar(
-                                      content: Text(
-                                        authProvider.error ??
-                                            'Error desconocido al iniciar sesión',
-                                      ),
+                                      content: Text(errorMessage),
                                       backgroundColor: Colors.red,
+                                      behavior: SnackBarBehavior.floating,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      action: SnackBarAction(
+                                        label: 'OK',
+                                        textColor: Colors.white,
+                                        onPressed: () {
+                                          messenger.hideCurrentSnackBar();
+                                        },
+                                      ),
                                     ),
                                   );
                                 }
@@ -212,8 +248,12 @@ class _LoginScreenState extends State<LoginScreen> {
                                 if (!mounted) return;
                                 messenger.showSnackBar(
                                   SnackBar(
-                                    content: Text('Error inesperado: $e'),
+                                    content: Text('Error: $e'),
                                     backgroundColor: Colors.red,
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
                                   ),
                                 );
                               }

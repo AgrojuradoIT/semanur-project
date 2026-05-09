@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/core/widgets/semanur_scaffold.dart';
 import 'package:provider/provider.dart';
 import 'package:frontend/features/inventory/presentation/providers/loan_provider.dart';
 import 'package:frontend/features/inventory/data/models/loan_model.dart';
@@ -29,7 +30,7 @@ class _LoanListScreenState extends State<LoanListScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return SemanurScaffold(
       appBar: AppBar(
         title: Text('HERRAMIENTAS PRESTADAS', style: GoogleFonts.oswald()),
         bottom: TabBar(

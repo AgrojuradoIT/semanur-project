@@ -3,33 +3,46 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\TransaccionInventarioResource\Pages;
-use App\Filament\Resources\TransaccionInventarioResource\RelationManagers;
 use App\Models\TransaccionInventario;
 use Filament\Forms;
-use BackedEnum;
-use Filament\Schemas\Schema;
-use Illuminate\Contracts\Support\Htmlable;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Actions;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Filament\Schemas\Schema;
+use BackedEnum;
 
 class TransaccionInventarioResource extends Resource
 {
     protected static ?string $model = TransaccionInventario::class;
 
-    public static function getNavigationIcon(): string | BackedEnum | Htmlable | null
-    {
-        return 'heroicon-o-rectangle-stack';
-    }
+    protected static string | BackedEnum | null $navigationIcon = 'heroicon-o-arrow-trending-up';
 
     public static function form(Schema $schema): Schema
     {
         return $schema
             ->schema([
-                //
+                Forms\Components\Select::make('producto_id')
+                    ->relationship('producto', 'producto_nombre')
+                    ->searchable()
+                    ->preload()
+                    ->required(),
+                Forms\Components\Select::make('usuario_id')
+                    ->relationship('usuario', 'name')
+                    ->searchable()
+                    ->preload(),
+                Forms\Components\Select::make('transaccion_tipo')
+                    ->options([
+                        'entrada' => 'Entrada',
+                        'salida' => 'Salida',
+                    ])
+                    ->required(),
+                Forms\Components\TextInput::make('transaccion_cantidad')
+                    ->numeric()
+                    ->required(),
+                Forms\Components\TextInput::make('transaccion_motivo')
+                    ->maxLength(255),
+                Forms\Components\Textarea::make('transaccion_notas'),
             ]);
     }
 
@@ -37,7 +50,21 @@ class TransaccionInventarioResource extends Resource
     {
         return $table
             ->columns([
-                //
+                Tables\Columns\TextColumn::make('producto.producto_nombre')
+                    ->sortable()
+                    ->searchable(),
+                Tables\Columns\TextColumn::make('transaccion_tipo')
+                    ->searchable(),
+                Tables\Columns\TextColumn::make('transaccion_cantidad')
+                    ->numeric()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('usuario.name')
+                    ->sortable()
+                    ->searchable(),
+                Tables\Columns\TextColumn::make('created_at')
+                    ->dateTime()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 //

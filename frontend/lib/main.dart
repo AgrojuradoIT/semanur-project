@@ -35,20 +35,35 @@ import 'package:frontend/features/workshop/presentation/providers/workshop_provi
 import 'package:frontend/features/workshop/presentation/providers/session_provider.dart';
 import 'package:frontend/features/fleet/data/repositories/fleet_repository.dart';
 import 'package:frontend/features/fleet/presentation/providers/fleet_provider.dart';
-import 'package:frontend/features/analytics/presentation/providers/analytics_provider.dart';
-import 'package:frontend/features/history/presentation/providers/history_provider.dart';
 import 'package:frontend/core/providers/sync_provider.dart';
 import 'package:frontend/features/notifications/presentation/providers/notification_provider.dart';
 import 'package:frontend/features/auth/presentation/screens/login_screen.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:timezone/data/latest_all.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: ".env");
-  await NotificationService().init();
+
+  try {
+    // Inicializar timezone database
+    tz.initializeTimeZones();
+    
+    // Configurar zona horaria local (Colombia: America/Bogota)
+    final bogotaLocation = tz.getLocation('America/Bogota');
+    tz.setLocalLocation(bogotaLocation);
+    
+    await initializeDateFormatting('es_CO');
+    await dotenv.load(fileName: ".env");
+    debugPrint('Main: .env loaded successfully');
+    debugPrint('Main: Timezone set to ${tz.local.name}');
+  } catch (e) {
+    debugPrint('Main: Error loading .env, date formatting or timezone: $e');
+  }
 
   ErrorWidget.builder = (FlutterErrorDetails details) {
     return Material(
@@ -96,6 +111,13 @@ void main() async {
     },
   );
 
+  // Inicializar NotificationService en background (NO bloquea runApp)
+  NotificationService().init(apiClient: apiClient).then((_) {
+    debugPrint('Main: NotificationService initialized');
+  }).catchError((e) {
+    debugPrint('Main: NotificationService init failed (non-fatal): $e');
+  });
+
   final authRepository = AuthRepository(apiClient);
   final inventoryRepository = InventoryRepository(apiClient);
   final workshopRepository = WorkOrderRepository(apiClient);
@@ -105,7 +127,6 @@ void main() async {
   final fuelRepository = FuelRepository(apiClient);
   final horometroRepository = HorometroRepository(apiClient);
   final userRepository = UserRepository(apiClient);
-  // Repositories for checklists
   final fleetChecklistRepo = fleet_repo.ChecklistRepository(apiClient);
   final globalChecklistRepo = checklist_repo.ChecklistRepository(apiClient);
   final programacionRepository = ProgramacionRepository(apiClient);
@@ -116,13 +137,8 @@ void main() async {
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ChangeNotifierProvider(create: (_) => AuthProvider(authRepository)),
         ChangeNotifierProvider(create: (_) => SyncProvider(apiClient)),
-        ChangeNotifierProxyProvider<NotificationProvider, InventoryProvider>(
-          create: (ctx) => InventoryProvider(
-            inventoryRepository,
-            ctx.read<NotificationProvider>(),
-          ),
-          update: (_, notif, prev) =>
-              prev ?? InventoryProvider(inventoryRepository, notif),
+        ChangeNotifierProvider(
+          create: (_) => InventoryProvider(inventoryRepository),
         ),
         ChangeNotifierProxyProvider<SyncProvider, WorkshopProvider>(
           create: (ctx) =>
@@ -130,7 +146,9 @@ void main() async {
           update: (_, sync, prev) =>
               prev ?? WorkshopProvider(workshopRepository, sync),
         ),
-        ChangeNotifierProvider(create: (_) => FleetProvider(fleetRepository)),
+        ChangeNotifierProvider(
+          create: (_) => FleetProvider(fleetRepository),
+        ),
         ChangeNotifierProxyProvider<SyncProvider, MovementProvider>(
           create: (ctx) =>
               MovementProvider(movementRepository, ctx.read<SyncProvider>()),
@@ -143,24 +161,6 @@ void main() async {
               FuelProvider(fuelRepository, ctx.read<SyncProvider>()),
           update: (_, sync, prev) => prev ?? FuelProvider(fuelRepository, sync),
         ),
-        ChangeNotifierProxyProvider5<
-          MovementProvider,
-          WorkshopProvider,
-          FuelProvider,
-          LoanProvider,
-          fleet_prov.ChecklistProvider,
-          HistoryProvider
-        >(
-          create: (ctx) => HistoryProvider(
-            ctx.read<MovementProvider>(),
-            ctx.read<WorkshopProvider>(),
-            ctx.read<FuelProvider>(),
-            ctx.read<LoanProvider>(),
-            ctx.read<fleet_prov.ChecklistProvider>(),
-          ),
-          update: (_, movement, workshop, fuel, loan, checklist, prev) =>
-              prev ?? HistoryProvider(movement, workshop, fuel, loan, checklist),
-        ),
         ChangeNotifierProvider(
           create: (_) => HorometroProvider(horometroRepository),
         ),
@@ -169,7 +169,6 @@ void main() async {
         ),
         ChangeNotifierProvider(create: (_) => EmployeeProvider(apiClient)),
         ChangeNotifierProvider(create: (_) => UserProvider(userRepository)),
-        // Fleet Checklist Provider (with sync)
         ChangeNotifierProxyProvider<SyncProvider, fleet_prov.ChecklistProvider>(
           create: (ctx) => fleet_prov.ChecklistProvider(
             fleetChecklistRepo,
@@ -178,7 +177,6 @@ void main() async {
           update: (_, sync, prev) =>
               prev ?? fleet_prov.ChecklistProvider(fleetChecklistRepo, sync),
         ),
-        // Global Checklist Provider (simple)
         ChangeNotifierProvider(
           create: (_) => checklist_prov.ChecklistProvider(globalChecklistRepo),
         ),
@@ -190,7 +188,6 @@ void main() async {
           update: (_, sync, prev) =>
               prev ?? SessionProvider(apiClient, syncProvider: sync),
         ),
-        ChangeNotifierProvider(create: (_) => AnalyticsProvider(apiClient)),
       ],
       child: const MyApp(),
     ),
@@ -206,15 +203,25 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   final InactivityLockService _inactivityLockService = InactivityLockService();
-  final FlutterSecureStorage _storage = const FlutterSecureStorage();
+  final FlutterSecureStorage _storage = const FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
 
   @override
   void initState() {
     super.initState();
     _inactivityLockService.configureFromEnv();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       _inactivityLockService.start(onTimeout: _handleInactivityTimeout);
+      
+      // Procesar notificación pendiente y sincronizar
+      try {
+        NotificationService().processPendingNotification();
+        NotificationService().syncNotificationsFromServer();
+      } catch (e) {
+        debugPrint('MyApp: Notification sync error: $e');
+      }
     });
   }
 

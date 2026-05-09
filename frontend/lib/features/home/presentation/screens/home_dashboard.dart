@@ -1,23 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:frontend/features/inventory/presentation/screens/inventory_screen.dart';
 import 'package:frontend/features/workshop/presentation/screens/work_order_list_screen.dart';
 import 'package:frontend/features/fleet/presentation/screens/vehicle_list_screen.dart';
 import 'package:frontend/features/inventory/presentation/screens/loan_list_screen.dart';
-import 'package:frontend/features/analytics/presentation/screens/analytics_dashboard_screen.dart';
 import 'package:frontend/features/auth/presentation/providers/auth_provider.dart';
 import 'package:frontend/core/theme/app_theme.dart';
+import 'package:frontend/core/widgets/semanur_scaffold.dart';
 
-import 'package:frontend/features/profile/presentation/screens/profile_screen.dart';
 import 'package:frontend/features/inventory/presentation/screens/scanner_screen.dart';
 import 'package:frontend/features/home/presentation/widgets/sync_status_widget.dart';
 import 'package:frontend/features/notifications/presentation/providers/notification_provider.dart';
 import 'package:frontend/features/notifications/presentation/screens/notification_list_screen.dart';
 import 'package:frontend/features/auth/presentation/screens/employee_list_screen.dart';
-import 'package:frontend/features/fleet/presentation/screens/add_fuel_screen.dart';
-import 'package:frontend/features/fleet/presentation/screens/checklist_dashboard_screen.dart';
-import 'package:frontend/features/history/presentation/screens/history_screen.dart';
 
 // import 'package:frontend/core/widgets/sync_status_indicator.dart';
 
@@ -25,7 +22,9 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:frontend/features/workshop/presentation/providers/workshop_provider.dart';
 import 'package:frontend/features/fleet/presentation/providers/fleet_provider.dart';
 import 'package:frontend/features/inventory/presentation/providers/inventory_provider.dart';
+import 'package:frontend/features/inventory/data/models/product_model.dart';
 import 'package:frontend/core/providers/sync_provider.dart';
+import 'package:frontend/core/utils/fuel_utils.dart';
 import 'package:frontend/features/scheduler/presentation/screens/weekly_calendar_screen.dart';
 import 'package:frontend/features/scheduler/presentation/screens/incident_report_screen.dart';
 
@@ -37,12 +36,24 @@ class HomeDashboard extends StatefulWidget {
 }
 
 class _HomeDashboardState extends State<HomeDashboard> {
+  bool _didForceInventoryLoad = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _performInitialSync();
+      // No llamar _ensureFullInventoryForFuel aquí - se hace en _fetchData
     });
+  }
+
+  void _ensureFullInventoryForFuel() {
+    if (!mounted || _didForceInventoryLoad) return;
+    final inventoryProvider = context.read<InventoryProvider>();
+    if (inventoryProvider.lowStockOnly || inventoryProvider.productos.isEmpty) {
+      _didForceInventoryLoad = true;
+      inventoryProvider.fetchProductos(lowStock: false);
+    }
   }
 
   Future<void> _performInitialSync() async {
@@ -66,7 +77,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
     final workshopProvider = context.read<WorkshopProvider>();
 
     try {
-      // Descargar datos clave
+      // Descargar datos clave - InventoryProvider se llama una sola vez aquí
       await Future.wait([
         fleetProvider.fetchVehiculos(),
         inventoryProvider.fetchProductos(),
@@ -93,7 +104,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
   Widget build(BuildContext context) {
     final authProvider = context.read<AuthProvider>();
 
-    return Scaffold(
+    return SemanurScaffold(
       body: Stack(
         children: [
           // Fondo con efecto blur (simulado con opacidad bajas)
@@ -114,8 +125,6 @@ class _HomeDashboardState extends State<HomeDashboard> {
                         _buildDailySummary(context),
                         const SizedBox(height: 30),
                         _buildModulesGrid(context),
-                        const SizedBox(height: 30),
-                        _buildQuickReport(context),
                         const SizedBox(height: 40),
                       ],
                     ),
@@ -126,18 +135,13 @@ class _HomeDashboardState extends State<HomeDashboard> {
           ),
         ],
       ),
-      bottomNavigationBar: _buildBottomNav(context),
+      showCenterGap: true,
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const ScannerScreen()),
-          );
-        },
+        onPressed: () => _showQuickReportModal(context),
         backgroundColor: AppTheme.primaryYellow,
         elevation: 4,
         shape: const CircleBorder(),
-        child: const Icon(Icons.qr_code_scanner, color: Colors.black, size: 30),
+        child: const Icon(Icons.add, color: Colors.black, size: 30),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
     );
@@ -297,65 +301,81 @@ class _HomeDashboardState extends State<HomeDashboard> {
                   // Buscar productos de combustible por nombre.
                   final productos = inventory.productos;
 
-                  final gasolina = _firstWhereOrNull(
-                    productos,
-                    (p) =>
-                        (p.categoria?.tipo == 'combustible') &&
-                        p.nombre.toLowerCase().contains('gasolina'),
-                  );
+                  final fuels = resolveFuelProducts(productos);
+                  final gasolina = fuels.gasolina;
+                  final acpm = fuels.acpm;
 
-                  final acpm = _firstWhereOrNull(
-                    productos,
-                    (p) =>
-                        (p.categoria?.tipo == 'combustible') &&
-                        (p.nombre.toLowerCase().contains('acpm') ||
-                            p.nombre.toLowerCase().contains('diesel')),
-                  );
+                  double calculateFuelPercent(Producto? p) {
+                    if (p == null) return 0.0;
+                    final stock = p.stockActual;
+                    final max = p.capacidadMaxima ?? 0;
+                    if (kDebugMode) {
+                      print(
+                        'FUEL_DEBUG: ${p.nombre} | stock=$stock | max=$max | alerta=${p.alertaStockMinimo}',
+                      );
+                    }
+                    if (max > 0) {
+                      return (stock / max).clamp(0.0, 1.0);
+                    }
+                    final min = p.alertaStockMinimo > 0 ? p.alertaStockMinimo : 1.0;
+                    final denominator = min * 3 > stock ? min * 3 : (stock > 0 ? stock : 1.0);
+                    if (kDebugMode) {
+                      print(
+                        'FUEL_DEBUG: ${p.nombre} usando fallback min=$min, denom=$denominator',
+                      );
+                    }
+                    return (stock / denominator).clamp(0.0, 1.0);
+                  }
 
-                  const double capacidadGasolina = 300; // galones
-                  const double capacidadAcpm = 3000; // galones
+                  final double pctGasolina = calculateFuelPercent(gasolina);
+                  final double pctAcpm = calculateFuelPercent(acpm);
 
-                  final double nivelGasolina = gasolina?.stockActual ?? 0;
-                  final double nivelAcpm = acpm?.stockActual ?? 0;
-
-                  final double pctGasolina = capacidadGasolina > 0
-                      ? (nivelGasolina / capacidadGasolina)
-                            .clamp(0.0, 1.0)
-                            .toDouble()
-                      : 0;
-                  final double pctAcpm = capacidadAcpm > 0
-                      ? (nivelAcpm / capacidadAcpm).clamp(0.0, 1.0).toDouble()
-                      : 0;
-
+                  String formatValue(double value) =>
+                      '${value.toStringAsFixed(1)} GAL';
                   String formatPct(double pct) =>
-                      '${(pct * 100).clamp(0, 999).toStringAsFixed(0)}%';
+                      '${(pct * 100).clamp(0, 100).toStringAsFixed(0)}% Capacidad';
+
+                  final bool gasolinaLow = gasolina != null &&
+                      gasolina.stockActual <= gasolina.alertaStockMinimo;
+                  final bool acpmLow = acpm != null &&
+                      acpm.stockActual <= acpm.alertaStockMinimo;
 
                   return Row(
                     children: [
                       _buildSummaryCard(
-                        title: 'GASOLINA - NIVEL TANQUE',
-                        subtitle: 'Capacidad 300 gal',
+                        title: 'GASOLINA',
+                        subtitle: gasolina?.capacidadMaxima != null && gasolina!.capacidadMaxima! > 0
+                            ? 'Capacidad ${gasolina.capacidadMaxima!.toStringAsFixed(0)} gal'
+                            : 'Nivel de Tanque',
                         icon: Icons.local_gas_station_rounded,
                         value: gasolina == null && inventory.isLoading
                             ? '...'
-                            : formatPct(pctGasolina),
+                            : formatValue(gasolina?.stockActual ?? 0),
                         progress: pctGasolina,
                         warning: gasolina == null
-                            ? 'Configura producto Gasolina'
-                            : '${nivelGasolina.toStringAsFixed(1)} gal restantes',
+                            ? 'Sin producto Gasolina'
+                            : gasolinaLow
+                                ? 'Stock bajo'
+                                : formatPct(pctGasolina),
+                        isDanger: gasolinaLow,
                       ),
                       const SizedBox(width: 15),
                       _buildSummaryCard(
-                        title: 'ACPM / DIESEL - NIVEL',
-                        subtitle: 'Capacidad 3000 gal',
+                        title: 'ACPM / DIESEL',
+                        subtitle: acpm?.capacidadMaxima != null && acpm!.capacidadMaxima! > 0
+                            ? 'Capacidad ${acpm.capacidadMaxima!.toStringAsFixed(0)} gal'
+                            : 'Nivel de Tanque',
                         icon: Icons.local_gas_station,
                         value: acpm == null && inventory.isLoading
                             ? '...'
-                            : formatPct(pctAcpm),
+                            : formatValue(acpm?.stockActual ?? 0),
                         progress: pctAcpm,
                         warning: acpm == null
-                            ? 'Configura producto ACPM'
-                            : '${nivelAcpm.toStringAsFixed(1)} gal restantes',
+                            ? 'Sin producto ACPM'
+                            : acpmLow
+                                ? 'Stock bajo'
+                                : formatPct(pctAcpm),
+                        isDanger: acpmLow,
                       ),
                     ],
                   );
@@ -377,7 +397,10 @@ class _HomeDashboardState extends State<HomeDashboard> {
     required String value,
     required double progress,
     required String warning,
+    bool isDanger = false,
   }) {
+    final Color statusColor = isDanger || progress < 0.2 ? Colors.red : Colors.green;
+
     return Container(
       width: 240,
       padding: const EdgeInsets.all(16),
@@ -430,7 +453,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
           LinearProgressIndicator(
             value: progress,
             backgroundColor: AppTheme.surfaceDark2,
-            valueColor: const AlwaysStoppedAnimation(AppTheme.primaryYellow),
+            valueColor: AlwaysStoppedAnimation(statusColor),
             borderRadius: BorderRadius.circular(10),
             minHeight: 6,
           ),
@@ -438,17 +461,17 @@ class _HomeDashboardState extends State<HomeDashboard> {
           Row(
             children: [
               Icon(
-                progress > 0.4
+                statusColor == Colors.green
                     ? Icons.check_circle_outline
                     : Icons.warning_rounded,
-                color: progress > 0.4 ? Colors.green : Colors.red,
+                color: statusColor,
                 size: 14,
               ),
               const SizedBox(width: 5),
               Text(
                 warning,
                 style: TextStyle(
-                  color: progress > 0.4 ? Colors.green : Colors.red,
+                  color: statusColor,
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
                 ),
@@ -458,14 +481,6 @@ class _HomeDashboardState extends State<HomeDashboard> {
         ],
       ),
     );
-  }
-
-  // Utilidad simple para evitar dependencias externas.
-  T? _firstWhereOrNull<T>(Iterable<T> iterable, bool Function(T element) test) {
-    for (final element in iterable) {
-      if (test(element)) return element;
-    }
-    return null;
   }
 
   Widget _buildActivityCard() {
@@ -613,40 +628,6 @@ class _HomeDashboardState extends State<HomeDashboard> {
               () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const LoanListScreen()),
-              ),
-            ),
-            _buildIndustrialButton(
-              context,
-              'Analítica',
-              Icons.analytics_outlined,
-              'Reportes y Costos',
-              () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const AnalyticsDashboardScreen(),
-                ),
-              ),
-            ),
-            _buildIndustrialButton(
-              context,
-              'Checklists',
-              Icons.playlist_add_check,
-              'Historial & Alertas',
-              () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const ChecklistDashboardScreen(),
-                ),
-              ),
-            ),
-            _buildIndustrialButton(
-              context,
-              'Actividad',
-              Icons.history_toggle_off,
-              'Auditoria por usuario',
-              () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const HistoryScreen()),
               ),
             ),
             _buildIndustrialButton(
@@ -853,37 +834,6 @@ class _HomeDashboardState extends State<HomeDashboard> {
             const SizedBox(height: 25),
             _buildQuickActionItem(
               context,
-              'REGISTRAR PREOPERACIONAL',
-              'Realizar inspección de vehículo',
-              Icons.playlist_add_check_circle,
-              Colors.blue,
-              () {
-                Navigator.pop(context);
-                // Por defecto enviamos a la lista, si el usuario requiere ir directo a crear podemos cambiarlo
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const ChecklistDashboardScreen(),
-                  ),
-                );
-              },
-            ),
-            _buildQuickActionItem(
-              context,
-              'REGISTRAR COMBUSTIBLE',
-              'Ingresar nuevo tanqueo',
-              Icons.local_gas_station,
-              AppTheme.primaryYellow,
-              () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AddFuelScreen()),
-                );
-              },
-            ),
-            _buildQuickActionItem(
-              context,
               'REPORTAR NOVEDAD',
               'Informar falla o incidente',
               Icons.warning_amber_rounded,
@@ -895,6 +845,20 @@ class _HomeDashboardState extends State<HomeDashboard> {
                   MaterialPageRoute(
                     builder: (_) => const IncidentReportScreen(),
                   ),
+                );
+              },
+            ),
+            _buildQuickActionItem(
+              context,
+              'ESCANEAR CODIGO',
+              'Lectura rapida de codigo',
+              Icons.qr_code_scanner,
+              AppTheme.primaryYellow,
+              () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ScannerScreen()),
                 );
               },
             ),
@@ -968,65 +932,6 @@ class _HomeDashboardState extends State<HomeDashboard> {
     );
   }
 
-  Widget _buildBottomNav(BuildContext context) {
-    return Container(
-      height: 90,
-      padding: const EdgeInsets.only(bottom: 20, left: 24, right: 24),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceDark.withValues(alpha: 0.95),
-        border: const Border(top: BorderSide(color: AppTheme.surfaceDark2)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          _buildNavItem(Icons.dashboard_rounded, 'Inicio', true),
-          _buildNavItem(Icons.search_outlined, 'Buscar', false),
-          const SizedBox(
-            width: 40,
-          ), // Espacio para el FAB central si se implementa
-          GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const HistoryScreen()),
-              );
-            },
-            child: _buildNavItem(Icons.history_outlined, 'Historial', false),
-          ),
-          GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ProfileScreen()),
-              );
-            },
-            child: _buildNavItem(Icons.person_outlined, 'Perfil', false),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNavItem(IconData icon, String label, bool isActive) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          icon,
-          color: isActive ? AppTheme.primaryYellow : AppTheme.textGray,
-          size: 26,
-        ),
-        Text(
-          label,
-          style: TextStyle(
-            color: isActive ? Colors.white : AppTheme.textGray,
-            fontSize: 10,
-            fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
-      ],
-    );
-  }
 }
 
 

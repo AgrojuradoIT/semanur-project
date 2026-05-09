@@ -1,11 +1,6 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\CategoriaController;
-use App\Http\Controllers\ProductoController;
-use App\Http\Controllers\VehiculoController;
-use App\Http\Controllers\OrdenTrabajoController;
-use App\Http\Controllers\TransaccionInventarioController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -21,16 +16,19 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    // CRUD Routes
-    Route::resource('categorias', CategoriaController::class);
-    Route::resource('productos', ProductoController::class);
-    Route::resource('vehiculos', VehiculoController::class);
-    Route::resource('ordenes-trabajo', OrdenTrabajoController::class);
-    Route::resource('transacciones-inventario', TransaccionInventarioController::class);
-    Route::resource('users', App\Http\Controllers\UserController::class);
-
-    // Test route
-    Route::get('/test', [App\Http\Controllers\TestController::class, 'test']);
+    // Redirecciones para rutas antiguas -> Filament
+    Route::redirect('/categorias', '/admin/categorias');
+    Route::redirect('/categorias/{any}', '/admin/categorias')->where('any', '.*');
+    Route::redirect('/productos', '/admin/productos');
+    Route::redirect('/productos/{any}', '/admin/productos')->where('any', '.*');
+    Route::redirect('/vehiculos', '/admin/vehiculos');
+    Route::redirect('/vehiculos/{any}', '/admin/vehiculos')->where('any', '.*');
+    Route::redirect('/ordenes-trabajo', '/admin/orden-trabajos');
+    Route::redirect('/ordenes-trabajo/{any}', '/admin/orden-trabajos')->where('any', '.*');
+    Route::redirect('/transacciones-inventario', '/admin/transaccion-inventarios');
+    Route::redirect('/transacciones-inventario/{any}', '/admin/transaccion-inventarios')->where('any', '.*');
+    Route::redirect('/users', '/admin/users');
+    Route::redirect('/users/{any}', '/admin/users')->where('any', '.*');
 });
 
 require __DIR__.'/auth.php';

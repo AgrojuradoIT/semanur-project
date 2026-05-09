@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:frontend/core/network/api_client.dart';
 import '../models/checklist_model.dart';
 
@@ -28,8 +29,16 @@ class ChecklistRepository {
     try {
       final response = await _apiClient.dio.post('/checklists', data: data);
       return response.statusCode == 200 || response.statusCode == 201;
+    } on DioException catch (e) {
+      // Extraer mensaje específico del backend
+      final errorMsg = e.response?.data?['message'] ?? 
+                      e.response?.data?['errors']?.values?.expand((e) => e)?.first ??
+                      e.response?.data?.toString() ??
+                      e.message ??
+                      'Error desconocido (422)';
+      throw Exception('Error 422: $errorMsg');
     } catch (e) {
-      throw Exception('Error submitting checklist: $e');
+      throw Exception('Error: $e');
     }
   }
 

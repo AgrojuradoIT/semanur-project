@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:dio/dio.dart';
 import '../../data/models/checklist_model.dart';
 import '../../data/repositories/checklist_repository.dart';
 
@@ -46,6 +47,17 @@ class ChecklistProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
       return success;
+    } on DioException catch (e) {
+      _isLoading = false;
+      // Extraer mensaje específico del backend
+      final backendMessage = e.response?.data?['message'] ?? 
+                            e.response?.data?['errors']?.values?.expand((e) => e)?.first ??
+                            e.response?.data?.toString() ??
+                            e.message ??
+                            'Error desconocido';
+      _error = 'Error 422: $backendMessage';
+      notifyListeners();
+      return false;
     } catch (e) {
       _isLoading = false;
       _error = e.toString();

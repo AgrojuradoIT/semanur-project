@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/core/widgets/semanur_scaffold.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import 'package:frontend/features/auth/data/models/empleado_model.dart';
@@ -18,7 +19,7 @@ class EmployeeProfileScreen extends StatelessWidget {
     final Color backgroundDark = const Color(0xFF121212);
     final Color surfaceDark = const Color(0xFF1E1E1E);
 
-    return Scaffold(
+    return SemanurScaffold(
       backgroundColor: backgroundDark,
       body: Stack(
         children: [

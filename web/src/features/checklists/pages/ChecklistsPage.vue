@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="table-container">
     <div class="table-header">
       <h3 class="table-title">HISTORIAL DE CHECKLISTS</h3>
@@ -63,6 +63,20 @@
     </div>
   </div>
 
+  <!-- Toast Notification -->
+  <Teleport to="body">
+    <Transition name="toast-slide">
+      <div v-if="toast.show" class="app-toast" :class="'app-toast--' + toast.type" @click="toast.show = false">
+        <span class="material-icons-round app-toast-icon">{{ toastIcon }}</span>
+        <div class="app-toast-body">
+          <p class="app-toast-title">{{ toast.title }}</p>
+          <p v-if="toast.message" class="app-toast-msg">{{ toast.message }}</p>
+        </div>
+        <span class="material-icons-round app-toast-close">close</span>
+      </div>
+    </Transition>
+  </Teleport>
+
   <div v-if="showCreate" class="modal-overlay" @click.self="closeCreateModal">
     <div class="modal modal-wide">
       <div class="modal-header">
@@ -113,20 +127,40 @@
 
           <div class="input-group full-width">
             <label style="margin-bottom: 4px">Items de inspeccion: {{ selectedTemplate.nombre }}</label>
-            <div style="display: flex; flex-direction: column; gap: 8px">
+            <div class="checklist-items-container">
               <div
                 v-for="item in checklistItems"
                 :key="item.id"
-                style="display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--bg-dark); border: 1px solid var(--surface-2); border-radius: var(--radius-sm); padding: 10px"
+                class="checklist-item"
+                :class="{ 'checklist-item--critical': item.es_critico }"
               >
-                <div style="min-width: 0">
-                  <p style="font-weight: 600; color: var(--text-main)">{{ item.pregunta || item.nombre || 'Item' }}</p>
-                  <p v-if="item.es_critico" style="font-size: 0.75rem; color: var(--danger)">Item critico</p>
+                <div class="checklist-item-content">
+                  <p class="checklist-item-pregunta">{{ item.pregunta || item.nombre || 'Item' }}</p>
+                  <p v-if="item.es_critico" class="checklist-item-critical">
+                    <span class="material-icons-round">warning</span>
+                    Item crítico
+                  </p>
                 </div>
-                <select v-model="createForm.respuestas[item.id]" class="input" style="max-width: 140px">
-                  <option value="aprobado">OK</option>
-                  <option value="falla">Falla</option>
-                </select>
+                <div class="checklist-toggle">
+                  <button
+                    type="button"
+                    class="toggle-btn toggle-btn--ok"
+                    :class="{ 'toggle-btn--active': createForm.respuestas[item.id] === 'aprobado' }"
+                    @click="createForm.respuestas[item.id] = 'aprobado'"
+                  >
+                    <span class="material-icons-round">check_circle</span>
+                    <span>OK</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="toggle-btn toggle-btn--falla"
+                    :class="{ 'toggle-btn--active': createForm.respuestas[item.id] === 'falla' }"
+                    @click="createForm.respuestas[item.id] = 'falla'"
+                  >
+                    <span class="material-icons-round">error</span>
+                    <span>Falla</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -169,11 +203,9 @@ import {
   createChecklist,
   createHorometerRecord,
   fetchChecklistHistory,
-  fetchChecklistTemplates,
-  fetchEmployeesForChecklist,
-  fetchVehiclesForChecklist,
   updateChecklistVehicle,
 } from '../api/checklistsService';
+import { useCatalogsStore } from '../../../shared/stores/catalogs';
 
 const { loading, error, run, clearError } = useAsyncState('');
 const route = useRoute();
@@ -188,6 +220,20 @@ const templateLoading = ref(false);
 const templates = ref([]);
 const selectedTemplate = ref(null);
 const saving = ref(false);
+
+// Toast system
+const toast = ref({ show: false, type: 'info', title: '', message: '' });
+let toastTimer = null;
+const toastIcon = computed(() => {
+  const icons = { success: 'check_circle', error: 'error', warning: 'warning', info: 'info' };
+  return icons[toast.value.type] || 'info';
+});
+function showToast(type, title, message = '') {
+  if (toastTimer) clearTimeout(toastTimer);
+  toast.value = { show: true, type, title, message };
+  const duration = type === 'error' ? 6000 : 4000;
+  toastTimer = setTimeout(() => { toast.value.show = false; }, duration);
+}
 
 const createForm = ref(defaultCreateForm());
 
@@ -204,18 +250,22 @@ onMounted(async () => {
 async function loadData() {
   try {
     await run(async () => {
-    const [historyData, vehiclesData, employeeData] = await Promise.all([
-      fetchChecklistHistory(),
-      fetchVehiclesForChecklist(),
-      fetchEmployeesForChecklist(),
-    ]);
+      const catalogsStore = useCatalogsStore();
+      await catalogsStore.fetchEssentialCatalogs();
+      
+      const [historyData] = await Promise.all([
+        fetchChecklistHistory(),
+      ]);
 
-    history.value = historyData;
-    vehicles.value = vehiclesData;
-    employees.value = employeeData;
+      history.value = historyData;
+      vehicles.value = catalogsStore.vehiculos;
+      employees.value = catalogsStore.empleados.filter(e => {
+        const c = (e.cargo || '').toLowerCase();
+        return c.includes('operador') || c.includes('conductor');
+      });
     }, 'Error al cargar checklists');
-  } catch {
-    // handled by composable
+  } catch (e) {
+    console.error('[Checklist] Error en loadData:', e);
   }
 }
 
@@ -284,9 +334,54 @@ function initializeResponses() {
 }
 
 async function submitChecklist() {
-  if (saving.value || !selectedTemplate.value) return;
-  if (!createForm.value.vehiculo_id || !createForm.value.operador_id || !createForm.value.lista_chequeo_id) return;
-  if (!isAerialVehicle.value && !createForm.value.horometro_actual) return;
+  // Validar campos uno por uno con mensajes específicos
+  if (saving.value) {
+    showToast('warning', 'Operación en curso', 'Por favor espere a que termine la operación anterior');
+    return;
+  }
+
+  if (!selectedTemplate.value) {
+    showToast('warning', 'Plantilla no cargada', 'No hay una plantilla de checklist disponible para este vehículo');
+    return;
+  }
+
+  if (!createForm.value.vehiculo_id) {
+    showToast('warning', 'Falta vehículo', 'Seleccione el vehículo a inspeccionar');
+    return;
+  }
+
+  if (!createForm.value.operador_id) {
+    showToast('warning', 'Falta operador', 'Seleccione el operador o conductor del vehículo');
+    return;
+  }
+
+  if (!createForm.value.lista_chequeo_id) {
+    showToast('warning', 'Plantilla no seleccionada', 'Seleccione la plantilla de checklist a utilizar');
+    return;
+  }
+
+  if (!isAerialVehicle.value && !createForm.value.horometro_actual) {
+    showToast('warning', 'Falta horómetro', 'Ingrese el horómetro o kilometraje actual del vehículo');
+    return;
+  }
+
+  // Validar que todos los items tengan respuesta
+  const itemsSinRespuesta = checklistItems.value.filter(
+    (item) => !createForm.value.respuestas[item.id]
+  );
+
+  if (itemsSinRespuesta.length > 0) {
+    const primerosItems = itemsSinRespuesta.slice(0, 3).map((i) => i.pregunta).join(', ');
+    const mensajeCompletar = itemsSinRespuesta.length > 3
+      ? `${primerosItems}... y ${itemsSinRespuesta.length - 3} más`
+      : primerosItems;
+    showToast(
+      'warning',
+      `Faltan ${itemsSinRespuesta.length} ítems por responder`,
+      `Complete: ${mensajeCompletar}`
+    );
+    return;
+  }
 
   saving.value = true;
   clearError();
@@ -295,17 +390,20 @@ async function submitChecklist() {
     const payload = {
       lista_chequeo_id: Number(createForm.value.lista_chequeo_id),
       vehiculo_id: Number(createForm.value.vehiculo_id),
-      operador_id: createForm.value.operador_id ? Number(createForm.value.operador_id) : null,
-      observaciones_generales: createForm.value.observaciones_generales || null,
-      respuestas: createForm.value.respuestas,
+      empleado_id: Number(createForm.value.operador_id),
+      checklist_data: createForm.value.respuestas,
+      estado: 'aprobado',
+      observaciones: createForm.value.observaciones_generales || null,
     };
 
     await createChecklist(payload);
     await updateAuxiliaryRecords();
     closeCreateModal();
     await loadData();
+    showToast('success', 'Checklist guardado', 'La inspección se registró correctamente');
   } catch (e) {
-    error.value = e?.response?.data?.message || e?.message || 'Error al crear checklist';
+    const errorMessage = e?.response?.data?.message || e?.message || 'Error al crear checklist';
+    showToast('error', 'Error al guardar', errorMessage);
   } finally {
     saving.value = false;
   }
@@ -387,4 +485,266 @@ function vehicleLabel(vehicle) {
   return `${vehicle?.placa || 'Sin placa'} - ${vehicle?.tipo || vehicle?.modelo || ''}`.trim();
 }
 </script>
+
+<style scoped>
+/* --- App Toast --- */
+.app-toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  border-left: 4px solid var(--primary);
+  cursor: pointer;
+  max-width: 420px;
+  animation: toastSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.app-toast-icon {
+  font-size: 22px;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.app-toast-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.app-toast-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text-main);
+  margin: 0 0 2px 0;
+}
+
+.app-toast-msg {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.3;
+}
+
+.app-toast-close {
+  font-size: 18px;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 0.2s;
+  flex-shrink: 0;
+}
+
+.app-toast:hover .app-toast-close {
+  opacity: 1;
+}
+
+/* Toast types */
+.app-toast--success {
+  border-left-color: var(--success);
+}
+
+.app-toast--success .app-toast-icon {
+  color: var(--success);
+}
+
+.app-toast--error {
+  border-left-color: var(--danger);
+}
+
+.app-toast--error .app-toast-icon {
+  color: var(--danger);
+}
+
+.app-toast--warning {
+  border-left-color: var(--warning);
+}
+
+.app-toast--warning .app-toast-icon {
+  color: var(--warning);
+}
+
+.app-toast--info {
+  border-left-color: var(--primary);
+}
+
+.app-toast--info .app-toast-icon {
+  color: var(--primary);
+}
+
+/* Toast transition */
+.toast-slide-enter-active {
+  animation: toastSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.toast-slide-leave-active {
+  animation: toastSlideOut 0.25s ease forwards;
+}
+
+@keyframes toastSlideIn {
+  from {
+    transform: translateX(calc(100% + 40px));
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes toastSlideOut {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(calc(100% + 40px));
+    opacity: 0;
+  }
+}
+
+/* --- Checklist Items Toggle --- */
+.checklist-items-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.checklist-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  background: var(--surface-1);
+  border: 1px solid var(--surface-2);
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease;
+}
+
+.checklist-item:hover {
+  border-color: var(--primary);
+  background: var(--surface-2);
+}
+
+.checklist-item--critical {
+  border-left: 3px solid var(--warning);
+  background: linear-gradient(90deg, rgba(255, 193, 7, 0.05) 0%, var(--surface-1) 100%);
+}
+
+.checklist-item--critical:hover {
+  background: linear-gradient(90deg, rgba(255, 193, 7, 0.1) 0%, var(--surface-2) 100%);
+}
+
+.checklist-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.checklist-item-pregunta {
+  font-weight: 600;
+  color: var(--text-main);
+  margin: 0 0 4px 0;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.checklist-item-critical {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: var(--warning);
+  font-weight: 600;
+  margin: 0;
+}
+
+.checklist-item-critical .material-icons-round {
+  font-size: 14px;
+}
+
+.checklist-toggle {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 2px solid var(--surface-3);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 70px;
+  justify-content: center;
+}
+
+.toggle-btn .material-icons-round {
+  font-size: 18px;
+}
+
+.toggle-btn:hover {
+  border-color: var(--surface-3);
+  background: var(--surface-2);
+}
+
+.toggle-btn--ok.toggle-btn--active {
+  border-color: var(--success);
+  background: rgba(76, 175, 80, 0.15);
+  color: var(--success);
+}
+
+.toggle-btn--ok.toggle-btn--active .material-icons-round {
+  animation: checkBounce 0.4s ease;
+}
+
+.toggle-btn--falla.toggle-btn--active {
+  border-color: var(--danger);
+  background: rgba(244, 67, 54, 0.15);
+  color: var(--danger);
+}
+
+.toggle-btn--falla.toggle-btn--active .material-icons-round {
+  animation: errorShake 0.4s ease;
+}
+
+@keyframes checkBounce {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+}
+
+@keyframes errorShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .checklist-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .checklist-toggle {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .toggle-btn {
+    flex: 1;
+  }
+}
+</style>
 

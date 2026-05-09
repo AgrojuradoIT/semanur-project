@@ -1,8 +1,25 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ApiConstants {
   static String get baseUrl {
-    return dotenv.env['API_URL'] ?? 'http://127.0.0.1:8000/api';
+    // Prioridad: 1) Variable de entorno, 2) Valor hardcoded producción, 3) Default localhost
+    String? envUrl = dotenv.env['API_URL'];
+    
+    if (envUrl != null && envUrl.isNotEmpty) {
+      return envUrl;
+    }
+    
+    // Fallback hardcoded para producción (evita problemas si .env no carga)
+    const String productionUrl = 'https://backsm.agrojurado.com/api';
+    
+    if (kDebugMode) {
+      // En debug, usar localhost para desarrollo
+      return 'http://10.0.2.2:8000/api'; // Android emulator
+    }
+    
+    // En release, siempre usar producción
+    return productionUrl;
   }
 
   // Auth

@@ -14,6 +14,33 @@ use Illuminate\Support\Facades\Log;
 
 class CombustibleApiController extends Controller
 {
+    private function resolveCombustibleProducto(string $tipo): ?Producto
+    {
+        $needle = strtoupper($tipo === 'gasolina' ? 'GASOLINA' : 'ACPM');
+
+        $byCategoria = Producto::whereHas('categoria', function ($q) {
+            $q->where('categoria_tipo', 'combustible')
+                ->orWhereRaw('LOWER(categoria_nombre) LIKE ?', ['%combustible%']);
+        })
+            ->where(function ($q) use ($needle) {
+                $q->whereRaw('UPPER(producto_nombre) LIKE ?', ["%{$needle}%"])
+                    ->orWhereRaw('UPPER(producto_sku) LIKE ?', ["%{$needle}%"]);
+            })
+            ->orderByRaw('CASE WHEN UPPER(producto_nombre) = ? THEN 0 ELSE 1 END', [$needle])
+            ->first();
+
+        if ($byCategoria) {
+            return $byCategoria;
+        }
+
+        return Producto::where(function ($q) use ($needle) {
+            $q->whereRaw('UPPER(producto_nombre) LIKE ?', ["%{$needle}%"])
+                ->orWhereRaw('UPPER(producto_sku) LIKE ?', ["%{$needle}%"]);
+        })
+            ->orderByRaw('CASE WHEN UPPER(producto_nombre) = ? THEN 0 ELSE 1 END', [$needle])
+            ->first();
+    }
+
     public function index(Request $request)
     {
         $query = RegistroCombustible::with(['vehiculo', 'empleado', 'usuario'])
@@ -29,10 +56,12 @@ class CombustibleApiController extends Controller
             $query->where('tipo_destino', $request->tipo_destino);
         }
         if ($request->filled('fecha_desde')) {
-            $query->whereDate('fecha', '>=', $request->fecha_desde);
+            // Usar startOfDay para incluir todo el día desde las 00:00:00
+            $query->where('fecha', '>=', Carbon::parse($request->fecha_desde)->startOfDay());
         }
         if ($request->filled('fecha_hasta')) {
-            $query->whereDate('fecha', '<=', $request->fecha_hasta);
+            // Usar endOfDay para incluir todo el día hasta las 23:59:59
+            $query->where('fecha', '<=', Carbon::parse($request->fecha_hasta)->endOfDay());
         }
 
         $perPage = min((int) $request->get('per_page', 25), 100);
@@ -54,10 +83,10 @@ class CombustibleApiController extends Controller
         $query = RegistroCombustible::query();
 
         if ($request->filled('fecha_desde')) {
-            $query->whereDate('fecha', '>=', $request->fecha_desde);
+            $query->where('fecha', '>=', Carbon::parse($request->fecha_desde)->startOfDay());
         }
         if ($request->filled('fecha_hasta')) {
-            $query->whereDate('fecha', '<=', $request->fecha_hasta);
+            $query->where('fecha', '<=', Carbon::parse($request->fecha_hasta)->endOfDay());
         }
 
         $gasolina = (clone $query)->where('tipo_combustible', 'gasolina');
@@ -114,22 +143,8 @@ class CombustibleApiController extends Controller
                     return response()->json(['message' => 'El nombre del tercero es requerido'], 422);
                 }
 
-                // Deducción obligatoria de inventario basada en el tipo de combustible
-                $sku = $request->tipo_combustible === 'gasolina' ? 'AL000001' : 'AL000002';
-                $producto = Producto::where('producto_sku', $sku)->first();
-
-                if (!$producto) {
-                    // Intento fallback por nombre exacto si el SKU no coincide
-                    $nombreBusqueda = $request->tipo_combustible === 'gasolina' ? 'GASOLINA' : 'ACPM';
-                    $producto = Producto::where('producto_nombre', $nombreBusqueda)->first();
-                    
-                    if (!$producto) {
-                        $producto = Producto::where('producto_nombre', 'like', "%{$nombreBusqueda}%")
-                                            ->whereHas('categoria', function($q) {
-                                                $q->where('categoria_tipo', 'combustible');
-                                            })->first();
-                    }
-                }
+                // Deducción obligatoria de inventario basada en el tipo de combustible (Gasolina / ACPM)
+                $producto = $this->resolveCombustibleProducto($request->tipo_combustible);
 
                 if (!$producto) {
                     return response()->json(['message' => "No se encontró el producto de combustible ({$request->tipo_combustible}). Verifique el inventario."], 422);

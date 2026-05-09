@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/core/widgets/semanur_scaffold.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:frontend/core/theme/app_theme.dart';
@@ -26,7 +27,7 @@ class _ChecklistListScreenState extends State<ChecklistListScreen> {
   Widget build(BuildContext context) {
     final provider = context.watch<ChecklistProvider>();
 
-    return Scaffold(
+    return SemanurScaffold(
       appBar: AppBar(
         title: Text(
           'CHECKLISTS Y PREOPERACIONALES',

@@ -36,10 +36,12 @@ class ChecklistEmpleadoCompatibilityTest extends TestCase
         ]);
 
         $response->assertCreated();
+        
+        // After migration 2026_03_07_011156, operador_id now references empleados.id (not users.id)
         $this->assertDatabaseHas('respuestas_lista_chequeo', [
             'lista_chequeo_id' => $lista->id,
             'vehiculo_id' => $vehiculo->vehiculo_id,
-            'operador_id' => $operadorUser->id,
+            'operador_id' => $operadorEmpleado->id,
         ]);
     }
 

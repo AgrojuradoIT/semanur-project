@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/core/widgets/semanur_bottom_nav.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:frontend/features/fleet/presentation/screens/checklist_form_screen.dart';
@@ -149,6 +150,10 @@ class _ChecklistDashboardScreenState extends State<ChecklistDashboardScreen>
         icon: const Icon(Icons.add_circle),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      bottomNavigationBar: const SemanurBottomNav(
+        current: SemanurNavItem.home,
+        showCenterGap: true,
+      ),
     );
   }
 
@@ -203,28 +208,40 @@ class _ChecklistDashboardScreenState extends State<ChecklistDashboardScreen>
         ),
       ),
       bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(50),
-        child: Container(
-          height: 50,
-          alignment: Alignment.centerLeft,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: TabBar(
-            controller: _tabController,
-            isScrollable: true,
-            indicatorSize: TabBarIndicatorSize.label,
-            indicator: BoxDecoration(
-              color: primaryColor,
-              borderRadius: BorderRadius.circular(50),
+        preferredSize: const Size.fromHeight(60),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+          child: Container(
+            height: 44,
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: cardDark,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
             ),
-            labelColor: backgroundDark,
-            unselectedLabelColor: Colors.white,
-            dividerColor: Colors.transparent,
-            tabAlignment: TabAlignment.start,
-            tabs: const [
-              Tab(text: 'Todos'),
-              Tab(text: 'Pendientes'),
-              Tab(text: 'Completados'),
-            ],
+            child: TabBar(
+              controller: _tabController,
+              isScrollable: false,
+              labelPadding: EdgeInsets.zero,
+              indicatorPadding: EdgeInsets.zero,
+              indicatorSize: TabBarIndicatorSize.tab,
+              indicator: BoxDecoration(
+                color: primaryColor,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              labelColor: backgroundDark,
+              unselectedLabelColor: textSecondary,
+              overlayColor: WidgetStateProperty.all(Colors.transparent),
+              labelStyle: GoogleFonts.inter(
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+              ),
+              tabs: const [
+                Tab(text: 'Todos'),
+                Tab(text: 'Pendientes'),
+                Tab(text: 'Completados'),
+              ],
+            ),
           ),
         ),
       ),
@@ -322,6 +339,13 @@ class _ChecklistDashboardScreenState extends State<ChecklistDashboardScreen>
     Color iconBgColor;
     IconData iconData;
     String statusText = checklist.estado;
+    final String placaLabel =
+        (checklist.vehiculoPlaca != null &&
+                checklist.vehiculoPlaca!.trim().isNotEmpty)
+            ? checklist.vehiculoPlaca!
+            : (checklist.vehiculoId > 0
+                ? 'Vehículo #${checklist.vehiculoId}'
+                : 'Sin placa');
 
     // Mapear estado a colores
     if (checklist.estado.toLowerCase() == 'aprobado') {
@@ -372,7 +396,7 @@ class _ChecklistDashboardScreenState extends State<ChecklistDashboardScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      checklist.vehiculoPlaca ?? 'N/A',
+                      placaLabel,
                       style: GoogleFonts.roboto(
                         color: Colors.white,
                         fontSize: 18,

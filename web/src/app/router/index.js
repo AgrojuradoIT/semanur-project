@@ -13,6 +13,7 @@ import LoansPage from '../../features/loans/pages/LoansPage.vue';
 import FuelPage from '../../features/fuel/pages/FuelPage.vue';
 import ChecklistsPage from '../../features/checklists/pages/ChecklistsPage.vue';
 import SchedulerPage from '../../features/scheduler/pages/SchedulerPage.vue';
+import NotificationsPage from '../../features/notifications/pages/NotificationsPage.vue';
 import { useAuthStore } from '../../shared/stores/auth';
 
 const shellChildren = [
@@ -70,6 +71,12 @@ const shellChildren = [
     name: 'scheduler',
     component: SchedulerPage,
     meta: { title: 'Programacion', requiresAuth: true },
+  },
+  {
+    path: 'notifications',
+    name: 'notifications',
+    component: NotificationsPage,
+    meta: { title: 'Centro de Notificaciones', requiresAuth: true },
   },
 ];
 
