@@ -221,9 +221,6 @@ class _VehicleListScreenState extends State<VehicleListScreen> {
     final int totalActivos = provider.vehiculos.length;
     final int enAlerta = provider.alertsCount;
 
-    // Usar vehículos paginados
-    final paginatedVehiculos = provider.vehiculosPaginados;
-
     return RefreshIndicator(
       onRefresh: () async {
         provider.resetPagination();

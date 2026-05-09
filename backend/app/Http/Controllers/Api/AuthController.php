@@ -13,11 +13,7 @@ class AuthController extends Controller
     private function canViewUsers(User $user): bool
     {
         $role = strtolower((string) $user->role);
-        if (in_array($role, ['admin', 'almacenista'], true)) {
-            return true;
-        }
-
-        return $user->email === 'admin@semanur.com';
+        return in_array($role, ['admin', 'almacenista'], true);
     }
 
     public function login(Request $request)

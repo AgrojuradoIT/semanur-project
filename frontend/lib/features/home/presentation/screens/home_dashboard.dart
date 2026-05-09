@@ -36,24 +36,13 @@ class HomeDashboard extends StatefulWidget {
 }
 
 class _HomeDashboardState extends State<HomeDashboard> {
-  bool _didForceInventoryLoad = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _performInitialSync();
-      // No llamar _ensureFullInventoryForFuel aquí - se hace en _fetchData
     });
-  }
-
-  void _ensureFullInventoryForFuel() {
-    if (!mounted || _didForceInventoryLoad) return;
-    final inventoryProvider = context.read<InventoryProvider>();
-    if (inventoryProvider.lowStockOnly || inventoryProvider.productos.isEmpty) {
-      _didForceInventoryLoad = true;
-      inventoryProvider.fetchProductos(lowStock: false);
-    }
   }
 
   Future<void> _performInitialSync() async {
@@ -570,6 +559,58 @@ class _HomeDashboardState extends State<HomeDashboard> {
   }
 
   Widget _buildModulesGrid(BuildContext context) {
+    final auth = context.read<AuthProvider>();
+    final user = auth.user;
+
+    final modules = <_ModuleEntry>[];
+
+    if (user == null || user.canAccessModule('taller')) {
+      modules.add(_ModuleEntry(
+        'Órdenes de Trabajo',
+        Icons.construction_outlined,
+        '3 Pendientes',
+        () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WorkOrderListScreen())),
+      ));
+    }
+    if (user == null || user.canAccessModule('inventario')) {
+      modules.add(_ModuleEntry(
+        'Inventario',
+        Icons.inventory_2_outlined,
+        '12 Items Bajos',
+        () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InventoryScreen())),
+      ));
+    }
+    if (user == null || user.canAccessModule('flota')) {
+      modules.add(_ModuleEntry(
+        'Vehículos',
+        Icons.local_shipping_outlined,
+        '18 Activos',
+        () => Navigator.push(context, MaterialPageRoute(builder: (_) => const VehicleListScreen())),
+      ));
+    }
+    if (user == null || user.canAccessModule('prestamos')) {
+      modules.add(_ModuleEntry(
+        'Préstamos',
+        Icons.handyman_outlined,
+        '5 En Uso',
+        () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LoanListScreen())),
+      ));
+    }
+    if (user == null || user.canAccessModule('personal')) {
+      modules.add(_ModuleEntry(
+        'Empleados',
+        Icons.people_alt_outlined,
+        'Gestión de Personal',
+        () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EmployeeListScreen())),
+      ));
+      modules.add(_ModuleEntry(
+        'Programación',
+        Icons.calendar_month_outlined,
+        'Actividades & Novedades',
+        () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WeeklyCalendarScreen())),
+      ));
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -589,68 +630,13 @@ class _HomeDashboardState extends State<HomeDashboard> {
           crossAxisSpacing: 15,
           mainAxisSpacing: 15,
           childAspectRatio: 1.1,
-          children: [
-            _buildIndustrialButton(
-              context,
-              'Órdenes de Trabajo',
-              Icons.construction_outlined,
-              '3 Pendientes',
-              () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const WorkOrderListScreen()),
-              ),
-            ),
-            _buildIndustrialButton(
-              context,
-              'Inventario',
-              Icons.inventory_2_outlined,
-              '12 Items Bajos',
-              () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const InventoryScreen()),
-              ),
-            ),
-            _buildIndustrialButton(
-              context,
-              'Vehículos',
-              Icons.local_shipping_outlined,
-              '18 Activos',
-              () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const VehicleListScreen()),
-              ),
-            ),
-            _buildIndustrialButton(
-              context,
-              'Préstamos',
-              Icons.handyman_outlined,
-              '5 En Uso',
-              () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const LoanListScreen()),
-              ),
-            ),
-            _buildIndustrialButton(
-              context,
-              'Empleados',
-              Icons.people_alt_outlined,
-              'Gestión de Personal',
-              () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const EmployeeListScreen()),
-              ),
-            ),
-            _buildIndustrialButton(
-              context,
-              'Programación',
-              Icons.calendar_month_outlined,
-              'Actividades & Novedades',
-              () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const WeeklyCalendarScreen()),
-              ),
-            ),
-          ],
+          children: modules.map((m) => _buildIndustrialButton(
+            context,
+            m.title,
+            m.icon,
+            m.subtitle,
+            m.onTap,
+          )).toList(),
         ),
       ],
     );
@@ -735,61 +721,6 @@ class _HomeDashboardState extends State<HomeDashboard> {
                   ),
                 ],
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildQuickReport(BuildContext context) {
-    return GestureDetector(
-      onTap: () => _showQuickReportModal(context),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppTheme.primaryYellow,
-          borderRadius: BorderRadius.circular(15),
-          boxShadow: [
-            BoxShadow(
-              color: AppTheme.primaryYellow.withValues(alpha: 0.3),
-              blurRadius: 12,
-              spreadRadius: 2,
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'REPORTE RÁPIDO',
-                  style: GoogleFonts.oswald(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                ),
-                const Text(
-                  'Registrar incidente o combustible',
-                  style: TextStyle(
-                    color: Colors.black87,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: Colors.black,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(Icons.add, color: AppTheme.primaryYellow),
             ),
           ],
         ),
@@ -938,3 +869,13 @@ class _HomeDashboardState extends State<HomeDashboard> {
 
 
 
+
+
+class _ModuleEntry {
+  final String title;
+  final IconData icon;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  _ModuleEntry(this.title, this.icon, this.subtitle, this.onTap);
+}

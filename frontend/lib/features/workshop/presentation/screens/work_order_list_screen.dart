@@ -23,11 +23,12 @@ class _WorkOrderListScreenState extends State<WorkOrderListScreen> {
   /// Formatea la fecha de entrega (fecha inicio + 4 horas)
   String _formatFechaEntrega(DateTime fechaInicio) {
     final entrega = fechaInicio.add(const Duration(hours: 4));
-    final hour = entrega.hour.toString().padLeft(2, '0');
     final minute = entrega.minute.toString().padLeft(2, '0');
     final ampm = entrega.hour >= 12 ? 'PM' : 'AM';
-    final hour12 = entrega.hour > 12 ? entrega.hour - 12 : (entrega.hour == 0 ? 12 : entrega.hour);
-    return '$hour12:${minute} $ampm';
+    final hour12 = entrega.hour > 12
+        ? entrega.hour - 12
+        : (entrega.hour == 0 ? 12 : entrega.hour);
+    return '$hour12:$minute $ampm';
   }
 
   @override
@@ -157,9 +158,8 @@ class _WorkOrderListScreenState extends State<WorkOrderListScreen> {
                     imageUrl:
                         'https://ui-avatars.com/api/?name=Orden&background=random',
                     fit: BoxFit.cover,
-                    placeholder: (context, url) => const ColoredBox(
-                      color: AppTheme.surfaceDark2,
-                    ),
+                    placeholder: (context, url) =>
+                        const ColoredBox(color: AppTheme.surfaceDark2),
                     errorWidget: (context, url, error) =>
                         const Icon(Icons.person, color: AppTheme.textGray),
                   ),

@@ -1142,48 +1142,6 @@ class _VehicleResumeScreenState extends State<VehicleResumeScreen>
     return total;
   }
 
-  Widget _buildAssignmentCard(
-    String title,
-    String? name,
-    IconData icon,
-    VoidCallback onTap,
-  ) {
-    return Card(
-      color: AppTheme.surfaceDark,
-      margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: AppTheme.surfaceDark2),
-      ),
-      child: ListTile(
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: AppTheme.primaryYellow.withValues(alpha: 0.1),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(icon, color: AppTheme.primaryYellow, size: 20),
-        ),
-        title: Text(
-          title,
-          style: const TextStyle(color: Colors.grey, fontSize: 12),
-        ),
-        subtitle: Text(
-          name ?? 'Sin asignar',
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
-        ),
-        trailing: IconButton(
-          icon: const Icon(Icons.edit, color: Colors.blueAccent),
-          onPressed: onTap,
-        ),
-      ),
-    );
-  }
-
   void _showAssignmentDialog(String type, Empleado? currentAssignee) {
     if (_vehiculo == null) return;
 

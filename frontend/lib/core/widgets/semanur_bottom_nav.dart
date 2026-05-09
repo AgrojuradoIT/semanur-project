@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:frontend/core/theme/app_theme.dart';
+import 'package:frontend/features/auth/presentation/providers/auth_provider.dart';
 import 'package:frontend/features/fleet/presentation/screens/add_fuel_screen.dart';
 import 'package:frontend/features/home/presentation/screens/home_screen.dart';
 import 'package:frontend/features/profile/presentation/screens/profile_screen.dart';
@@ -18,6 +20,22 @@ class SemanurBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.read<AuthProvider>();
+    final user = auth.user;
+
+    final items = <Widget>[
+      _navItem(context, SemanurNavItem.home, Icons.dashboard_rounded, 'Inicio'),
+      if (user != null && user.canAccessModule('combustible'))
+        _navItem(
+          context,
+          SemanurNavItem.fuel,
+          Icons.local_gas_station,
+          'Abastecimiento',
+        ),
+      if (showCenterGap) const SizedBox(width: 40),
+      _navItem(context, SemanurNavItem.profile, Icons.person_outlined, 'Perfil'),
+    ];
+
     return Container(
       height: 90,
       padding: const EdgeInsets.only(bottom: 20, left: 24, right: 24),
@@ -26,18 +44,10 @@ class SemanurBottomNav extends StatelessWidget {
         border: const Border(top: BorderSide(color: AppTheme.surfaceDark2)),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          _navItem(context, SemanurNavItem.home, Icons.dashboard_rounded, 'Inicio'),
-          _navItem(
-            context,
-            SemanurNavItem.fuel,
-            Icons.local_gas_station,
-            'Abastecimiento',
-          ),
-          if (showCenterGap) const SizedBox(width: 40),
-          _navItem(context, SemanurNavItem.profile, Icons.person_outlined, 'Perfil'),
-        ],
+        mainAxisAlignment: showCenterGap
+            ? MainAxisAlignment.spaceBetween
+            : MainAxisAlignment.spaceEvenly,
+        children: items,
       ),
     );
   }

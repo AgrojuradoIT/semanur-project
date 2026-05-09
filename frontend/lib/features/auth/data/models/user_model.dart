@@ -1,6 +1,6 @@
 class User {
   final int id;
-  final int? userId; // ID real en tabla users (cuando viene desde /empleados)
+  final int? userId;
   final String name;
   final String email;
 
@@ -9,6 +9,9 @@ class User {
   final String? licenseNumber;
   final String? cargo;
   final String? dependencia;
+
+  final List<String> permisos;
+  final List<String> permisosEfectivos;
 
   User({
     required this.id,
@@ -20,7 +23,20 @@ class User {
     this.licenseNumber,
     this.cargo,
     this.dependencia,
-  });
+    List<String>? permisos,
+    List<String>? permisosEfectivos,
+  })  : permisos = permisos ?? [],
+        permisosEfectivos = permisosEfectivos ?? [];
+
+  bool get isAdmin {
+    final r = (role ?? '').toLowerCase();
+    return r == 'admin';
+  }
+
+  bool canAccessModule(String modulo) {
+    if (isAdmin) return true;
+    return permisosEfectivos.contains(modulo);
+  }
 
   factory User.fromJson(Map<String, dynamic> json) {
     int? parseInt(dynamic value) {
@@ -30,7 +46,11 @@ class User {
       return null;
     }
 
-    // Soporta tanto respuesta de /users (name) como de /empleados (nombres + apellidos)
+    List<String> parseList(dynamic value) {
+      if (value is List) return value.map((e) => e.toString()).toList();
+      return [];
+    }
+
     final String nameFromApi = (json['name']?.toString())?.trim() ?? '';
     final String name = nameFromApi.isNotEmpty
         ? nameFromApi
@@ -46,6 +66,8 @@ class User {
       licenseNumber: json['license_number']?.toString() ?? json['licencia_conduccion']?.toString(),
       cargo: json['cargo']?.toString(),
       dependencia: json['dependencia']?.toString(),
+      permisos: parseList(json['permisos']),
+      permisosEfectivos: parseList(json['permisos_efectivos']),
     );
   }
 

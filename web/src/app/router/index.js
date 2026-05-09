@@ -17,60 +17,60 @@ import NotificationsPage from '../../features/notifications/pages/NotificationsP
 import { useAuthStore } from '../../shared/stores/auth';
 
 const shellChildren = [
-  { path: '', name: 'dashboard', component: DashboardPage, meta: { title: 'Dashboard', requiresAuth: true } },
+  { path: '', name: 'dashboard', component: DashboardPage, meta: { title: 'Dashboard', requiresAuth: true, modulo: 'analitica' } },
   {
     path: 'inventory',
     name: 'inventory',
     component: InventoryPage,
-    meta: { title: 'Inventario', requiresAuth: true },
+    meta: { title: 'Inventario', requiresAuth: true, modulo: 'inventario' },
   },
   {
     path: 'fleet',
     name: 'fleet',
     component: FleetPage,
-    meta: { title: 'Flota', requiresAuth: true },
+    meta: { title: 'Flota', requiresAuth: true, modulo: 'flota' },
   },
   {
     path: 'work-orders',
     name: 'work-orders',
     component: WorkOrdersPage,
-    meta: { title: 'Ordenes de Trabajo', requiresAuth: true },
+    meta: { title: 'Ordenes de Trabajo', requiresAuth: true, modulo: 'taller' },
   },
   {
     path: 'history',
     name: 'history',
     component: HistoryPage,
-    meta: { title: 'Centro de Actividad', requiresAuth: true },
+    meta: { title: 'Centro de Actividad', requiresAuth: true, modulo: 'analitica' },
   },
   {
     path: 'employees',
     name: 'employees',
     component: EmployeesPage,
-    meta: { title: 'Empleados', requiresAuth: true },
+    meta: { title: 'Empleados', requiresAuth: true, modulo: 'personal' },
   },
   {
     path: 'loans',
     name: 'loans',
     component: LoansPage,
-    meta: { title: 'Prestamos', requiresAuth: true },
+    meta: { title: 'Prestamos', requiresAuth: true, modulo: 'prestamos' },
   },
   {
     path: 'checklists',
     name: 'checklists',
     component: ChecklistsPage,
-    meta: { title: 'Checklists', requiresAuth: true },
+    meta: { title: 'Checklists', requiresAuth: true, modulo: 'checklists' },
   },
   {
     path: 'fuel',
     name: 'fuel',
     component: FuelPage,
-    meta: { title: 'Combustible', requiresAuth: true },
+    meta: { title: 'Combustible', requiresAuth: true, modulo: 'combustible' },
   },
   {
     path: 'scheduler',
     name: 'scheduler',
     component: SchedulerPage,
-    meta: { title: 'Programacion', requiresAuth: true },
+    meta: { title: 'Programacion', requiresAuth: true, modulo: 'personal' },
   },
   {
     path: 'notifications',
@@ -107,6 +107,16 @@ const router = createRouter({
   ],
 });
 
+function firstAvailablePath(auth) {
+  for (const child of shellChildren) {
+    if (child.path === '' || child.path === 'notifications') continue;
+    if (!child.meta.modulo || auth.canAccessModule(child.meta.modulo)) {
+      return `/${child.path}`;
+    }
+  }
+  return '/notifications';
+}
+
 router.beforeEach((to) => {
   const auth = useAuthStore();
 
@@ -115,7 +125,17 @@ router.beforeEach((to) => {
   }
 
   if (to.path === '/login' && auth.isAuthenticated) {
-    return { path: '/' };
+    return { path: firstAvailablePath(auth) };
+  }
+
+  // Redirigir dashboard a primer módulo si no tiene permiso de analitica
+  if (to.path === '/' && auth.isAuthenticated && !auth.canAccessModule('analitica')) {
+    return { path: firstAvailablePath(auth) };
+  }
+
+  // Bloquear rutas de módulos sin permiso
+  if (to.meta.modulo && auth.isAuthenticated && !auth.canAccessModule(to.meta.modulo)) {
+    return { path: firstAvailablePath(auth) };
   }
 
   return true;

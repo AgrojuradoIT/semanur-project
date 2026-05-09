@@ -1,8 +1,11 @@
 import { defineStore } from 'pinia';
 import http from '../api/http';
-
-const TOKEN_KEY = 'semanur_token';
-const USER_KEY = 'semanur_user';
+import {
+  clearStoredSession,
+  getStoredToken,
+  getStoredUser,
+  persistStoredSession,
+} from '../auth/session';
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -13,25 +16,31 @@ export const useAuthStore = defineStore('auth', {
   }),
   getters: {
     isAuthenticated: (state) => !!state.token,
+    isAdmin: (state) => state.user?.role === 'admin',
+    permisos: (state) => state.user?.permisos ?? [],
+    canAccessModule: (state) => (modulo) => {
+      if (!state.user) return false;
+      if (state.user.role === 'admin') return true;
+      // Usar permisos_efectivos que ya incluye los defaults del rol
+      const p = state.user.permisos_efectivos ?? state.user.permisos ?? [];
+      return Array.isArray(p) && p.includes(modulo);
+    },
   },
   actions: {
     hydrateFromStorage() {
-      this.token = localStorage.getItem(TOKEN_KEY);
-      const savedUser = localStorage.getItem(USER_KEY);
-      this.user = savedUser ? JSON.parse(savedUser) : null;
+      this.token = getStoredToken();
+      this.user = getStoredUser();
     },
     persistSession(token, user) {
       this.token = token;
       this.user = user;
-      localStorage.setItem(TOKEN_KEY, token);
-      localStorage.setItem(USER_KEY, JSON.stringify(user));
+      persistStoredSession(token, user);
     },
     clearSession() {
       this.token = null;
       this.user = null;
       this.error = null;
-      localStorage.removeItem(TOKEN_KEY);
-      localStorage.removeItem(USER_KEY);
+      clearStoredSession();
     },
     async login({ email, password }) {
       this.loading = true;
@@ -64,6 +73,16 @@ export const useAuthStore = defineStore('auth', {
         // ignore API logout failures and clear local session anyway
       } finally {
         this.clearSession();
+      }
+    },
+    async refreshUser() {
+      if (!this.token) return;
+      try {
+        const { data } = await http.get('/user');
+        this.user = data;
+        persistStoredSession(this.token, data);
+      } catch {
+        // ignore refresh failures
       }
     },
   },

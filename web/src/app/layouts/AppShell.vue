@@ -7,13 +7,13 @@
       </div>
 
       <nav class="sidebar-nav">
-        <div class="sidebar-section-label">OPERACIONES</div>
+        <div class="sidebar-section-label" v-if="operations.length">OPERACIONES</div>
         <RouterLink v-for="item in operations" :key="item.path" :to="item.path" class="sidebar-item" :class="{ 'active': item.path === '/' ? route.path === '/' : route.path.startsWith(item.path) }">
           <span class="material-icons-round">{{ item.icon }}</span>
           {{ item.label }}
         </RouterLink>
 
-        <div class="sidebar-section-label">ADMINISTRACION</div>
+        <div class="sidebar-section-label" v-if="admin.length">ADMINISTRACION</div>
         <RouterLink v-for="item in admin" :key="item.path" :to="item.path" class="sidebar-item" :class="{ 'active': item.path === '/' ? route.path === '/' : route.path.startsWith(item.path) }">
           <span class="material-icons-round">{{ item.icon }}</span>
           {{ item.label }}
@@ -227,22 +227,28 @@ function handleManageProfile() {
   alert('Gestión de perfil en construcción. ¡Pronto disponible!');
 }
 
-const operations = computed(() => [
-  { path: '/', icon: 'dashboard', label: 'Dashboard' },
-  { path: '/inventory', icon: 'inventory_2', label: 'Inventario' },
-  { path: '/fleet', icon: 'local_shipping', label: 'Flota' },
-  { path: '/work-orders', icon: 'build_circle', label: 'Ordenes de Trabajo' },
-  { path: '/loans', icon: 'handyman', label: 'Prestamos Herr.' },
-  { path: '/checklists', icon: 'playlist_add_check', label: 'Checklists' },
-  { path: '/fuel', icon: 'local_gas_station', label: 'Combustible' },
-]);
+const operations = computed(() => {
+  const items = [
+    { path: '/', icon: 'dashboard', label: 'Dashboard', modulo: 'analitica' },
+    { path: '/inventory', icon: 'inventory_2', label: 'Inventario', modulo: 'inventario' },
+    { path: '/fleet', icon: 'local_shipping', label: 'Flota', modulo: 'flota' },
+    { path: '/work-orders', icon: 'build_circle', label: 'Ordenes de Trabajo', modulo: 'taller' },
+    { path: '/loans', icon: 'handyman', label: 'Prestamos Herr.', modulo: 'prestamos' },
+    { path: '/checklists', icon: 'playlist_add_check', label: 'Checklists', modulo: 'checklists' },
+    { path: '/fuel', icon: 'local_gas_station', label: 'Combustible', modulo: 'combustible' },
+  ];
+  return items.filter(item => auth.canAccessModule(item.modulo));
+});
 
-const admin = computed(() => [
-  { path: '/history', icon: 'history', label: 'Actividad' },
-  { path: '/employees', icon: 'people', label: 'Empleados' },
-  { path: '/scheduler', icon: 'calendar_month', label: 'Programacion' },
-  { path: '/notifications', icon: 'notifications', label: 'Notificaciones' },
-]);
+const admin = computed(() => {
+  const items = [
+    { path: '/history', icon: 'history', label: 'Actividad', modulo: 'analitica' },
+    { path: '/employees', icon: 'people', label: 'Empleados', modulo: 'personal' },
+    { path: '/scheduler', icon: 'calendar_month', label: 'Programacion', modulo: 'personal' },
+    { path: '/notifications', icon: 'notifications', label: 'Notificaciones' },
+  ];
+  return items.filter(item => !item.modulo || auth.canAccessModule(item.modulo));
+});
 
 async function onLogout() {
   await auth.logout();

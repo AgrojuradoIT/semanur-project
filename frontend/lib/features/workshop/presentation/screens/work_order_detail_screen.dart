@@ -818,7 +818,6 @@ class _WorkOrderDetailScreenState extends State<WorkOrderDetailScreen> with Widg
     if (confirm != true || !mounted) return;
 
     final sessionProvider = context.read<SessionProvider>();
-    final workshopProvider = context.read<WorkshopProvider>();
     
     final success = await sessionProvider.stopSession(
       sessionId,

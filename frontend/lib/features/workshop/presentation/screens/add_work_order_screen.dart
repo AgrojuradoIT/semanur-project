@@ -46,7 +46,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
       final fleetProvider = context.read<FleetProvider>();
       final inventoryProvider = context.read<InventoryProvider>();
       final employeeProvider = context.read<EmployeeProvider>();
-      
+
       if (fleetProvider.vehiculos.isEmpty) {
         fleetProvider.fetchVehiculos();
       }
@@ -195,7 +195,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<Vehiculo>(
-            value: _selectedVehicle,
+            initialValue: _selectedVehicle,
             dropdownColor: const Color(0xFF1E1E1E),
             style: const TextStyle(color: Colors.white),
             decoration: InputDecoration(
@@ -215,7 +215,10 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                 borderRadius: BorderRadius.circular(8),
                 borderSide: const BorderSide(color: AppTheme.primaryYellow),
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 12,
+              ),
             ),
             items: provider.vehiculos.map((v) {
               return DropdownMenuItem(
@@ -285,7 +288,9 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
-                      color: isSelected ? color.withValues(alpha: 0.1) : const Color(0xFF121212),
+                      color: isSelected
+                          ? color.withValues(alpha: 0.1)
+                          : const Color(0xFF121212),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
                         color: isSelected ? color : const Color(0xFF333333),
@@ -367,7 +372,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<Empleado>(
-            value: _selectedMechanic,
+            initialValue: _selectedMechanic,
             dropdownColor: const Color(0xFF1E1E1E),
             style: const TextStyle(color: Colors.white),
             decoration: InputDecoration(
@@ -387,12 +392,18 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                 borderRadius: BorderRadius.circular(8),
                 borderSide: const BorderSide(color: AppTheme.primaryYellow),
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 12,
+              ),
             ),
             items: mechanics.map((e) {
               return DropdownMenuItem(
                 value: e,
-                child: Text(e.nombreCompleto, style: const TextStyle(fontSize: 13)),
+                child: Text(
+                  e.nombreCompleto,
+                  style: const TextStyle(fontSize: 13),
+                ),
               );
             }).toList(),
             onChanged: (val) => setState(() => _selectedMechanic = val),
@@ -517,11 +528,13 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                   height: 80,
                   decoration: BoxDecoration(
                     border: Border.all(
-                      color: _imageFile != null 
-                          ? AppTheme.primaryYellow 
+                      color: _imageFile != null
+                          ? AppTheme.primaryYellow
                           : const Color(0xFF333333),
                       width: 2,
-                      style: _imageFile != null ? BorderStyle.solid : BorderStyle.none,
+                      style: _imageFile != null
+                          ? BorderStyle.solid
+                          : BorderStyle.none,
                     ),
                     borderRadius: BorderRadius.circular(8),
                     color: const Color(0xFF121212),
@@ -529,10 +542,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                   child: _imageFile != null
                       ? ClipRRect(
                           borderRadius: BorderRadius.circular(8),
-                          child: Image.file(
-                            _imageFile!,
-                            fit: BoxFit.cover,
-                          ),
+                          child: Image.file(_imageFile!, fit: BoxFit.cover),
                         )
                       : Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -656,7 +666,10 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                   decoratorProps: DropDownDecoratorProps(
                     decoration: InputDecoration(
                       hintText: 'Buscar SKU...',
-                      hintStyle: TextStyle(color: Colors.grey.shade600, fontSize: 11),
+                      hintStyle: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 11,
+                      ),
                       filled: true,
                       fillColor: const Color(0xFF121212),
                       border: OutlineInputBorder(
@@ -669,9 +682,14 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: AppTheme.primaryYellow),
+                        borderSide: const BorderSide(
+                          color: AppTheme.primaryYellow,
+                        ),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
                     ),
                   ),
                   popupProps: PopupProps.menu(
@@ -692,10 +710,17 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                     ),
                   ),
                   items: (filter, loadProps) => Future.value(
-                    spares.where((e) => 
-                      e.nombre.toLowerCase().contains(filter.toLowerCase()) ||
-                      e.sku.toLowerCase().contains(filter.toLowerCase())
-                    ).toList(),
+                    spares
+                        .where(
+                          (e) =>
+                              e.nombre.toLowerCase().contains(
+                                filter.toLowerCase(),
+                              ) ||
+                              e.sku.toLowerCase().contains(
+                                filter.toLowerCase(),
+                              ),
+                        )
+                        .toList(),
                   ),
                   itemAsString: (p) => '${p.sku} - ${p.nombre}',
                   onChanged: (val) => setState(() => _tempSpare = val),
@@ -712,7 +737,10 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                   style: const TextStyle(color: Colors.white, fontSize: 12),
                   decoration: InputDecoration(
                     hintText: 'Cant.',
-                    hintStyle: TextStyle(color: Colors.grey.shade600, fontSize: 11),
+                    hintStyle: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontSize: 11,
+                    ),
                     filled: true,
                     fillColor: const Color(0xFF121212),
                     border: OutlineInputBorder(
@@ -725,9 +753,14 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: AppTheme.primaryYellow),
+                      borderSide: const BorderSide(
+                        color: AppTheme.primaryYellow,
+                      ),
                     ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 8,
+                    ),
                   ),
                 ),
               ),
@@ -735,7 +768,10 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
               GestureDetector(
                 onTap: _addSpare,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(8),
@@ -801,7 +837,9 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                         child: Container(
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFEF4444).withValues(alpha: 0.1),
+                            color: const Color(
+                              0xFFEF4444,
+                            ).withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: const Icon(
@@ -873,7 +911,10 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                   decoratorProps: DropDownDecoratorProps(
                     decoration: InputDecoration(
                       hintText: 'Seleccione herramienta...',
-                      hintStyle: TextStyle(color: Colors.grey.shade600, fontSize: 11),
+                      hintStyle: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 11,
+                      ),
                       filled: true,
                       fillColor: const Color(0xFF121212),
                       border: OutlineInputBorder(
@@ -886,9 +927,14 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: AppTheme.primaryYellow),
+                        borderSide: const BorderSide(
+                          color: AppTheme.primaryYellow,
+                        ),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
                     ),
                   ),
                   popupProps: PopupProps.menu(
@@ -909,9 +955,13 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                     ),
                   ),
                   items: (filter, loadProps) => Future.value(
-                    tools.where((e) => 
-                      e.nombre.toLowerCase().contains(filter.toLowerCase())
-                    ).toList(),
+                    tools
+                        .where(
+                          (e) => e.nombre.toLowerCase().contains(
+                            filter.toLowerCase(),
+                          ),
+                        )
+                        .toList(),
                   ),
                   itemAsString: (p) => '${p.sku} - ${p.nombre}',
                   onChanged: (val) => setState(() => _tempTool = val),
@@ -922,7 +972,10 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
               GestureDetector(
                 onTap: _addTool,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(8),
@@ -975,7 +1028,9 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
                         child: Container(
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFEF4444).withValues(alpha: 0.1),
+                            color: const Color(
+                              0xFFEF4444,
+                            ).withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: const Icon(
@@ -1046,14 +1101,16 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     if (_tempSpare == null) return;
     final qty = double.tryParse(_spareQtyController.text) ?? 0;
     if (qty <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cantidad inválida')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Cantidad inválida')));
       return;
     }
     if (qty > _tempSpare!.stockActual) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Stock insuficiente: ${_tempSpare!.stockActual}')),
+        SnackBar(
+          content: Text('Stock insuficiente: ${_tempSpare!.stockActual}'),
+        ),
       );
       return;
     }
@@ -1092,12 +1149,12 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
 
   void _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     // Validar que haya vehículo seleccionado
     if (_selectedVehicle == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Seleccione un vehículo')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Seleccione un vehículo')));
       return;
     }
 

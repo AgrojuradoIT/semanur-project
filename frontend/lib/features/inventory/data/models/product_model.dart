@@ -1,4 +1,5 @@
 import 'category_model.dart';
+import 'package:flutter/foundation.dart';
 
 class Producto {
   final int id;
@@ -63,8 +64,8 @@ class Producto {
             : null,
       );
     } catch (e, stack) {
-      print('ERROR PARSEANDO PRODUCTO ${json['producto_nombre']}: $e');
-      print(stack);
+      debugPrint('ERROR PARSEANDO PRODUCTO ${json['producto_nombre']}: $e');
+      debugPrint('$stack');
       rethrow;
     }
   }

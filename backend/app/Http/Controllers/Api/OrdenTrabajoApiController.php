@@ -19,8 +19,7 @@ class OrdenTrabajoApiController extends Controller
 {
     private function isAdmin($user): bool
     {
-        return strtolower((string) $user->role) === 'admin'
-            || $user->email === 'admin@semanur.com';
+        return strtolower((string) $user->role) === 'admin';
     }
 
     private function getEmpleadoIdForUser(int $userId): ?int
@@ -246,5 +245,34 @@ class OrdenTrabajoApiController extends Controller
             'message' => 'Estado actualizado correctamente',
             'orden' => $orden
         ]);
+    }
+
+    public function destroy(Request $request, $id)
+    {
+        $user = $request->user();
+
+        if (!$this->isAdmin($user)) {
+            return response()->json(['message' => 'No autorizado para eliminar órdenes de trabajo'], 403);
+        }
+
+        return DB::transaction(function () use ($id) {
+            $orden = OrdenTrabajo::find($id);
+
+            if (!$orden) {
+                return response()->json(['message' => 'Orden de trabajo no encontrada'], 404);
+            }
+
+            if (in_array($orden->estado, ['Abierta', 'En Progreso'])) {
+                return response()->json([
+                    'message' => 'No se puede eliminar: la orden de trabajo está activa',
+                ], 409);
+            }
+
+            $orden->sesiones()->delete();
+            $orden->movimientos_inventario()->delete();
+            $orden->delete();
+
+            return response()->json(['message' => 'Orden de trabajo eliminada correctamente']);
+        });
     }
 }

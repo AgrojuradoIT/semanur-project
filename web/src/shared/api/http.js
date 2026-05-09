@@ -1,5 +1,11 @@
 import axios from 'axios';
 
+import {
+  AUTH_UNAUTHORIZED_EVENT,
+  clearStoredSession,
+  getStoredToken,
+} from '../auth/session';
+
 export const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
 
@@ -14,7 +20,7 @@ const http = axios.create({
 });
 
 http.interceptors.request.use((config) => {
-  const token = localStorage.getItem('semanur_token');
+  const token = getStoredToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -26,19 +32,8 @@ http.interceptors.response.use(
   async (error) => {
     // 1. Manejo 401 Unauthorized (Sesión inválida o expirada)
     if (error.response?.status === 401) {
-      try {
-        const { useAuthStore } = await import('../stores/auth.js');
-        const authStore = useAuthStore();
-        authStore.clearSession(); // Limpiamos la sesión en el cliente
-        
-        const { default: router } = await import('../../app/router/index.js');
-        // Redirigir al login si no estamos ya allí, para evitar loops
-        if (router.currentRoute.value.path !== '/login' && !router.currentRoute.value.path.includes('/diagnostic')) {
-          router.push('/login');
-        }
-      } catch (authError) {
-        console.error('Error al intentar limpiar la sesión o redirigir', authError);
-      }
+      clearStoredSession();
+      window.dispatchEvent(new CustomEvent(AUTH_UNAUTHORIZED_EVENT));
     }
 
     // 2. Normalización del Error

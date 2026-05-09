@@ -10,22 +10,21 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
-        "filament/filament": "^4.0",
-        "laravel/framework": "^11.0",
-        "laravel/sanctum": "^4.3",
-        "laravel/tinker": "^2.9",
-        "livewire/livewire": "^3.5",
-        "phpoffice/phpspreadsheet": "^5.5"
+        "filament/filament": "^5.0",
+        "laravel/framework": "^13.0",
+        "laravel/sanctum": "^4.0",
+        "laravel/tinker": "^3.0",
+        "livewire/livewire": "^4.0",
+        "phpoffice/phpspreadsheet": "^5.0"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
-        "laravel/breeze": "^2.3",
-        "laravel/pail": "^1.2.2",
+        "laravel/pail": "^1.2",
         "laravel/pint": "^1.24",
-        "laravel/sail": "^1.41",
+        "laravel/sail": "^1.0",
         "mockery/mockery": "^1.6",
-        "nunomaduro/collision": "^8.6",
-        "phpunit/phpunit": "^11.5.3"
+        "nunomaduro/collision": "^8.0",
+        "phpunit/phpunit": "^12.0"
     },
     "autoload": {
         "psr-4": {
@@ -87,6 +86,11 @@
         "allow-plugins": {
             "pestphp/pest-plugin": true,
             "php-http/discovery": true
+        },
+        "audit": {
+            "ignore": [
+                "PKSA-5bdf-2x61-v43c"
+            ]
         }
     },
     "minimum-stability": "stable",

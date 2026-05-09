@@ -61,6 +61,11 @@ class Vehiculo extends Model
         return $this->hasMany(VehiculoDocumento::class, 'vehiculo_id', 'vehiculo_id');
     }
 
+    public function respuestasChecklist(): HasMany
+    {
+        return $this->hasMany(RespuestaListaChequeo::class, 'vehiculo_id', 'vehiculo_id');
+    }
+
     /**
      * Mutador para formatear y normalizar el tipo de vehículo al guardar en BD.
      * Convierte a minúsculas y elimina tildes/acentos.

@@ -73,7 +73,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           centerTitle: true,
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(1.0),
-            child: Container(color: Colors.white.withOpacity(0.1), height: 1.0),
+            child: Container(color: Colors.white.withValues(alpha: 0.1), height: 1.0),
           ),
           actions: [
             IconButton(
@@ -91,9 +91,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.02),
+                color: Colors.white.withValues(alpha: 0.02),
                 border: Border(
-                  bottom: BorderSide(color: Colors.white.withOpacity(0.05)),
+                  bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
                 ),
               ),
               child: Column(
@@ -104,8 +104,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.15),
-                      border: Border.all(color: statusColor.withOpacity(0.6)),
+                      color: statusColor.withValues(alpha: 0.15),
+                      border: Border.all(color: statusColor.withValues(alpha: 0.6)),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     margin: const EdgeInsets.only(bottom: 16),
@@ -156,7 +156,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         child: Container(
                           width: 1,
                           height: 12,
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
                         ),
                       ),
                       const Icon(
@@ -204,7 +204,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 ],
               ),
             ),
-            Container(height: 1, color: Colors.white.withOpacity(0.1)),
+            Container(height: 1, color: Colors.white.withValues(alpha: 0.1)),
 
             // 4. Tab Views
             Expanded(
@@ -237,19 +237,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   // --- TAB: GENERAL ---
   Widget _buildGeneralTab(bool lowStock) {
-    // Cálculo de stock recuperado
-    double stockRecuperado = 0;
-    for (var item in _inventoryDetails) {
-      if (item['bodega_tipo'] == 'recuperacion') {
-        stockRecuperado += (item['cantidad'] is num
-            ? item['cantidad']
-            : double.tryParse(item['cantidad'].toString()) ?? 0.0);
-      }
-    }
-
-    final double precioUnitario = widget.producto.precioCosto ?? 0;
-    final double precioTotal = precioUnitario * widget.producto.stockActual;
-
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
       child: Column(
@@ -257,7 +244,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         children: [
           // 1. Stock Stats Grid (1px gap)
           Container(
-            color: Colors.white.withOpacity(0.1), // Color del borde fino (gap)
+            color: Colors.white.withValues(alpha: 0.1), // Color del borde fino (gap)
             child: Row(
               children: [
                 Expanded(
@@ -381,7 +368,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           Container(
             decoration: BoxDecoration(
               border: Border.symmetric(
-                horizontal: BorderSide(color: Colors.white.withOpacity(0.1)),
+                horizontal: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
               ),
             ),
             child: Column(
@@ -565,13 +552,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   ),
                   decoration: BoxDecoration(
                     color: isAlert
-                        ? Colors.redAccent.withOpacity(0.15)
-                        : Colors.green.withOpacity(0.15),
+                        ? Colors.redAccent.withValues(alpha: 0.15)
+                        : Colors.green.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
                       color: isAlert
-                          ? Colors.redAccent.withOpacity(0.5)
-                          : Colors.green.withOpacity(0.5),
+                          ? Colors.redAccent.withValues(alpha: 0.5)
+                          : Colors.green.withValues(alpha: 0.5),
                     ),
                   ),
                   child: Text(
@@ -641,7 +628,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         Container(
           decoration: BoxDecoration(
             border: Border.symmetric(
-              horizontal: BorderSide(color: Colors.white.withOpacity(0.1)),
+              horizontal: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
             ),
           ),
           child: Column(
@@ -650,7 +637,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               return Container(
                 decoration: BoxDecoration(
                   border: Border(
-                    bottom: BorderSide(color: Colors.white.withOpacity(0.05)),
+                    bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
                   ),
                 ),
                 child: Padding(
@@ -661,8 +648,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
                           color: isIngreso
-                              ? Colors.green.withOpacity(0.15)
-                              : Colors.redAccent.withOpacity(0.15),
+                              ? Colors.green.withValues(alpha: 0.15)
+                              : Colors.redAccent.withValues(alpha: 0.15),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
@@ -745,7 +732,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 leading: Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.15),
+                    color: Colors.green.withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -779,7 +766,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 leading: Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.redAccent.withOpacity(0.15),
+                    color: Colors.redAccent.withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -874,7 +861,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         border: Border(
           left: BorderSide(color: accentBorder.shade400, width: 4.0),
         ),
@@ -927,7 +914,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: badgeColor.withOpacity(0.2),
+                      color: badgeColor.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
@@ -951,119 +938,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 ],
               ),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _editProduct(BuildContext context) {
-    final p = widget.producto;
-    final nameCtrl = TextEditingController(text: p.nombre);
-    final skuCtrl = TextEditingController(text: p.sku);
-    final ubicCtrl = TextEditingController(text: p.ubicacion ?? '');
-    final alertCtrl = TextEditingController(text: '${p.alertaStockMinimo}');
-    final precioCtrl = TextEditingController(text: '${p.precioCosto ?? 0}');
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Editar Producto'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(labelText: 'Nombre'),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: skuCtrl,
-                decoration: const InputDecoration(labelText: 'SKU'),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: ubicCtrl,
-                decoration: const InputDecoration(labelText: 'Ubicación'),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: alertCtrl,
-                decoration: const InputDecoration(labelText: 'Alerta Mínima'),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: precioCtrl,
-                decoration: const InputDecoration(labelText: 'Precio Costo'),
-                keyboardType: TextInputType.number,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              final provider = context.read<InventoryProvider>();
-              final success = await provider.updateProducto(p.id, {
-                'producto_nombre': nameCtrl.text,
-                'producto_sku': skuCtrl.text,
-                'producto_ubicacion': ubicCtrl.text,
-                'producto_alerta_stock_minimo':
-                    double.tryParse(alertCtrl.text) ?? 5,
-                'producto_precio_costo': double.tryParse(precioCtrl.text) ?? 0,
-              });
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      success ? 'Producto actualizado' : 'Error al actualizar',
-                    ),
-                  ),
-                );
-                if (success) Navigator.pop(context);
-              }
-            },
-            child: const Text('Guardar'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _confirmDelete(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Eliminar Producto'),
-        content: Text('¿Estás seguro de eliminar "${widget.producto.nombre}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            onPressed: () async {
-              Navigator.pop(ctx);
-              final provider = context.read<InventoryProvider>();
-              final result = await provider.deleteProducto(widget.producto.id);
-              if (mounted) {
-                final msg =
-                    result['message']?.toString() ?? 'Producto eliminado';
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text(msg)));
-                if (!msg.contains('No se puede')) Navigator.pop(context);
-              }
-            },
-            child: const Text('Eliminar'),
           ),
         ],
       ),

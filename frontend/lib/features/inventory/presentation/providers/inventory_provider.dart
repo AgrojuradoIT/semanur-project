@@ -13,7 +13,7 @@ class InventoryProvider extends ChangeNotifier {
   String? _error;
   bool _lowStockOnly = false;
   bool _isFetching = false; // Previene llamadas concurrentes
-  
+
   // Server-side pagination
   static const int pageSize = 50;
   int _currentPage = 1;
@@ -34,21 +34,23 @@ class InventoryProvider extends ChangeNotifier {
   bool get isLoadingMore => _isLoadingMore;
   bool get hasMoreData => _hasMoreData;
   int get totalItems => _totalItems;
-  
+
   /// Obtiene productos paginados (client-side para datos ya cargados)
   List<Producto> get productosPaginados {
     final endIndex = _currentPage * pageSize;
-    final actualEndIndex = endIndex > _productos.length ? _productos.length : endIndex;
+    final actualEndIndex = endIndex > _productos.length
+        ? _productos.length
+        : endIndex;
     return _productos.sublist(0, actualEndIndex);
   }
-  
+
   /// Carga más productos desde el servidor (server-side pagination)
   Future<void> loadMoreProductos() async {
     if (_isLoadingMore || !_hasMoreData || _productos.isEmpty) return;
-    
+
     _isLoadingMore = true;
     notifyListeners();
-    
+
     try {
       _currentPage++;
       final newProductos = await _repository.getProductos(
@@ -56,11 +58,11 @@ class InventoryProvider extends ChangeNotifier {
         perPage: pageSize,
         lowStock: _lowStockOnly,
       );
-      
+
       if (newProductos.isEmpty || newProductos.length < pageSize) {
         _hasMoreData = false;
       }
-      
+
       _productos.addAll(newProductos);
       _invalidateAlertsCache();
       _isLoadingMore = false;
@@ -71,7 +73,7 @@ class InventoryProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
-  
+
   /// Resetear pagination
   void resetPagination() {
     _currentPage = 1;
@@ -83,7 +85,9 @@ class InventoryProvider extends ChangeNotifier {
   Future<void> fetchProductos({bool lowStock = false}) async {
     // Prevenir llamadas concurrentes
     if (_isFetching) {
-      debugPrint('InventoryProvider: fetchProductos() ignorado - ya hay una petición en curso');
+      debugPrint(
+        'InventoryProvider: fetchProductos() ignorado - ya hay una petición en curso',
+      );
       return;
     }
 
@@ -96,9 +100,13 @@ class InventoryProvider extends ChangeNotifier {
 
     try {
       // Verificar si hay datos locales primero para mostrar algo rápido
-      debugPrint('InventoryProvider: Iniciando fetchProductos(lowStock=$lowStock)');
+      debugPrint(
+        'InventoryProvider: Iniciando fetchProductos(lowStock=$lowStock)',
+      );
       final localData = await DatabaseHelper().getProductos();
-      debugPrint('InventoryProvider: Datos locales: ${localData.length} registros');
+      debugPrint(
+        'InventoryProvider: Datos locales: ${localData.length} registros',
+      );
 
       if (localData.isNotEmpty && !lowStock) {
         debugPrint('InventoryProvider: Usando caché local inicialmente');
@@ -119,28 +127,38 @@ class InventoryProvider extends ChangeNotifier {
               .toList();
         }
         _totalItems = _productos.length;
-        debugPrint('InventoryProvider: Caché local parseada: ${_productos.length} productos');
+        debugPrint(
+          'InventoryProvider: Caché local parseada: ${_productos.length} productos',
+        );
         _isLoading = false;
         _error = null;
         _invalidateAlertsCache();
         notifyListeners();
         debugPrint('InventoryProvider: notifyListeners() después de caché');
       } else {
-        debugPrint('InventoryProvider: No hay caché local o es lowStock, continuando con API');
+        debugPrint(
+          'InventoryProvider: No hay caché local o es lowStock, continuando con API',
+        );
       }
 
       // Cargar desde API con pagination server-side
-      debugPrint('InventoryProvider: Llamando a repository.getProductos (page=${_currentPage}, perPage=$pageSize)...');
+      debugPrint(
+        'InventoryProvider: Llamando a repository.getProductos (page=$_currentPage, perPage=$pageSize)...',
+      );
       var productos = await _repository.getProductos(
         page: _currentPage,
         perPage: pageSize,
         lowStock: lowStock,
       );
-      debugPrint('InventoryProvider: Repository retornó ${productos.length} productos');
+      debugPrint(
+        'InventoryProvider: Repository retornó ${productos.length} productos',
+      );
 
       if (lowStock) {
         productos = _applyLowStockFilter(productos);
-        debugPrint('InventoryProvider: Después de filtro low_stock: ${productos.length} productos');
+        debugPrint(
+          'InventoryProvider: Después de filtro low_stock: ${productos.length} productos',
+        );
       }
 
       // Determinar si hay más datos
@@ -149,12 +167,16 @@ class InventoryProvider extends ChangeNotifier {
 
       // Asignar productos
       _productos = productos;
-      debugPrint('InventoryProvider: _productos asignado con ${_productos.length} elementos');
+      debugPrint(
+        'InventoryProvider: _productos asignado con ${_productos.length} elementos',
+      );
       _isLoading = false;
       _isFetching = false;
       _invalidateAlertsCache();
       notifyListeners();
-      debugPrint('InventoryProvider: notifyListeners() llamado - estado inicial completado');
+      debugPrint(
+        'InventoryProvider: notifyListeners() llamado - estado inicial completado',
+      );
 
       // Ahora intentar agregar combustibles (si falla, no afecta lo ya mostrado)
       if (!lowStock) {
@@ -162,7 +184,9 @@ class InventoryProvider extends ChangeNotifier {
           productos = await _ensureFuelSkus(productos);
           _productos = productos;
           _totalItems = productos.length;
-          debugPrint('InventoryProvider: Después de ensureFuelSkus: ${productos.length} productos');
+          debugPrint(
+            'InventoryProvider: Después de ensureFuelSkus: ${productos.length} productos',
+          );
           _invalidateAlertsCache();
           notifyListeners();
         } catch (e) {
@@ -179,7 +203,6 @@ class InventoryProvider extends ChangeNotifier {
       } catch (e) {
         debugPrint('Error cacheando productos: $e');
       }
-
     } catch (e) {
       _isFetching = false;
       debugPrint('Error obteniendo productos: $e. Intentando local...');
@@ -224,22 +247,22 @@ class InventoryProvider extends ChangeNotifier {
           errorDetails.contains('failed host lookup')) {
         errorMessage = 'Sin conexión a internet. Verifica tu red.';
       } else if (errorDetails.contains('handshake') ||
-                 errorDetails.contains('ssl') ||
-                 errorDetails.contains('certificate')) {
+          errorDetails.contains('ssl') ||
+          errorDetails.contains('certificate')) {
         errorMessage = 'Error de seguridad SSL. Contacta al administrador.';
       } else if (errorDetails.contains('timeout')) {
         errorMessage = 'Tiempo de espera agotado. Intenta de nuevo.';
       } else if (errorDetails.contains('401') ||
-                 errorDetails.contains('unauthorized') ||
-                 errorDetails.contains('token')) {
+          errorDetails.contains('unauthorized') ||
+          errorDetails.contains('token')) {
         errorMessage = 'Sesión expirada. Cierra sesión e inicia nuevamente.';
       } else if (errorDetails.contains('403')) {
         errorMessage = 'No tienes permiso para acceder al inventario.';
       } else if (errorDetails.contains('404')) {
         errorMessage = 'Servicio no disponible. Intenta más tarde.';
       } else if (errorDetails.contains('500') ||
-                 errorDetails.contains('502') ||
-                 errorDetails.contains('503')) {
+          errorDetails.contains('502') ||
+          errorDetails.contains('503')) {
         errorMessage = 'Error del servidor. Contacta al administrador.';
       }
 
@@ -249,24 +272,28 @@ class InventoryProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
-  
+
   /// Parsea productos en un isolate separado para no bloquear el UI
-  Future<List<Producto>> _parseProductosAsync(List<Map<String, dynamic>> jsonData) async {
+  Future<List<Producto>> _parseProductosAsync(
+    List<Map<String, dynamic>> jsonData,
+  ) async {
     const chunkSize = 50;
     final chunks = <List<Map<String, dynamic>>>[];
-    
+
     for (var i = 0; i < jsonData.length; i += chunkSize) {
-      final end = (i + chunkSize > jsonData.length) ? jsonData.length : i + chunkSize;
+      final end = (i + chunkSize > jsonData.length)
+          ? jsonData.length
+          : i + chunkSize;
       chunks.add(jsonData.sublist(i, end));
     }
-    
+
     final results = await Future.wait(
       chunks.map((chunk) => compute(_parseChunk, chunk)),
     );
-    
+
     return results.expand((list) => list).whereType<Producto>().toList();
   }
-  
+
   static List<Producto?> _parseChunk(List<Map<String, dynamic>> chunk) {
     return chunk.map((json) {
       try {
@@ -286,7 +313,9 @@ class InventoryProvider extends ChangeNotifier {
 
     final missing = <String>[];
     if (skuGasolina.isNotEmpty &&
-        !productos.any((p) => p.sku.toLowerCase() == skuGasolina.toLowerCase())) {
+        !productos.any(
+          (p) => p.sku.toLowerCase() == skuGasolina.toLowerCase(),
+        )) {
       missing.add(skuGasolina);
     }
     if (skuAcpm.isNotEmpty &&
@@ -294,11 +323,15 @@ class InventoryProvider extends ChangeNotifier {
       missing.add(skuAcpm);
     }
     if (missing.isEmpty) {
-      debugPrint('_ensureFuelSkus: No faltan combustibles, retornando ${productos.length} productos');
+      debugPrint(
+        '_ensureFuelSkus: No faltan combustibles, retornando ${productos.length} productos',
+      );
       return productos;
     }
 
-    debugPrint('_ensureFuelSkus: Faltan ${missing.length} combustibles: $missing');
+    debugPrint(
+      '_ensureFuelSkus: Faltan ${missing.length} combustibles: $missing',
+    );
 
     final updated = List<Producto>.from(productos);
     bool added = false;
@@ -345,7 +378,7 @@ class InventoryProvider extends ChangeNotifier {
         .length;
     return _cachedAlertsCount!;
   }
-  
+
   void _invalidateAlertsCache() {
     _cachedAlertsCount = null;
   }
@@ -372,7 +405,10 @@ class InventoryProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> searchProductosWithLowStock(String query, {bool lowStock = false}) {
+  Future<void> searchProductosWithLowStock(
+    String query, {
+    bool lowStock = false,
+  }) {
     _lowStockOnly = lowStock;
     return searchProductos(query);
   }
@@ -443,8 +479,6 @@ class InventoryProvider extends ChangeNotifier {
   }
 
   List<Producto> _applyLowStockFilter(List<Producto> items) {
-    return items
-        .where((p) => p.stockActual <= p.alertaStockMinimo)
-        .toList();
+    return items.where((p) => p.stockActual <= p.alertaStockMinimo).toList();
   }
 }

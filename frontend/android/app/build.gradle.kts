@@ -51,6 +51,10 @@ android {
         checkReleaseBuilds = false
         abortOnError = false
     }
+
+    tasks.withType(JavaCompile::class.java) {
+        options.compilerArgs.add("-Xlint:-options")
+    }
 }
 
 flutter {

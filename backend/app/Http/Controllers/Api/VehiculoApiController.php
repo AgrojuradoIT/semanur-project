@@ -7,6 +7,7 @@ use App\Models\Empleado;
 use App\Models\Vehiculo;
 use App\Models\TransaccionInventario;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class VehiculoApiController extends Controller
@@ -131,6 +132,33 @@ class VehiculoApiController extends Controller
             'message' => 'Vehículo actualizado correctamente',
             'vehiculo' => $vehiculo
         ]);
+    }
+
+    public function destroy($id)
+    {
+        return DB::transaction(function () use ($id) {
+            $vehiculo = Vehiculo::find($id);
+
+            if (!$vehiculo) {
+                return response()->json(['message' => 'Vehículo no encontrado'], 404);
+            }
+
+            $ordenesActivas = $vehiculo->ordenesTrabajo()
+                ->whereIn('estado', ['Abierta', 'En Progreso'])
+                ->count();
+
+            if ($ordenesActivas > 0) {
+                return response()->json([
+                    'message' => 'No se puede eliminar: el vehículo tiene órdenes de trabajo activas',
+                ], 409);
+            }
+
+            $vehiculo->ordenesTrabajo()->delete();
+            $vehiculo->respuestasChecklist()->delete();
+            $vehiculo->delete();
+
+            return response()->json(['message' => 'Vehículo eliminado correctamente']);
+        });
     }
 
     public function uploadImage(Request $request)
