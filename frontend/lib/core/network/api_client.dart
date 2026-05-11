@@ -27,9 +27,7 @@ class ApiClient {
     ),
   );
 
-  final FlutterSecureStorage _storage = const FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
-  );
+  final FlutterSecureStorage _storage = const FlutterSecureStorage();
   final VoidCallback? onUnauthorized;
 
   Completer<String?>? _refreshCompleter;

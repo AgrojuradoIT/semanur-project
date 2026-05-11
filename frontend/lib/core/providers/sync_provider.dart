@@ -40,16 +40,16 @@ class SyncProvider extends ChangeNotifier {
   }
 
   Future<void> _checkInitialConnectivity() async {
-    final result = await Connectivity().checkConnectivity();
-    if (result == ConnectivityResult.none) {
+    final results = await Connectivity().checkConnectivity();
+    if (results.every((r) => r == ConnectivityResult.none)) {
       _status = SyncStatus.offline;
       notifyListeners();
     }
   }
 
   void _initConnectivityListener() {
-    Connectivity().onConnectivityChanged.listen((ConnectivityResult result) {
-      if (result == ConnectivityResult.none) {
+    Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> results) {
+      if (results.every((r) => r == ConnectivityResult.none)) {
         _status = SyncStatus.offline;
       } else {
         _status = SyncStatus.online;
@@ -92,7 +92,7 @@ class SyncProvider extends ChangeNotifier {
     if (_isProcessing) return;
 
     final connectivity = await Connectivity().checkConnectivity();
-    if (connectivity == ConnectivityResult.none) return;
+    if (connectivity.every((r) => r == ConnectivityResult.none)) return;
 
     _isProcessing = true;
     _status = SyncStatus.syncing;

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:frontend/core/constants/api_constants.dart';
+import 'package:frontend/core/services/version_service.dart';
+import 'package:frontend/core/widgets/version_update_dialog.dart';
 import 'package:frontend/features/auth/presentation/providers/auth_provider.dart';
 import 'package:frontend/features/auth/presentation/screens/login_screen.dart';
 import 'package:frontend/features/home/presentation/screens/home_dashboard.dart';
@@ -31,16 +34,71 @@ class _AuthWrapperState extends State<AuthWrapper> {
     });
 
     final connectivity = await Connectivity().checkConnectivity();
-    final hasConnection = connectivity != ConnectivityResult.none;
+    final hasConnection = !connectivity.every((r) => r == ConnectivityResult.none);
 
     if (!hasConnection) {
-      setState(() {
-        _connectionMessage = 'Sin conexion a internet. Verifica tu red.';
-        _isCheckingAuth = false;
-      });
+      // Sin conexión: saltar check de versión e ir directo a auth
+      await _checkAndResolveAuth();
       return;
     }
 
+    // Verificar versión antes de continuar
+    await _checkAppVersion();
+
+    if (!mounted) return;
+
+    await _checkAndResolveAuth();
+  }
+
+  /// Consulta al backend si hay una versión nueva y muestra el dialog.
+  Future<void> _checkAppVersion() async {
+    try {
+      final versionService = VersionService();
+      final currentInfo = await versionService.getCurrentVersion();
+      final updateInfo = await versionService.checkForUpdates(
+        ApiConstants.baseUrl,
+      );
+
+      if (updateInfo == null || !mounted) return;
+
+      final needsUpdate = VersionService.compareVersions(
+        currentInfo.version,
+        updateInfo.latestVersion,
+      ) < 0;
+
+      if (needsUpdate) {
+        // Mostrar dialog de actualización
+        await showDialog(
+          context: context,
+          barrierDismissible: !updateInfo.forceUpdate,
+          builder: (_) => VersionUpdateDialog(
+            versionInfo: updateInfo,
+            currentVersion: currentInfo.version,
+          ),
+        );
+
+        // Si es forceUpdate y el usuario no actualizó, no continuar
+        if (updateInfo.forceUpdate && mounted) {
+          // Volver a mostrar el dialog si intentó cerrarlo
+          if (!mounted) return;
+          await showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (_) => VersionUpdateDialog(
+              versionInfo: updateInfo,
+              currentVersion: currentInfo.version,
+            ),
+          );
+          return;
+        }
+      }
+    } catch (e) {
+      // Si falla el check de versión, continuar normalmente
+      debugPrint('AuthWrapper: Version check failed: $e');
+    }
+  }
+
+  Future<void> _checkAndResolveAuth() async {
     final auth = context.read<AuthProvider>();
     await auth.checkAuthStatus();
     if (mounted) {
@@ -110,4 +168,3 @@ class _AuthWrapperState extends State<AuthWrapper> {
     );
   }
 }
-

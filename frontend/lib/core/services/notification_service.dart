@@ -28,9 +28,7 @@ class NotificationService {
 
   final FlutterLocalNotificationsPlugin _notificationsPlugin =
       FlutterLocalNotificationsPlugin();
-  final FlutterSecureStorage _storage = const FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
-  );
+  final FlutterSecureStorage _storage = const FlutterSecureStorage();
   final DatabaseHelper _dbHelper = DatabaseHelper();
   
   // ApiClient para sincronización

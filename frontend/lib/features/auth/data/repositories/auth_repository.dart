@@ -13,9 +13,7 @@ class AuthRepository {
   static const String _deviceNameKey = 'device_name';
 
   final ApiClient _apiClient;
-  final _storage = const FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
-  );
+  final _storage = const FlutterSecureStorage();
 
   AuthRepository(this._apiClient);
 

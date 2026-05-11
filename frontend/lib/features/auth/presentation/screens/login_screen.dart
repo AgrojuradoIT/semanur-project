@@ -183,6 +183,9 @@ class _LoginScreenState extends State<LoginScreen> {
                               final navigator = Navigator.of(context);
                               final messenger = ScaffoldMessenger.of(context);
 
+                              // Ocultar teclado
+                              FocusScope.of(context).unfocus();
+
                               // Validar campos vacíos
                               if (_emailController.text.trim().isEmpty) {
                                 messenger.showSnackBar(
@@ -226,21 +229,27 @@ class _LoginScreenState extends State<LoginScreen> {
                                   // Limpiar campo de contraseña
                                   _passwordController.clear();
 
-                                  messenger.showSnackBar(
-                                    SnackBar(
-                                      content: Text(errorMessage),
-                                      backgroundColor: Colors.red,
-                                      behavior: SnackBarBehavior.floating,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
+                                  showDialog(
+                                    context: context,
+                                    builder: (ctx) => AlertDialog(
+                                      backgroundColor: AppTheme.surfaceDark,
+                                      title: const Text(
+                                        'Error de Inicio de Sesión',
+                                        style: TextStyle(color: Colors.white),
                                       ),
-                                      action: SnackBarAction(
-                                        label: 'OK',
-                                        textColor: Colors.white,
-                                        onPressed: () {
-                                          messenger.hideCurrentSnackBar();
-                                        },
+                                      content: Text(
+                                        errorMessage,
+                                        style: const TextStyle(color: AppTheme.textGray),
                                       ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.of(ctx).pop(),
+                                          child: const Text(
+                                            'OK',
+                                            style: TextStyle(color: AppTheme.primaryYellow),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   );
                                 }

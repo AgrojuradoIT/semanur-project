@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Route;
 
 // Rutas públicas
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
+Route::get('/app/version', [\App\Http\Controllers\Api\AppVersionController::class, 'checkVersion']);
 
 // Rutas protegidas (comunes a todos los usuarios autenticados)
 Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {

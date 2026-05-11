@@ -9,6 +9,7 @@ import 'package:frontend/features/home/presentation/screens/home_screen.dart';
 import 'package:frontend/features/profile/presentation/screens/edit_profile_screen.dart';
 import 'package:frontend/features/profile/presentation/screens/change_password_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -394,7 +395,13 @@ class ProfileScreen extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _buildAboutRow('Version', 'Semanur HUB V0.5.0-alpha'),
+          FutureBuilder<PackageInfo>(
+            future: PackageInfo.fromPlatform(),
+            builder: (context, snapshot) {
+              final version = snapshot.hasData ? snapshot.data!.version : '...';
+              return _buildAboutRow('Version', 'Semanur HUB v$version');
+            },
+          ),
           const SizedBox(height: 6),
           _buildAboutRow('Terminos y Condiciones', 'Abrir'),
           const SizedBox(height: 6),

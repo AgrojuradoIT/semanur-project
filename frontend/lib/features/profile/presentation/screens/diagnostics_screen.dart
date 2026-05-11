@@ -45,9 +45,7 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
     _addLog('API_URL: $apiUrl');
 
     // 2. Check stored token
-    const storage = FlutterSecureStorage(
-      aOptions: AndroidOptions(encryptedSharedPreferences: true),
-    );
+    const storage = FlutterSecureStorage();
     final token = await storage.read(key: 'auth_token');
     _addLog('Token almacenado: ${token != null ? "SI (${token.length} chars)" : "NO"}');
 

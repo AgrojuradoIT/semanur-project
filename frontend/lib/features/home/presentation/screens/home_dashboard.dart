@@ -51,7 +51,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
     if (syncProvider.isInitialSyncCompleted) return;
 
     final connectivity = await Connectivity().checkConnectivity();
-    if (connectivity == ConnectivityResult.none) {
+    if (connectivity.every((r) => r == ConnectivityResult.none)) {
       syncProvider.setInitialSyncStatus(false, error: 'Sin conexión al inicio');
       return;
     }

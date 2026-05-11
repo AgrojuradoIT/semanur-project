@@ -44,9 +44,17 @@ class AuthProvider extends ChangeNotifier {
         // Extraer mensaje de error del backend
         final data = e.response?.data;
         if (data is Map) {
-          // Buscar mensaje en diferentes formatos
-          _error = data['message']?.toString() ??
-                   data['email']?.first?.toString() ??  // Laravel ValidationException
+          // Si hay errores de validación (Laravel), extraer el primero
+          if (data['errors'] is Map && (data['errors'] as Map).isNotEmpty) {
+            final firstErrorKey = (data['errors'] as Map).keys.first;
+            final firstErrorList = data['errors'][firstErrorKey];
+            if (firstErrorList is List && firstErrorList.isNotEmpty) {
+              _error = firstErrorList.first.toString();
+            }
+          }
+          
+          // Si no se extrajo de 'errors', buscar en otros campos
+          _error ??= data['message']?.toString() ??
                    data['error']?.toString() ??
                    e.message ??
                    'Credenciales incorrectas';
