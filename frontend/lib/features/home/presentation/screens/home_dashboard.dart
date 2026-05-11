@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:frontend/features/inventory/presentation/screens/inventory_screen.dart';
 import 'package:frontend/features/workshop/presentation/screens/work_order_list_screen.dart';
 import 'package:frontend/features/fleet/presentation/screens/vehicle_list_screen.dart';
+import 'package:frontend/features/fleet/presentation/screens/add_fuel_screen.dart';
 import 'package:frontend/features/inventory/presentation/screens/loan_list_screen.dart';
 import 'package:frontend/features/auth/presentation/providers/auth_provider.dart';
 import 'package:frontend/core/theme/app_theme.dart';
@@ -125,14 +126,28 @@ class _HomeDashboardState extends State<HomeDashboard> {
         ],
       ),
       showCenterGap: true,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showQuickReportModal(context),
-        backgroundColor: AppTheme.primaryYellow,
-        elevation: 4,
-        shape: const CircleBorder(),
-        child: const Icon(Icons.add, color: Colors.black, size: 30),
+      floatingActionButton: GestureDetector(
+        onTap: () => _showQuickReportModal(context),
+        child: Container(
+          width: 64,
+          height: 64,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: AppTheme.primaryYellow,
+            border: Border.all(color: const Color(0xFF0A0A0A), width: 6),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.primaryYellow.withValues(alpha: 0.2),
+                blurRadius: 15,
+                spreadRadius: 0,
+              ),
+            ],
+          ),
+          child: const Icon(Icons.add, color: Colors.black, size: 32),
+        ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      floatingActionButtonAnimator: FloatingActionButtonAnimator.scaling,
     );
   }
 
@@ -370,8 +385,6 @@ class _HomeDashboardState extends State<HomeDashboard> {
                   );
                 },
               ),
-              const SizedBox(width: 15),
-              _buildActivityCard(),
             ],
           ),
         ),
@@ -472,92 +485,6 @@ class _HomeDashboardState extends State<HomeDashboard> {
     );
   }
 
-  Widget _buildActivityCard() {
-    return Container(
-      width: 240,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceDark,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: AppTheme.surfaceDark2),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.blue.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.assignment_rounded,
-                  color: Colors.blue,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                'ACTIVIDADES HOY',
-                style: GoogleFonts.oswald(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 15),
-          _buildMiniActivity('Mant. Preventivo', '08:30 AM', Colors.green),
-          const SizedBox(height: 8),
-          _buildMiniActivity(
-            'Inspección #402',
-            '10:15 AM',
-            AppTheme.primaryYellow,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMiniActivity(String text, String time, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceDark2,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 6,
-                height: 6,
-                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-              ),
-              const SizedBox(width: 8),
-              SizedBox(
-                width: 90,
-                child: Text(
-                  text,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 11),
-                ),
-              ),
-            ],
-          ),
-          Text(
-            time,
-            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildModulesGrid(BuildContext context) {
     final auth = context.read<AuthProvider>();
     final user = auth.user;
@@ -578,6 +505,14 @@ class _HomeDashboardState extends State<HomeDashboard> {
         Icons.inventory_2_outlined,
         '12 Items Bajos',
         () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InventoryScreen())),
+      ));
+    }
+    if (user == null || user.canAccessModule('combustible')) {
+      modules.add(_ModuleEntry(
+        'Combustible',
+        Icons.local_gas_station,
+        'Registrar Tanqueo',
+        () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AddFuelScreen())),
       ));
     }
     if (user == null || user.canAccessModule('flota')) {

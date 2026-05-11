@@ -33,7 +33,11 @@ class SemanurScaffold extends StatelessWidget {
       body: body,
       backgroundColor: backgroundColor,
       floatingActionButton: floatingActionButton,
-      floatingActionButtonLocation: floatingActionButtonLocation,
+      floatingActionButtonLocation:
+          floatingActionButtonLocation ??
+          (showCenterGap
+              ? FloatingActionButtonLocation.centerDocked
+              : FloatingActionButtonLocation.centerFloat),
       floatingActionButtonAnimator: floatingActionButtonAnimator,
       bottomNavigationBar: showBottomNav
           ? SemanurBottomNav(

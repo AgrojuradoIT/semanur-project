@@ -28,6 +28,7 @@ class ApiConstants {
   static const String refresh = '/refresh';
   static const String logoutAll = '/logout-all';
   static const String user = '/user';
+  static const String updateProfileProfile = '/user/profile';
 
   // Inventario
   static const String productos = '/productos';

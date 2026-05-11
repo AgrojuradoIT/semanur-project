@@ -107,6 +107,26 @@ class AuthRepository {
     }
   }
 
+  Future<User?> updateProfileProfile(Map<String, dynamic> data) async {
+    try {
+      final response = await _apiClient.dio.put(
+        ApiConstants.updateProfileProfile,
+        data: data,
+      );
+      if (response.statusCode == 200) {
+        await _storage.write(
+          key: _userDataKey,
+          value: jsonEncode(response.data),
+        );
+        return User.fromJson(response.data);
+      }
+    } on DioException catch (e) {
+      debugPrint('Error actualizando perfil: ${e.message}');
+      rethrow;
+    }
+    return null;
+  }
+
   Future<User?> restoreSession() async {
     final token = await _storage.read(key: _authTokenKey);
     if (token == null) return null;

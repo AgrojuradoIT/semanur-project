@@ -82,6 +82,37 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<bool> updateProfileProfile({String? name, String? phone, String? licenseNumber}) async {
+    _error = null;
+    try {
+      final data = <String, dynamic>{};
+      if (name != null) data['name'] = name;
+      if (phone != null) data['phone'] = phone;
+      if (licenseNumber != null) data['license_number'] = licenseNumber;
+
+      final updatedUser = await _authRepository.updateProfileProfile(data);
+      if (updatedUser != null) {
+        _user = updatedUser;
+        notifyListeners();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('AuthProvider: Update profile error: $e');
+      if (e is DioException) {
+        final data = e.response?.data;
+        if (data is Map) {
+          _error = data['message']?.toString() ?? e.message ?? 'Error actualizando perfil';
+        } else {
+          _error = e.message ?? 'Error actualizando perfil';
+        }
+      } else {
+        _error = e.toString();
+      }
+      return false;
+    }
+  }
+
   Future<void> checkAuthStatus() async {
     _isLoading = true;
     notifyListeners();

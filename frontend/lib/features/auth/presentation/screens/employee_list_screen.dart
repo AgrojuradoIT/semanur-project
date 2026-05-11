@@ -57,6 +57,36 @@ class _EmployeeListScreenState extends State<EmployeeListScreen> {
 
     return SemanurScaffold(
       backgroundColor: const Color(0xFF121212),
+      showCenterGap: true,
+      floatingActionButton: GestureDetector(
+        onTap: () async {
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const EmployeeFormScreen()),
+          );
+          if (result == true) {
+            _loadEmployees();
+          }
+        },
+        child: Container(
+          width: 64,
+          height: 64,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: AppTheme.primaryYellow,
+            border: Border.all(color: const Color(0xFF0A0A0A), width: 6),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.primaryYellow.withValues(alpha: 0.2),
+                blurRadius: 15,
+                spreadRadius: 0,
+              ),
+            ],
+          ),
+          child: const Icon(Icons.add, color: Colors.black, size: 32),
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       body: Stack(
         children: [
           SafeArea(
@@ -86,21 +116,6 @@ class _EmployeeListScreenState extends State<EmployeeListScreen> {
             ),
           ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const EmployeeFormScreen()),
-          );
-          if (result == true) {
-            _loadEmployees();
-          }
-        },
-        backgroundColor: AppTheme.primaryYellow,
-        elevation: 8,
-        shape: const CircleBorder(),
-        child: const Icon(Icons.add, color: Colors.black, size: 32),
       ),
     );
   }

@@ -38,23 +38,33 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     setState(() => _isLoading = true);
 
-    // DUMMY IMPLEMENTATION - Replace with actual AuthProvider method
-    await Future.delayed(const Duration(seconds: 1));
-
-    // Aquí se llamaría a authProvider.updateProfile(...)
-    // Por ahora solo simulamos éxito y regresamos
+    final authProvider = context.read<AuthProvider>();
+    final success = await authProvider.updateProfileProfile(
+      name: _nameController.text.trim(),
+    );
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Perfil actualizado correctamente (Simulado)'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      Navigator.pop(context);
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Perfil actualizado correctamente'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(authProvider.error ?? 'Error actualizando perfil'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
 
-    setState(() => _isLoading = false);
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
   }
 
   @override

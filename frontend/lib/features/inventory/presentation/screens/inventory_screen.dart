@@ -45,8 +45,28 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
     return SemanurScaffold(
       backgroundColor: AppTheme.backgroundDark,
-      floatingActionButton: _buildQuickActionsButton(context),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      showCenterGap: true,
+      floatingActionButton: GestureDetector(
+        onTap: () => _showQuickActions(context),
+        child: Container(
+          width: 64,
+          height: 64,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: AppTheme.primaryYellow,
+            border: Border.all(color: const Color(0xFF0A0A0A), width: 6),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.primaryYellow.withValues(alpha: 0.2),
+                blurRadius: 15,
+                spreadRadius: 0,
+              ),
+            ],
+          ),
+          child: const Icon(Icons.add, color: Colors.black, size: 32),
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       body: SafeArea(
         child: Column(
           children: [
@@ -288,14 +308,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildQuickActionsButton(BuildContext context) {
-    return FloatingActionButton(
-      onPressed: () => _showQuickActions(context),
-      backgroundColor: AppTheme.primaryYellow,
-      child: const Icon(Icons.add, color: Colors.black),
     );
   }
 

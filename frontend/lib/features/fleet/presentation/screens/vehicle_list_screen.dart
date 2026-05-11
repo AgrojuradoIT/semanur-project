@@ -40,6 +40,33 @@ class _VehicleListScreenState extends State<VehicleListScreen> {
 
     return SemanurScaffold(
       backgroundColor: AppTheme.backgroundDark,
+      showCenterGap: true,
+      floatingActionButton: GestureDetector(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const AddVehicleScreen()),
+          );
+        },
+        child: Container(
+          width: 64,
+          height: 64,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: AppTheme.primaryYellow,
+            border: Border.all(color: const Color(0xFF0A0A0A), width: 6),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.primaryYellow.withValues(alpha: 0.2),
+                blurRadius: 15,
+                spreadRadius: 0,
+              ),
+            ],
+          ),
+          child: const Icon(Icons.add, color: Colors.black, size: 32),
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       body: Stack(
         children: [
           // Fondo decorativo
@@ -63,7 +90,6 @@ class _VehicleListScreenState extends State<VehicleListScreen> {
           ),
         ],
       ),
-      floatingActionButton: _buildFAB(context),
     );
   }
 
@@ -604,21 +630,6 @@ class _VehicleListScreenState extends State<VehicleListScreen> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildFAB(BuildContext context) {
-    return FloatingActionButton(
-      onPressed: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const AddVehicleScreen()),
-        );
-      },
-      backgroundColor: AppTheme.primaryYellow,
-      foregroundColor: Colors.black,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: const Icon(Icons.add, size: 30),
     );
   }
 

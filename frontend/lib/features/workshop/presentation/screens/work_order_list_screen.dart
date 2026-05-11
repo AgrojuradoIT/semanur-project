@@ -63,6 +63,33 @@ class _WorkOrderListScreenState extends State<WorkOrderListScreen> {
 
     return SemanurScaffold(
       backgroundColor: AppTheme.backgroundDark,
+      showCenterGap: true,
+      floatingActionButton: GestureDetector(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const AddWorkOrderScreen()),
+          );
+        },
+        child: Container(
+          width: 64,
+          height: 64,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: AppTheme.primaryYellow,
+            border: Border.all(color: const Color(0xFF0A0A0A), width: 6),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.primaryYellow.withValues(alpha: 0.2),
+                blurRadius: 15,
+                spreadRadius: 0,
+              ),
+            ],
+          ),
+          child: const Icon(Icons.add, color: Colors.black, size: 32),
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       body: Stack(
         children: [
           // Fondo decorativo
@@ -86,7 +113,6 @@ class _WorkOrderListScreenState extends State<WorkOrderListScreen> {
           ),
         ],
       ),
-      floatingActionButton: _buildFAB(context),
     );
   }
 
@@ -261,25 +287,6 @@ class _WorkOrderListScreenState extends State<WorkOrderListScreen> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildFAB(BuildContext context) {
-    return FloatingActionButton.extended(
-      onPressed: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const AddWorkOrderScreen()),
-        );
-      },
-      backgroundColor: AppTheme.primaryYellow,
-      foregroundColor: Colors.black,
-      icon: const Icon(Icons.add),
-      label: Text(
-        'NUEVA ORDEN',
-        style: GoogleFonts.oswald(fontWeight: FontWeight.bold),
-      ),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
     );
   }
 

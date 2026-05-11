@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:dio/dio.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:frontend/core/theme/app_theme.dart';
 
 class DiagnosticsScreen extends StatefulWidget {
   const DiagnosticsScreen({super.key});
@@ -52,20 +54,7 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
     final cachedUser = await storage.read(key: 'user_data');
     _addLog('Cache usuario: ${cachedUser != null ? "SI" : "NO"}');
 
-    // 3. Quick connectivity test to backend (Anonymous)
-    _addLog('Probando conexion ANONIMA a backend...');
-    try {
-      final testDio = Dio(BaseOptions(
-        connectTimeout: const Duration(seconds: 15),
-        receiveTimeout: const Duration(seconds: 15),
-      ));
-      final response1 = await testDio.get('$apiUrl/user');
-      _addLog('Respuesta anonima: ${response1.statusCode}');
-    } on DioException catch (e) {
-      _addLog('Anonima fallida: ${e.response?.statusCode} - ${e.message}');
-    }
-
-    // 4. Authenticated Request Test
+    // 3. Authenticated Request Test
     if (token != null && token.isNotEmpty) {
       _addLog('Probando conexion AUTENTICADA (/productos)...');
       try {
@@ -187,6 +176,44 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                       child: const Text('Limpiar y Reintentar', style: TextStyle(color: Colors.white70)),
+                    ),
+                  ),
+                ),
+              if (_diagDone)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        final url = Uri.parse('https://report.agrojurado.com');
+                        if (await canLaunchUrl(url)) {
+                          await launchUrl(url, mode: LaunchMode.externalApplication);
+                        }
+                      },
+                      icon: const Icon(Icons.support_agent, color: Colors.black),
+                      label: const Text(
+                        'Reportar error a Soporte Técnico',
+                        style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryYellow,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 8),
+              if (_diagDone)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(
+                    'Si detectas algun error, reportalo al area de Soporte Tecnico.\nSeras redirigido a: report.agrojurado.com',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.grey.shade400,
+                      fontSize: 11,
                     ),
                   ),
                 ),

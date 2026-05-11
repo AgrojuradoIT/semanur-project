@@ -5,9 +5,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:frontend/features/auth/presentation/providers/auth_provider.dart';
 import 'package:frontend/features/auth/presentation/screens/login_screen.dart';
+import 'package:frontend/features/home/presentation/screens/home_screen.dart';
 import 'package:frontend/features/profile/presentation/screens/edit_profile_screen.dart';
 import 'package:frontend/features/profile/presentation/screens/change_password_screen.dart';
-import 'package:frontend/features/profile/presentation/screens/diagnostics_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -27,78 +28,76 @@ class ProfileScreen extends StatelessWidget {
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-                child: Column(
-                  children: [
-                    _buildProfileHeader(context, user),
-                    const SizedBox(height: 24),
-                    _buildSectionTitle('Opciones'),
-                    _buildActionCard(
-                      context,
-                      icon: Icons.person_outline,
-                      title: 'Informacion Personal',
-                      subtitle: 'Editar detalles de perfil',
-                      onTap: () => Navigator.push(
+                  child: Column(
+                    children: [
+                      _buildProfileHeader(context, user),
+                      const SizedBox(height: 24),
+                      _buildSectionTitle('Datos de perfil'),
+                      _buildInfoCard(
                         context,
-                        MaterialPageRoute(
-                          builder: (_) => const EditProfileScreen(),
-                        ),
+                        items: [
+                          _infoItem('Nombre', user?.name),
+                          _infoItem('Correo', user?.email),
+                          _infoItem('Rol', user?.role),
+                          _infoItem('Telefono', user?.phone),
+                          _infoItem('Cargo', user?.cargo),
+                          _infoItem('Dependencia', user?.dependencia),
+                          _infoItem('Licencia', user?.licenseNumber),
+                        ],
                       ),
-                    ),
-                    _buildActionCard(
-                      context,
-                      icon: Icons.lock_outline,
-                      title: 'Seguridad',
-                      subtitle: 'Contrasena y 2FA',
-                      onTap: () => Navigator.push(
+                      const SizedBox(height: 20),
+                      _buildSectionTitle('Opciones'),
+                      _buildActionCard(
                         context,
-                        MaterialPageRoute(
-                          builder: (_) => const ChangePasswordScreen(),
-                        ),
-                      ),
-                    ),
-                    _buildActionCard(
-                      context,
-                      icon: Icons.support_agent,
-                      title: 'Ayuda y Soporte / Red',
-                      subtitle: 'Diagnósticos de conexión',
-                      onTap: () {
-                        Navigator.push(
+                        icon: Icons.person_outline,
+                        title: 'Informacion Personal',
+                        subtitle: 'Editar detalles de perfil',
+                        onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const DiagnosticsScreen(),
+                            builder: (_) => const EditProfileScreen(),
                           ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 20),
-                    _buildSectionTitle('Datos de perfil'),
-                    _buildInfoCard(
-                      context,
-                      items: [
-                        _infoItem('Nombre', user?.name),
-                        _infoItem('Correo', user?.email),
-                        _infoItem('Rol', user?.role),
-                        _infoItem('Telefono', user?.phone),
-                        _infoItem('Cargo', user?.cargo),
-                        _infoItem('Dependencia', user?.dependencia),
-                        _infoItem('Licencia', user?.licenseNumber),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    _buildSectionTitle('Sobre la aplicacion'),
-                    _buildAboutCard(),
-                    const SizedBox(height: 24),
-                    _buildLogoutButton(context, authProvider),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Semanur Hub 2024',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        fontSize: 10,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                      _buildActionCard(
+                        context,
+                        icon: Icons.lock_outline,
+                        title: 'Seguridad',
+                        subtitle: 'Contrasena y 2FA',
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ChangePasswordScreen(),
+                          ),
+                        ),
+                      ),
+                      _buildActionCard(
+                        context,
+                        icon: Icons.support_agent,
+                        title: 'Soporte Tecnico',
+                        subtitle: 'Reportar errores o solicitar ayuda',
+                        onTap: () async {
+                          final url = Uri.parse('https://report.agrojurado.com');
+                          if (await canLaunchUrl(url)) {
+                            await launchUrl(url, mode: LaunchMode.externalApplication);
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 20),
+                      _buildSectionTitle('Sobre la aplicacion'),
+                      _buildAboutCard(),
+                      const SizedBox(height: 24),
+                      _buildLogoutButton(context, authProvider),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Semanur Hub 2024',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
+                  ),
               ),
             ),
           ],
@@ -114,7 +113,11 @@ class ProfileScreen extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           IconButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => const HomeScreen()),
+              (route) => false,
+            ),
             icon: const Icon(Icons.arrow_back, color: Colors.white),
           ),
           Text(

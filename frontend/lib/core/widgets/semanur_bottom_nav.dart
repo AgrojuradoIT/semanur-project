@@ -1,14 +1,12 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:frontend/core/theme/app_theme.dart';
-import 'package:frontend/features/auth/presentation/providers/auth_provider.dart';
-import 'package:frontend/features/fleet/presentation/screens/add_fuel_screen.dart';
 import 'package:frontend/features/home/presentation/screens/home_screen.dart';
 import 'package:frontend/features/profile/presentation/screens/profile_screen.dart';
 
 enum SemanurNavItem { home, fuel, profile }
 
-class SemanurBottomNav extends StatelessWidget {
+class SemanurBottomNav extends StatefulWidget {
   final SemanurNavItem current;
   final bool showCenterGap;
 
@@ -19,35 +17,55 @@ class SemanurBottomNav extends StatelessWidget {
   });
 
   @override
+  State<SemanurBottomNav> createState() => _SemanurBottomNavState();
+}
+
+class _SemanurBottomNavState extends State<SemanurBottomNav> {
+  @override
   Widget build(BuildContext context) {
-    final auth = context.read<AuthProvider>();
-    final user = auth.user;
-
-    final items = <Widget>[
-      _navItem(context, SemanurNavItem.home, Icons.dashboard_rounded, 'Inicio'),
-      if (user != null && user.canAccessModule('combustible'))
-        _navItem(
-          context,
-          SemanurNavItem.fuel,
-          Icons.local_gas_station,
-          'Abastecimiento',
+    final bgColor = const Color(0xFF0A0A0A).withValues(alpha: 0.9);
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
+    
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          decoration: BoxDecoration(
+            color: bgColor,
+            border: Border(
+              top: BorderSide(
+                color: Colors.white.withValues(alpha: 0.1),
+                width: 1,
+              ),
+            ),
+          ),
+          padding: EdgeInsets.only(
+            left: 32,
+            right: 32,
+            top: 12,
+            bottom: bottomPadding > 0 ? bottomPadding : 24,
+          ),
+          child: Row(
+            mainAxisAlignment: widget.showCenterGap 
+                ? MainAxisAlignment.spaceAround 
+                : MainAxisAlignment.spaceEvenly,
+            children: [
+              _navItem(
+                context,
+                SemanurNavItem.home,
+                Icons.grid_view_rounded,
+                'Panel',
+              ),
+              if (widget.showCenterGap) const SizedBox(width: 80),
+              _navItem(
+                context,
+                SemanurNavItem.profile,
+                Icons.account_circle_outlined,
+                'Perfil',
+              ),
+            ],
+          ),
         ),
-      if (showCenterGap) const SizedBox(width: 40),
-      _navItem(context, SemanurNavItem.profile, Icons.person_outlined, 'Perfil'),
-    ];
-
-    return Container(
-      height: 90,
-      padding: const EdgeInsets.only(bottom: 20, left: 24, right: 24),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceDark.withValues(alpha: 0.95),
-        border: const Border(top: BorderSide(color: AppTheme.surfaceDark2)),
-      ),
-      child: Row(
-        mainAxisAlignment: showCenterGap
-            ? MainAxisAlignment.spaceBetween
-            : MainAxisAlignment.spaceEvenly,
-        children: items,
       ),
     );
   }
@@ -59,36 +77,36 @@ class SemanurBottomNav extends StatelessWidget {
     String label,
   ) {
     final bool isActive = _isOnTargetScreen(context, item);
-    return Expanded(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _handleTap(context, item),
-          borderRadius: BorderRadius.circular(16),
-          splashColor: AppTheme.primaryYellow.withValues(alpha: 0.12),
-          highlightColor: AppTheme.primaryYellow.withValues(alpha: 0.06),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  icon,
-                  color: isActive ? AppTheme.primaryYellow : AppTheme.textGray,
-                  size: 26,
+    final color = isActive ? AppTheme.primaryYellow : Colors.grey.shade500;
+    
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _handleTap(context, item),
+        borderRadius: BorderRadius.circular(12),
+        highlightColor: Colors.transparent,
+        splashColor: AppTheme.primaryYellow.withValues(alpha: 0.1),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                color: color,
+                size: 28,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label.toUpperCase(),
+                style: TextStyle(
+                  color: color,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
                 ),
-                Text(
-                  label,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: isActive ? Colors.white : AppTheme.textGray,
-                    fontSize: 10,
-                    fontWeight:
-                        isActive ? FontWeight.bold : FontWeight.normal,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -96,19 +114,16 @@ class SemanurBottomNav extends StatelessWidget {
   }
 
   void _handleTap(BuildContext context, SemanurNavItem target) {
-    if (target == current && _isOnTargetScreen(context, target)) {
-      return;
-    }
+    if (target == widget.current && _isOnTargetScreen(context, target)) return;
 
     switch (target) {
       case SemanurNavItem.home:
         _replaceTo(context, const HomeScreen());
         break;
+      case SemanurNavItem.fuel:
+        break;
       case SemanurNavItem.profile:
         _replaceTo(context, const ProfileScreen());
-        break;
-      case SemanurNavItem.fuel:
-        _replaceTo(context, const AddFuelScreen());
         break;
     }
   }
@@ -117,10 +132,10 @@ class SemanurBottomNav extends StatelessWidget {
     switch (target) {
       case SemanurNavItem.home:
         return context.findAncestorWidgetOfExactType<HomeScreen>() != null;
+      case SemanurNavItem.fuel:
+        return widget.current == SemanurNavItem.fuel;
       case SemanurNavItem.profile:
         return context.findAncestorWidgetOfExactType<ProfileScreen>() != null;
-      case SemanurNavItem.fuel:
-        return context.findAncestorWidgetOfExactType<AddFuelScreen>() != null;
     }
   }
 

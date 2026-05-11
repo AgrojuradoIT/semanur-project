@@ -44,6 +44,33 @@ class _LoanListScreenState extends State<LoanListScreen>
           ],
         ),
       ),
+      showCenterGap: true,
+      floatingActionButton: GestureDetector(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const AddLoanScreen()),
+          );
+        },
+        child: Container(
+          width: 64,
+          height: 64,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: AppTheme.primaryYellow,
+            border: Border.all(color: const Color(0xFF0A0A0A), width: 6),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.primaryYellow.withValues(alpha: 0.2),
+                blurRadius: 15,
+                spreadRadius: 0,
+              ),
+            ],
+          ),
+          child: const Icon(Icons.add, color: Colors.black, size: 32),
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       body: Consumer<LoanProvider>(
         builder: (context, provider, child) {
           if (provider.isLoading && provider.prestamos.isEmpty) {
@@ -70,16 +97,6 @@ class _LoanListScreenState extends State<LoanListScreen>
             ],
           );
         },
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const AddLoanScreen()),
-          );
-        },
-        label: const Text('Nuevo Préstamo'),
-        icon: const Icon(Icons.add),
       ),
     );
   }
