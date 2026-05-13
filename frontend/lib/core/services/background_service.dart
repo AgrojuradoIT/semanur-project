@@ -1,5 +1,6 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:frontend/core/services/notification_service.dart';
@@ -12,6 +13,12 @@ const fetchBackground = "fetchBackground";
 @pragma('vm:entry-point')
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
+    WidgetsFlutterBinding.ensureInitialized();
+    try {
+      await dotenv.load(fileName: ".env");
+    } catch (e) {
+      debugPrint("Fallo cargando .env en background: $e");
+    }
     switch (task) {
       case fetchBackground:
         try {

@@ -43,10 +43,12 @@
             <option value="all">Todo</option>
           </select>
 
-          <select class="input" v-model="selectedUser">
-            <option value="Todos">Todos los usuarios</option>
-            <option v-for="u in users" :key="u" :value="u">{{ u }}</option>
-          </select>
+          <SearchableSelect
+            :items="['Todos', ...users]"
+            v-model="selectedUser"
+            placeholder="Todos los usuarios"
+            empty-text="No se encontraron usuarios"
+          />
         </div>
       </div>
 
@@ -113,6 +115,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useAsyncState } from '../../../shared/composables/useAsyncState';
 import { fetchHistorySources } from '../api/historyService';
 import { useRefresh } from '../../../shared/composables/useRefresh';
+import SearchableSelect from '../../../shared/components/SearchableSelect.vue';
 
 const { refreshTrigger } = useRefresh();
 

@@ -25,7 +25,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 18,
+      version: 19,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -173,6 +173,17 @@ class DatabaseHelper {
       await db.execute('DROP TABLE IF EXISTS productos');
       await _createProductosTable(db);
     }
+    if (oldVersion < 19) {
+      // Versión 19: agregar server_id a notificaciones para sync bidireccional
+      try {
+        await db.execute(
+          'ALTER TABLE notificaciones ADD COLUMN server_id INTEGER',
+        );
+        debugPrint('v19 migration: server_id added to notificaciones');
+      } catch (e) {
+        debugPrint('v19 migration error (server_id): $e');
+      }
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -195,6 +206,7 @@ class DatabaseHelper {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS notificaciones (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        server_id INTEGER,
         tipo TEXT,
         titulo TEXT,
         mensaje TEXT,
@@ -214,9 +226,11 @@ class DatabaseHelper {
     required String mensaje,
     String? relacionadoId,
     String? fechaProximoRecordatorio,
+    int? serverId,
   }) async {
     final db = await database;
     return await db.insert('notificaciones', {
+      'server_id': serverId,
       'tipo': tipo,
       'titulo': titulo,
       'mensaje': mensaje,
@@ -225,6 +239,29 @@ class DatabaseHelper {
       'fecha_proximo_recordatorio': fechaProximoRecordatorio,
       'estado': 'pendiente',
     });
+  }
+
+  Future<void> deleteNotification(int localId) async {
+    final db = await database;
+    await db.delete('notificaciones', where: 'id = ?', whereArgs: [localId]);
+  }
+
+  Future<void> deleteAllNotifications() async {
+    final db = await database;
+    await db.delete('notificaciones');
+  }
+
+  Future<int?> getServerIdForLocalNotification(int localId) async {
+    final db = await database;
+    final results = await db.query(
+      'notificaciones',
+      columns: ['server_id'],
+      where: 'id = ?',
+      whereArgs: [localId],
+      limit: 1,
+    );
+    if (results.isEmpty) return null;
+    return results.first['server_id'] as int?;
   }
 
   Future<List<Map<String, dynamic>>> getUnreadNotifications() async {

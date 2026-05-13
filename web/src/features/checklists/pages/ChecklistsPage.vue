@@ -90,12 +90,14 @@
         <div class="form-grid" style="margin-bottom: var(--sp-md)">
           <div class="input-group full-width">
             <label>Vehiculo</label>
-            <select v-model="createForm.vehiculo_id" class="input" required @change="onVehicleChange">
-              <option value="">Seleccionar...</option>
-              <option v-for="vehicle in vehicles" :key="vehicleId(vehicle)" :value="vehicleId(vehicle)">
-                {{ vehicleLabel(vehicle) }}
-              </option>
-            </select>
+            <SearchableSelect
+              v-model="createForm.vehiculo_id"
+              :items="vehicles"
+              :label-fn="vehicleLabel"
+              :value-fn="vehicleId"
+              placeholder="Seleccionar vehiculo..."
+              @select="onVehicleChange"
+            />
           </div>
         </div>
 
@@ -112,12 +114,12 @@
         <form v-else-if="selectedTemplate" class="form-grid" @submit.prevent="submitChecklist">
           <div class="input-group">
             <label>Operador / Conductor</label>
-            <select v-model="createForm.operador_id" class="input" required>
-              <option value="">Seleccionar...</option>
-              <option v-for="emp in employees" :key="emp.id" :value="emp.id">
-                {{ emp.nombres }} {{ emp.apellidos || '' }}
-              </option>
-            </select>
+            <SearchableSelect
+              v-model="createForm.operador_id"
+              :items="employees"
+              :label-fn="(e) => `${e.nombres} ${e.apellidos || ''}`.trim()"
+              placeholder="Seleccionar operador..."
+            />
           </div>
 
           <div v-if="!isAerialVehicle" class="input-group">
@@ -203,15 +205,19 @@ import {
   createChecklist,
   createHorometerRecord,
   fetchChecklistHistory,
+  fetchChecklistTemplates,
   updateChecklistVehicle,
 } from '../api/checklistsService';
 import { useCatalogsStore } from '../../../shared/stores/catalogs';
+import SearchableSelect from '../../../shared/components/SearchableSelect.vue';
+import { useDynamicIsland } from '../../../shared/composables/useDynamicIsland';
 
 const { loading, error, run, clearError } = useAsyncState('');
 const route = useRoute();
 const history = ref([]);
 const vehicles = ref([]);
 const employees = ref([]);
+const { notify: islandNotify } = useDynamicIsland();
 
 const search = ref('');
 
@@ -231,7 +237,7 @@ const toastIcon = computed(() => {
 function showToast(type, title, message = '') {
   if (toastTimer) clearTimeout(toastTimer);
   toast.value = { show: true, type, title, message };
-  const duration = type === 'error' ? 6000 : 4000;
+  const duration = type === 'error' ? 60000 : 30000;
   toastTimer = setTimeout(() => { toast.value.show = false; }, duration);
 }
 
@@ -336,32 +342,32 @@ function initializeResponses() {
 async function submitChecklist() {
   // Validar campos uno por uno con mensajes específicos
   if (saving.value) {
-    showToast('warning', 'Operación en curso', 'Por favor espere a que termine la operación anterior');
+    islandNotify({ type: 'warning', title: 'Operación en curso', message: 'Por favor espere a que termine la operación anterior', duration: 15000 });
     return;
   }
 
   if (!selectedTemplate.value) {
-    showToast('warning', 'Plantilla no cargada', 'No hay una plantilla de checklist disponible para este vehículo');
+    islandNotify({ type: 'warning', title: 'Plantilla no cargada', message: 'No hay una plantilla de checklist disponible para este vehículo', duration: 15000 });
     return;
   }
 
   if (!createForm.value.vehiculo_id) {
-    showToast('warning', 'Falta vehículo', 'Seleccione el vehículo a inspeccionar');
+    islandNotify({ type: 'warning', title: 'Falta vehículo', message: 'Seleccione el vehículo a inspeccionar', duration: 15000 });
     return;
   }
 
   if (!createForm.value.operador_id) {
-    showToast('warning', 'Falta operador', 'Seleccione el operador o conductor del vehículo');
+    islandNotify({ type: 'warning', title: 'Falta operador', message: 'Seleccione el operador o conductor del vehículo', duration: 15000 });
     return;
   }
 
   if (!createForm.value.lista_chequeo_id) {
-    showToast('warning', 'Plantilla no seleccionada', 'Seleccione la plantilla de checklist a utilizar');
+    islandNotify({ type: 'warning', title: 'Plantilla no seleccionada', message: 'Seleccione la plantilla de checklist a utilizar', duration: 15000 });
     return;
   }
 
   if (!isAerialVehicle.value && !createForm.value.horometro_actual) {
-    showToast('warning', 'Falta horómetro', 'Ingrese el horómetro o kilometraje actual del vehículo');
+    islandNotify({ type: 'warning', title: 'Falta horómetro', message: 'Ingrese el horómetro o kilometraje actual del vehículo', duration: 15000 });
     return;
   }
 
@@ -375,11 +381,12 @@ async function submitChecklist() {
     const mensajeCompletar = itemsSinRespuesta.length > 3
       ? `${primerosItems}... y ${itemsSinRespuesta.length - 3} más`
       : primerosItems;
-    showToast(
-      'warning',
-      `Faltan ${itemsSinRespuesta.length} ítems por responder`,
-      `Complete: ${mensajeCompletar}`
-    );
+    islandNotify({
+      type: 'warning',
+      title: `Faltan ${itemsSinRespuesta.length} ítems por responder`,
+      message: `Complete: ${mensajeCompletar}`,
+      duration: 15000,
+    });
     return;
   }
 
@@ -400,10 +407,10 @@ async function submitChecklist() {
     await updateAuxiliaryRecords();
     closeCreateModal();
     await loadData();
-    showToast('success', 'Checklist guardado', 'La inspección se registró correctamente');
+    islandNotify({ type: 'success', title: 'Checklist guardado', message: 'La inspección se registró correctamente', duration: 15000 });
   } catch (e) {
     const errorMessage = e?.response?.data?.message || e?.message || 'Error al crear checklist';
-    showToast('error', 'Error al guardar', errorMessage);
+    islandNotify({ type: 'error', title: 'Error al guardar', message: errorMessage, duration: 60000 });
   } finally {
     saving.value = false;
   }

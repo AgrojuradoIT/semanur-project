@@ -4,16 +4,8 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:frontend/core/theme/app_theme.dart';
 import 'package:frontend/features/notifications/presentation/providers/notification_provider.dart';
-import 'package:frontend/features/notifications/data/models/notification_item.dart';
-import 'package:frontend/features/inventory/presentation/screens/inventory_screen.dart';
-import 'package:frontend/features/inventory/presentation/screens/product_detail_screen.dart';
-import 'package:frontend/features/inventory/data/models/product_model.dart';
-import 'package:frontend/core/network/api_client.dart';
-import 'package:frontend/features/workshop/presentation/screens/work_order_list_screen.dart';
-import 'package:frontend/features/fleet/presentation/screens/vehicle_list_screen.dart';
-import 'package:frontend/features/fleet/presentation/screens/vehicle_resume_screen.dart';
+import 'package:frontend/features/notifications/notification_navigator.dart';
 import 'package:timeago/timeago.dart' as timeago;
-
 
 class NotificationListScreen extends StatefulWidget {
   const NotificationListScreen({super.key});
@@ -26,7 +18,6 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
   @override
   void initState() {
     super.initState();
-    // Sincronizar con MySQL al abrir la pantalla
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<NotificationProvider>().syncFromServer();
     });
@@ -51,12 +42,30 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
               context.read<NotificationProvider>().markAllAsRead();
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.delete_sweep),
-            tooltip: 'Borrar todo',
-            onPressed: () {
-              context.read<NotificationProvider>().clearAll();
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) async {
+              final provider = context.read<NotificationProvider>();
+              if (value == 'delete_read') {
+                final confirm = await _showDeleteConfirm(
+                  'Eliminar leídas',
+                  '¿Eliminar todas las notificaciones ya leídas?',
+                );
+                if (confirm == true) await provider.deleteReadNotifications();
+              }
             },
+            itemBuilder: (_) => [
+              const PopupMenuItem(
+                value: 'delete_read',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete_sweep, color: Colors.redAccent),
+                    SizedBox(width: 8),
+                    Text('Eliminar leídas'),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -95,15 +104,36 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
               return Dismissible(
                 key: Key(item.id),
                 direction: DismissDirection.endToStart,
+                confirmDismiss: (_) => _showDeleteConfirm(
+                  'Eliminar notificación',
+                  '¿Eliminar esta notificación?',
+                ),
+                onDismissed: (_) {
+                  provider.deleteNotification(item.id);
+                },
                 background: Container(
                   alignment: Alignment.centerRight,
                   padding: const EdgeInsets.only(right: 20),
-                  color: Colors.red,
-                  child: const Icon(Icons.delete, color: Colors.white),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade700,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.delete, color: Colors.white),
+                      SizedBox(height: 4),
+                      Text(
+                        'Eliminar',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                onDismissed: (_) {
-                  // Implementar borrar individual si se desea
-                },
                 child: Card(
                   color: item.isRead
                       ? AppTheme.surfaceDark.withValues(alpha: 0.5)
@@ -122,9 +152,7 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
                     leading: Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: _getColorForType(
-                          item.type,
-                        ).withValues(alpha: 0.1),
+                        color: _getColorForType(item.type).withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
@@ -135,9 +163,7 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
                     title: Text(
                       item.title,
                       style: GoogleFonts.oswald(
-                        fontWeight: item.isRead
-                            ? FontWeight.normal
-                            : FontWeight.bold,
+                        fontWeight: item.isRead ? FontWeight.normal : FontWeight.bold,
                         color: Colors.white,
                       ),
                     ),
@@ -176,7 +202,11 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
                     ),
                     onTap: () {
                       provider.markAsRead(item.id);
-                      _navigateTo(context, item);
+                      NotificationNavigator.navigateTo(
+                        alertType: item.alertType,
+                        relacionadoId: item.relacionadoId,
+                        context: context,
+                      );
                     },
                   ),
                 ),
@@ -188,88 +218,28 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
     );
   }
 
-  bool _canNavigate(String alertType) {
-    return alertType != 'general';
-  }
+  bool _canNavigate(String alertType) => alertType != 'general';
 
-  void _navigateTo(BuildContext context, NotificationItem item) {
-    switch (item.alertType) {
-      case 'stock_bajo':
-      case 'inventory_alert':
-        _navigateToProducto(context, item.relacionadoId);
-        break;
-
-      case 'work_order':
-      case 'orden_trabajo':
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const WorkOrderListScreen()),
-        );
-        break;
-
-      case 'fleet_alert':
-      case 'vencimiento_soat':
-      case 'vencimiento_tecnomecanica':
-      case 'mantenimiento_preventivo':
-        // relacionadoId = 'vehiculoId|placa'
-        final partes = item.relacionadoId?.split('|');
-        final vehiculoId = int.tryParse(partes?.first ?? '');
-        final placa = partes != null && partes.length > 1 ? partes[1] : 'VH';
-
-        if (vehiculoId != null) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => VehicleResumeScreen(
-                vehiculoId: vehiculoId,
-                placa: placa,
-              ),
-            ),
-          );
-        } else {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const VehicleListScreen()),
-          );
-        }
-        break;
-
-      default:
-        break;
-    }
-  }
-
-  /// Navega al detalle del producto por su ID desde la API.
-  Future<void> _navigateToProducto(BuildContext context, String? relacionadoId) async {
-    final int? productoId = int.tryParse(relacionadoId ?? '');
-    if (productoId == null) {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => const InventoryScreen()));
-      return;
-    }
-
-    try {
-      final apiClient = ApiClient();
-      final response = await apiClient.dio.get('/productos/$productoId');
-      if (response.statusCode == 200 && response.data != null) {
-        final data = response.data is Map<String, dynamic>
-            ? response.data
-            : response.data['data'] ?? response.data;
-        final producto = Producto.fromJson(data);
-        if (context.mounted) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => ProductDetailScreen(producto: producto)),
-          );
-        }
-        return;
-      }
-    } catch (e) {
-      debugPrint("Error buscando producto para notificación in-app: $e");
-    }
-
-    if (context.mounted) {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => const InventoryScreen()));
-    }
+  Future<bool?> _showDeleteConfirm(String title, String content) {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.surfaceDark,
+        title: Text(title, style: GoogleFonts.oswald(color: Colors.white)),
+        content: Text(content, style: const TextStyle(color: AppTheme.textGray)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
   }
 
   Color _getColorForType(String type) {
@@ -300,7 +270,6 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
       case 'mantenimiento_preventivo':
         return Icons.directions_car_outlined;
       default:
-        // Fallback por tipo UI
         switch (type) {
           case 'error':
             return Icons.error_outline;

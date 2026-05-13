@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:workmanager/workmanager.dart';
+import 'package:frontend/core/services/background_service.dart';
 import 'package:frontend/core/network/api_client.dart';
 import 'package:frontend/core/theme/app_theme.dart';
 import 'package:frontend/core/services/inactivity_lock_service.dart';
@@ -61,6 +63,25 @@ void main() async {
     await dotenv.load(fileName: ".env");
     debugPrint('Main: .env loaded successfully');
     debugPrint('Main: Timezone set to ${tz.local.name}');
+
+    // ─────────────────────────────────────────────────────────────
+    // INICIALIZAR WORKMANAGER (MOTOR DE BACKGROUND)
+    // ─────────────────────────────────────────────────────────────
+    await Workmanager().initialize(
+      callbackDispatcher,
+    );
+
+    // Registrar tarea periódica (cada 15 min es el mínimo de Android)
+    await Workmanager().registerPeriodicTask(
+      "1",
+      fetchBackground,
+      frequency: const Duration(minutes: 15),
+      existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
+      constraints: Constraints(
+        networkType: NetworkType.connected,
+      ),
+    );
+    debugPrint('Main: Workmanager periodic task registered');
   } catch (e) {
     debugPrint('Main: Error loading .env, date formatting or timezone: $e');
   }

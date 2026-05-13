@@ -5,19 +5,22 @@ import 'package:frontend/features/notifications/data/models/notification_item.da
 import 'package:uuid/uuid.dart';
 
 class NotificationProvider extends ChangeNotifier {
+  final ApiClient _apiClient;
   final NotificationService _notificationService = NotificationService();
   final List<NotificationItem> _notifications = [];
+
+  /// Recibe ApiClient por constructor para evitar instancias sueltas.
+  NotificationProvider({ApiClient? apiClient})
+      : _apiClient = apiClient ?? ApiClient();
 
   List<NotificationItem> get notifications => List.unmodifiable(_notifications);
 
   int get unreadCount => _notifications.where((n) => !n.isRead).length;
 
   /// Sincroniza las notificaciones desde el servidor MySQL.
-  /// Esto reemplaza la lista en memoria con datos reales del backend.
   Future<void> syncFromServer() async {
     try {
-      final apiClient = ApiClient();
-      final response = await apiClient.dio.get('/notifications');
+      final response = await _apiClient.dio.get('/notifications');
 
       if (response.statusCode == 200 && response.data?['success'] == true) {
         final List<dynamic> serverNotifs = response.data['data'];
@@ -32,7 +35,7 @@ class NotificationProvider extends ChangeNotifier {
             type: _mapPrioridadToType(n['prioridad']),
             alertType: n['tipo'] ?? 'general',
             relacionadoId: n['relacionado_id']?.toString(),
-            isRead: n['leida'] == true || n['leida'] == 1,
+            isRead: n['leida'] == true || n['fecha_leido'] != null,
           ));
         }
 
@@ -103,19 +106,18 @@ class NotificationProvider extends ChangeNotifier {
 
   void markAsRead(String id) {
     final index = _notifications.indexWhere((n) => n.id == id);
-    if (index != -1) {
-      _notifications[index].isRead = true;
-      notifyListeners();
+    if (index == -1) return;
 
-      // Marcar como leída en el servidor también
-      _markAsReadOnServer(id);
-    }
+    _notifications[index].isRead = true;
+    notifyListeners();
+
+    // Sincronizar con servidor
+    _markAsReadOnServer(id);
   }
 
   Future<void> _markAsReadOnServer(String id) async {
     try {
-      final apiClient = ApiClient();
-      await apiClient.dio.post('/notifications/$id/read');
+      await _apiClient.dio.post('/notifications/$id/read');
     } catch (e) {
       debugPrint("Error marcando notificación como leída en servidor: $e");
     }
@@ -127,16 +129,54 @@ class NotificationProvider extends ChangeNotifier {
     }
     notifyListeners();
 
-    // Marcar todas como leídas en el servidor
     _markAllAsReadOnServer();
   }
 
   Future<void> _markAllAsReadOnServer() async {
     try {
-      final apiClient = ApiClient();
-      await apiClient.dio.post('/notifications/read-all');
+      await _apiClient.dio.post('/notifications/read-all');
     } catch (e) {
       debugPrint("Error marcando todas como leídas en servidor: $e");
+    }
+  }
+
+  /// Elimina una notificación del servidor y la quita de la lista en memoria.
+  Future<void> deleteNotification(String id) async {
+    final index = _notifications.indexWhere((n) => n.id == id);
+    if (index == -1) return;
+
+    // Optimistic: remover de UI primero
+    final removed = _notifications.removeAt(index);
+    notifyListeners();
+
+    try {
+      await _apiClient.dio.delete('/notifications/$id');
+    } catch (e) {
+      // Rollback si falla
+      _notifications.insert(index, removed);
+      notifyListeners();
+      debugPrint("Error eliminando notificación en servidor: $e");
+    }
+  }
+
+  /// Elimina todas las notificaciones leídas del servidor.
+  Future<void> deleteReadNotifications() async {
+    final unread = _notifications.where((n) => !n.isRead).toList();
+    final removed = _notifications.where((n) => n.isRead).toList();
+
+    if (removed.isEmpty) return;
+
+    _notifications.clear();
+    _notifications.addAll(unread);
+    notifyListeners();
+
+    try {
+      await _apiClient.dio.delete('/notifications/read');
+    } catch (e) {
+      // Rollback
+      _notifications.addAll(removed);
+      notifyListeners();
+      debugPrint("Error eliminando notificaciones leídas: $e");
     }
   }
 

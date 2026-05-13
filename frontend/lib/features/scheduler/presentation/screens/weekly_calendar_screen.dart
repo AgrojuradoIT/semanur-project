@@ -11,6 +11,8 @@ import '../../data/models/programacion_model.dart';
 import 'package:frontend/features/fleet/presentation/providers/fleet_provider.dart';
 import 'package:frontend/features/fleet/data/models/vehicle_model.dart';
 import 'package:intl/intl.dart';
+import 'package:frontend/core/widgets/semanur_autocomplete.dart';
+import 'package:frontend/core/widgets/local_error_msg.dart';
 
 class WeeklyCalendarScreen extends StatefulWidget {
   const WeeklyCalendarScreen({super.key});
@@ -936,6 +938,7 @@ class _WeeklyCalendarScreenState extends State<WeeklyCalendarScreen> {
     bool crearOT = false; // Usually false when editing unless explicitly wanted
     bool isMultiDay = false;
     List<int> selectedWeekDays = [];
+    String? localError;
 
     showDialog(
       context: context,
@@ -960,14 +963,18 @@ class _WeeklyCalendarScreenState extends State<WeeklyCalendarScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+            content: GestureDetector(
+              onTap: () => FocusScope.of(context).unfocus(),
+              child: SizedBox(
+                width: 400,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                   // Employee Dropdown
                   Text(
-                    'Empleado',
+                    'Empleado *',
                     style: GoogleFonts.spaceGrotesk(
                       color: primaryColor,
                       fontSize: 12,
@@ -977,18 +984,13 @@ class _WeeklyCalendarScreenState extends State<WeeklyCalendarScreen> {
                   const SizedBox(height: 5),
                   Consumer<UserProvider>(
                     builder: (context, provider, _) {
-                      return DropdownButtonFormField<User>(
+                      return SemanurAutocomplete<User>(
                         initialValue: selectedEmployee,
-                        isExpanded: true,
-                        decoration: _inputDecoration(hint: 'Empleado Afectado'),
-                        items: provider.users.map((User u) {
-                          return DropdownMenuItem<User>(
-                            value: u,
-                            child: Text(u.name),
-                          );
-                        }).toList(),
-                        onChanged: (val) =>
-                            setState(() => selectedEmployee = val),
+                        options: provider.users,
+                        hint: 'Empleado *',
+                        displayStringForOption: (u) => u.name,
+                        filterFn: (u, filter) => u.name.toLowerCase().contains(filter),
+                        onSelected: (u) => setState(() => selectedEmployee = u),
                       );
                     },
                   ),
@@ -1004,20 +1006,15 @@ class _WeeklyCalendarScreenState extends State<WeeklyCalendarScreen> {
                   const SizedBox(height: 5),
                   Consumer<FleetProvider>(
                     builder: (context, fleet, _) {
-                      return DropdownButtonFormField<Vehiculo>(
+                      return SemanurAutocomplete<Vehiculo>(
                         initialValue: selectedVehicle,
-                        isExpanded: true,
-                        decoration: _inputDecoration(
-                          hint: 'Seleccionar Vehículo',
-                        ),
-                        items: fleet.vehiculos.map((v) {
-                          return DropdownMenuItem(
-                            value: v,
-                            child: Text('${v.placa} - ${v.modelo}'),
-                          );
-                        }).toList(),
-                        onChanged: (val) =>
-                            setState(() => selectedVehicle = val),
+                        options: fleet.vehiculos,
+                        hint: 'Seleccionar Vehículo',
+                        displayStringForOption: (v) => '${v.placa} - ${v.modelo}',
+                        filterFn: (v, filter) =>
+                            v.placa.toLowerCase().contains(filter) ||
+                            v.modelo.toLowerCase().contains(filter),
+                        onSelected: (v) => setState(() => selectedVehicle = v),
                       );
                     },
                   ),
@@ -1025,7 +1022,7 @@ class _WeeklyCalendarScreenState extends State<WeeklyCalendarScreen> {
 
                   // Date Picker
                   Text(
-                    'Fecha',
+                    'Fecha *',
                     style: GoogleFonts.spaceGrotesk(
                       color: primaryColor,
                       fontSize: 12,
@@ -1157,7 +1154,7 @@ class _WeeklyCalendarScreenState extends State<WeeklyCalendarScreen> {
 
                   const SizedBox(height: 15),
                   Text(
-                    'Labor',
+                    'Labor *',
                     style: GoogleFonts.spaceGrotesk(
                       color: primaryColor,
                       fontSize: 12,
@@ -1204,9 +1201,12 @@ class _WeeklyCalendarScreenState extends State<WeeklyCalendarScreen> {
                       onChanged: (val) => setState(() => crearOT = val!),
                     ),
                   ],
+                  LocalErrorMsg(error: localError),
                 ],
               ),
             ),
+          ),
+        ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
@@ -1223,6 +1223,7 @@ class _WeeklyCalendarScreenState extends State<WeeklyCalendarScreen> {
                 onPressed: () async {
                   if (selectedEmployee == null ||
                       laborController.text.isEmpty) {
+                    setState(() => localError = 'Completa los campos obligatorios (*)');
                     return;
                   }
 
@@ -1275,21 +1276,12 @@ class _WeeklyCalendarScreenState extends State<WeeklyCalendarScreen> {
                     if (error == null) {
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            existingTask != null
-                                ? 'Tarea actualizada'
-                                : 'Tarea creada correctamente',
-                          ),
+                        const SnackBar(
+                          content: Text('Tarea creada/actualizada correctamente'),
                         ),
                       );
                     } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Error: $error'),
-                          backgroundColor: stateIssue,
-                        ),
-                      );
+                      setState(() => localError = error);
                     }
                   }
                 },

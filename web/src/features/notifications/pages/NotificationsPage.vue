@@ -16,6 +16,14 @@
             <span class="material-icons-round" style="font-size: 18px">done_all</span>
             Marcar todas como leidas
           </button>
+          <button
+            v-if="notifStore.notificaciones.some((n) => !!n.fecha_leido)"
+            class="btn btn-danger btn-sm"
+            @click="confirmarEliminarLeidas"
+          >
+            <span class="material-icons-round" style="font-size: 18px">delete_sweep</span>
+            Eliminar leidas
+          </button>
           <button class="btn btn-secondary btn-sm" @click="reload" :disabled="notifStore.loading">
             <span class="material-icons-round" style="font-size: 18px">refresh</span>
             {{ notifStore.loading ? 'Cargando...' : 'Actualizar' }}
@@ -110,6 +118,13 @@
               <span class="material-icons-round" style="font-size: 14px">check</span>
               Marcar como leida
             </button>
+            <button
+              class="notif-card__delete-btn"
+              title="Eliminar"
+              @click.stop="notifStore.eliminarNotificacion(n.id)"
+            >
+              <span class="material-icons-round" style="font-size: 14px">delete</span>
+            </button>
           </div>
         </div>
       </div>
@@ -140,6 +155,11 @@ watch(refreshTrigger, () => notifStore.fetchNotificaciones());
 
 function reload() {
   notifStore.fetchNotificaciones();
+}
+
+async function confirmarEliminarLeidas() {
+  if (!window.confirm('\u00bfEliminar todas las notificaciones ya le\u00eddas? Esta acci\u00f3n no se puede deshacer.')) return;
+  await notifStore.eliminarLeidas();
 }
 
 const uniqueTipos = computed(() => {
@@ -310,4 +330,29 @@ function formatDate(value) {
   background: var(--primary-10, rgba(99, 102, 241, 0.1));
   border-color: var(--primary);
 }
+
+.notif-card__delete-btn {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 4px);
+  color: var(--text-gray);
+  cursor: pointer;
+  padding: 3px 5px;
+  opacity: 0;
+  transition: all 0.15s;
+}
+
+.notif-card:hover .notif-card__delete-btn {
+  opacity: 1;
+}
+
+.notif-card__delete-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: var(--danger, #ef4444);
+  color: var(--danger, #ef4444);
+}
+
 </style>

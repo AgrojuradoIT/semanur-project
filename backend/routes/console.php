@@ -19,3 +19,9 @@ Schedule::command('app:check-notifications')
     ->twiceDaily(7, 14)
     ->timezone('America/Bogota')
     ->withoutOverlapping();
+
+// Limpieza semanal: elimina notificaciones leídas con más de 90 días
+Schedule::command('app:purge-notifications')
+    ->weeklyOn(0, '3:00') // Domingo 3am
+    ->timezone('America/Bogota')
+    ->withoutOverlapping();

@@ -97,24 +97,25 @@
         <form class="form-grid" @submit.prevent="submitCreate">
           <div class="input-group full-width">
             <label>Herramienta / Producto</label>
-            <select v-model="createForm.producto_id" class="input" required>
-              <option value="">Seleccionar...</option>
-              <option
-                v-for="p in availableProducts"
-                :key="productId(p)"
-                :value="productId(p)"
-              >
-                {{ productLabel(p) }}
-              </option>
-            </select>
+            <SearchableSelect
+              v-model="createForm.producto_id"
+              :items="availableProducts"
+              :label-fn="productLabel"
+              :value-fn="productId"
+              placeholder="Seleccionar producto..."
+              empty-text="No se encontraron productos"
+            />
           </div>
 
           <div class="input-group">
             <label>Mecanico / Responsable</label>
-            <select v-model="createForm.mecanico_id" class="input" required>
-              <option value="">Seleccionar...</option>
-              <option v-for="e in employees" :key="e.id" :value="e.id">{{ e.name }}</option>
-            </select>
+            <SearchableSelect
+              v-model="createForm.mecanico_id"
+              :items="employees"
+              :label-fn="(e) => e.name || ''"
+              placeholder="Seleccionar responsable..."
+              empty-text="No se encontraron responsables"
+            />
           </div>
 
           <div class="input-group">
@@ -201,9 +202,11 @@ import {
 } from '../../../shared/adapters/productAdapter';
 import {
   fetchLoans,
+  createLoan,
   returnLoan,
 } from '../api/loansService';
 import { useCatalogsStore } from '../../../shared/stores/catalogs';
+import SearchableSelect from '../../../shared/components/SearchableSelect.vue';
 
 const { loading, error, run, clearError } = useAsyncState('');
 const loans = ref([]);

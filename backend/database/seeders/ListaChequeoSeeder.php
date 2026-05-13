@@ -121,5 +121,39 @@ class ListaChequeoSeeder extends Seeder
                 ]);
             }
         }
+
+        // 4. Plantilla Universal (fallback para tipos no reconocidos)
+        $generica = ListaChequeo::updateOrCreate(
+            ['tipo_vehiculo' => 'generico'],
+            [
+                'nombre' => 'Inspección Preoperacional General',
+                'descripcion' => 'Checklist básico para cualquier vehículo o maquinaria.',
+                'activo' => true
+            ]
+        );
+
+        ItemListaChequeo::where('lista_chequeo_id', $generica->id)->delete();
+        $itemsGenericos = [
+            ['pregunta' => 'Aceite de Motor', 'es_critico' => true, 'orden' => 1],
+            ['pregunta' => 'Refrigerante', 'es_critico' => true, 'orden' => 2],
+            ['pregunta' => 'Líquido de Frenos', 'es_critico' => true, 'orden' => 3],
+            ['pregunta' => 'Luces (altas, bajas, stop, direccionales)', 'es_critico' => true, 'orden' => 4],
+            ['pregunta' => 'Llantas (presión y estado)', 'es_critico' => true, 'orden' => 5],
+            ['pregunta' => 'Espejos Retrovisores', 'es_critico' => false, 'orden' => 6],
+            ['pregunta' => 'Pito / Bocina', 'es_critico' => true, 'orden' => 7],
+            ['pregunta' => 'Extintor Vigente', 'es_critico' => true, 'orden' => 8],
+            ['pregunta' => 'Cinturón de Seguridad', 'es_critico' => true, 'orden' => 9],
+            ['pregunta' => 'Documentos al Día (SOAT, tecnomecánica)', 'es_critico' => true, 'orden' => 10],
+        ];
+
+        foreach ($itemsGenericos as $item) {
+            ItemListaChequeo::create([
+                'lista_chequeo_id' => $generica->id,
+                'pregunta' => $item['pregunta'],
+                'es_critico' => $item['es_critico'],
+                'orden' => $item['orden'],
+                'tipo_respuesta' => 'cumple_falla',
+            ]);
+        }
     }
 }

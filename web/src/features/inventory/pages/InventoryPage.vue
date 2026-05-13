@@ -165,12 +165,14 @@
           </div>
           <div class="input-group">
             <label>Categoría</label>
-            <select v-model="productForm.categoria_id" class="input" required>
-              <option value="">Seleccionar...</option>
-              <option v-for="cat in categories" :key="cat.categoria_id" :value="cat.categoria_id">
-                {{ cat.nombre }}
-              </option>
-            </select>
+            <SearchableSelect
+              v-model="productForm.categoria_id"
+              :items="categories"
+              label-field="nombre"
+              value-field="categoria_id"
+              placeholder="Seleccionar categoría..."
+              empty-text="No se encontraron categorias"
+            />
           </div>
           <div class="input-group">
             <label>Unidad de Medida</label>
@@ -208,14 +210,14 @@
 
   <!-- Modal Nuevo Movimiento -->
   <div v-if="showMovementModal" class="modal-overlay" @click.self="closeMovementModal">
-    <div class="modal" style="height: 540px;">
+    <div class="modal modal-wide">
       <div class="modal-header">
         <h3>REGISTRAR MOVIMIENTO</h3>
         <button class="modal-close" @click="closeMovementModal">
           <span class="material-icons-round" style="font-size: 18px">close</span>
         </button>
       </div>
-      <div class="modal-body modal-body--overflow-visible">
+      <div class="modal-body">
         <form id="movementForm" class="form-grid" style="grid-template-columns: 1fr;" @submit.prevent="submitMovement">
           <div class="input-group">
             <label>Tipo de Transacción</label>
@@ -244,20 +246,24 @@
             <label>Producto</label>
             <SearchableSelect
               v-model="movementForm.producto_id"
-              :options="productOptionsForMovement"
-              placeholder="Seleccionar..."
-              search-placeholder="Buscar por SKU, nombre o referencia..."
-              :clearable="true"
+              :items="filteredProducts"
+              :label-fn="(p) => `${p.referencia_fabrica || p.producto_nombre || ''} - ${p.producto_nombre || ''}`.trim()"
+              :value-fn="(p) => p.producto_id || p.id"
+              placeholder="Seleccionar producto..."
             />
+            <div v-if="selectedMovementProduct && movementForm.transaccion_tipo === 'salida'" class="movement-stock-warning" :class="{ 'stock-zero': selectedMovementProduct.producto_stock_actual <= 0 }">
+              <span class="material-icons-round">{{ selectedMovementProduct.producto_stock_actual <= 0 ? 'warning' : 'inventory_2' }}</span>
+              Stock disponible: <strong>{{ selectedMovementProduct.producto_stock_actual ?? 0 }}</strong>
+              <span v-if="selectedMovementProduct.producto_stock_actual <= 0" style="color: var(--danger);"> — No hay stock para esta salida</span>
+            </div>
           </div>
           <div class="input-group" v-if="movementForm.transaccion_tipo === 'salida'">
             <label>Entregado a (Empleado)</label>
             <SearchableSelect
               v-model="movementForm.transaccion_referencia_id"
-              :options="empleadoOptionsForMovement"
+              :items="empleados"
+              :label-fn="(e) => `${e.nombres || ''} ${e.apellidos || ''}`.trim() || 'Sin nombre'"
               placeholder="Seleccionar empleado..."
-              search-placeholder="Buscar por nombre o cargo..."
-              :clearable="true"
             />
           </div>
           <div class="input-group">
@@ -553,7 +559,7 @@
             <span class="material-icons-round" style="font-size: 16px;">visibility</span>
             CERRAR
           </button>
-          <button v-if="canCreate" class="pd-btn-primary" @click="closeDetailModal(); openMovementModal();">
+          <button v-if="canCreate" class="pd-btn-primary" @click="openMovementFromDetail">
             <span class="material-icons-round" style="font-size: 16px;">sync_alt</span>
             REGISTRAR MOVIMIENTO
           </button>
@@ -617,6 +623,7 @@ import {
   uploadPurchasesConfirm,
 } from '../api/inventoryService';
 import { useRefresh } from '../../../shared/composables/useRefresh';
+import { useDynamicIsland } from '../../../shared/composables/useDynamicIsland';
 import { useAuthStore } from '../../../shared/stores/auth';
 
 const auth = useAuthStore();
@@ -625,6 +632,7 @@ const isAdmin = computed(() => userRole.value === 'admin');
 const canCreate = computed(() => ['admin', 'jefe_taller', 'auxiliar_bodega'].includes(userRole.value));
 
 const { refreshTrigger, triggerRefresh } = useRefresh();
+const { notify: islandNotify } = useDynamicIsland();
 
 const router = useRouter();
 const route = useRoute();
@@ -695,7 +703,7 @@ const toastIcon = computed(() => {
 function showToast(type, title, message = '') {
   if (toastTimer) clearTimeout(toastTimer);
   toast.value = { show: true, type, title, message };
-  const duration = type === 'error' ? 6000 : 4000;
+  const duration = type === 'error' ? 60000 : 30000;
   toastTimer = setTimeout(() => { toast.value.show = false; }, duration);
 }
 
@@ -849,15 +857,16 @@ async function submitProduct() {
     saving.value = true;
     if (editingProductId.value) {
       await updateProduct(editingProductId.value, productForm.value);
-      showToast('success', 'Producto actualizado');
+      islandNotify({ type: 'success', title: 'Producto actualizado', message: productForm.value.producto_nombre, duration: 15000 });
     } else {
       await createProduct(productForm.value);
-      showToast('success', 'Producto creado');
+      islandNotify({ type: 'success', title: 'Producto creado', message: productForm.value.producto_nombre, duration: 15000 });
     }
     closeProductModal();
     triggerRefresh();
   } catch (err) {
-    showToast('error', 'Error al guardar producto', err.response?.data?.message || err.message);
+    const msg = err.response?.data?.message || err.message || 'Error al guardar producto';
+    islandNotify({ type: 'error', title: 'Error al guardar producto', message: msg, duration: 60000 });
   } finally {
     saving.value = false;
   }
@@ -874,26 +883,32 @@ async function confirmDeleteProduct(product) {
   try {
     saving.value = true;
     await deleteProduct(normalizeId(product));
-    showToast('success', 'Producto eliminado');
+    islandNotify({ type: 'success', title: 'Producto eliminado', message: `"${name}" fue eliminado correctamente.`, duration: 15000 });
     closeDetailModal();
     triggerRefresh();
   } catch (err) {
-    showToast('error', 'Error al eliminar', err.response?.data?.message || err.message);
+    islandNotify({ type: 'error', title: 'Error al aplicar importación', message: err.response?.data?.message || err.message, duration: 60000 });
   } finally {
     saving.value = false;
   }
 }
 
-function openMovementModal() {
+function openMovementFromDetail() {
+  const product = { ...selectedProduct.value };
+  closeDetailModal();
+  openMovementModal(product);
+}
+
+function openMovementModal(product = null) {
+  showMovementModal.value = true;
   movementForm.value = {
-    producto_id: '',
+    producto_id: product ? product.producto_id || product.id : '',
     transaccion_tipo: 'ingreso',
     transaccion_cantidad: '',
     transaccion_motivo: '',
     transaccion_referencia_id: '',
     transaccion_referencia_type: 'empleado',
   };
-  showMovementModal.value = true;
 }
 function closeMovementModal() {
   showMovementModal.value = false;
@@ -901,16 +916,16 @@ function closeMovementModal() {
 async function submitMovement() {
   try {
     if (!movementForm.value.producto_id) {
-      showToast('warning', 'Selecciona un producto');
+      islandNotify({ type: 'warning', title: 'Falta producto', message: 'Selecciona un producto para el movimiento.', duration: 15000 });
       return;
     }
     if (movementForm.value.transaccion_tipo === 'salida' && !movementForm.value.transaccion_referencia_id) {
-      showToast('warning', 'Selecciona el empleado al que se entrega');
+      islandNotify({ type: 'warning', title: 'Falta empleado', message: 'Selecciona el empleado al que se entrega el producto.', duration: 15000 });
       return;
     }
     const qty = Number(movementForm.value.transaccion_cantidad);
     if (!qty || qty <= 0) {
-      showToast('warning', 'Ingresa una cantidad válida');
+      islandNotify({ type: 'warning', title: 'Cantidad inválida', message: 'Ingresa una cantidad válida.', duration: 15000 });
       return;
     }
 
@@ -918,11 +933,13 @@ async function submitMovement() {
     const res = await createMovement(movementForm.value);
     closeMovementModal();
     triggerRefresh();
+    islandNotify({ type: 'success', title: 'Movimiento registrado', message: res?.message || 'Movimiento procesado correctamente.', duration: 15000 });
     if (res?.warning) {
-      showToast('warning', 'Atención', res.warning);
+      islandNotify({ type: 'warning', title: 'Atención', message: res.warning, duration: 30000 });
     }
   } catch (err) {
-    showToast('error', 'Error al registrar movimiento', err.response?.data?.message || err.message);
+    const msg = err.response?.data?.message || err.message || 'Error al registrar movimiento';
+    islandNotify({ type: 'error', title: 'Error al registrar movimiento', message: msg, duration: 60000 });
   } finally {
     saving.value = false;
   }
@@ -960,7 +977,7 @@ async function submitCsv() {
     showPurchasesPreviewModal.value = true;
   } catch (err) {
     stopProgress();
-    showToast('error', 'Error al previsualizar importación', err.response?.data?.message || err.message);
+    islandNotify({ type: 'error', title: 'Error al previsualizar importación', message: err.response?.data?.message || err.message, duration: 60000 });
   } finally {
     saving.value = false;
   }
@@ -981,7 +998,7 @@ async function confirmPurchasesImport() {
       }
     });
     stopProgress();
-    showToast('success', 'Importación aplicada', `${res.created_products} productos nuevos, ${res.updated_products} actualizados, ${res.movements_created} movimientos creados.`);
+    islandNotify({ type: 'success', title: 'Importación aplicada', message: `${res.created_products} productos nuevos, ${res.updated_products} actualizados, ${res.movements_created} movimientos.`, duration: 30000 });
     showPurchasesPreviewModal.value = false;
     closeCsvModal();
     triggerRefresh();
@@ -1030,6 +1047,13 @@ const empleadoOptionsForMovement = computed(() => {
 });
 
 const filteredProducts = computed(() => allProducts.value);
+
+const selectedMovementProduct = computed(() => {
+  if (!movementForm.value.producto_id) return null;
+  return allProducts.value.find(
+    (p) => String(p.producto_id || p.id) === String(movementForm.value.producto_id),
+  );
+});
 
 async function goToProduct(product) {
   selectedProduct.value = product;
@@ -1140,6 +1164,34 @@ function formatMovDate(dateStr) {
 </script>
 
 <style scoped>
+/* Stock warning */
+.movement-stock-warning {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 8px 12px;
+  background: var(--success-10, rgba(76, 175, 80, 0.1));
+  border: 1px solid var(--success-20, rgba(76, 175, 80, 0.2));
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  color: var(--text-main);
+}
+
+.movement-stock-warning .material-icons-round {
+  font-size: 16px;
+  color: var(--success);
+}
+
+.movement-stock-warning.stock-zero {
+  background: rgba(244, 67, 54, 0.1);
+  border-color: rgba(244, 67, 54, 0.2);
+}
+
+.movement-stock-warning.stock-zero .material-icons-round {
+  color: var(--danger);
+}
+
 /* Pagination controls */
 .pagination-controls {
   display: flex;

@@ -70,12 +70,14 @@
     :vehicle-label="vehicleLabel"
     @close="closeIssueModal"
     @submit="submitIssue"
+    @photo-selected="issuePhoto = $event"
   />
 </template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue';
 import { useAsyncState } from '../../../shared/composables/useAsyncState';
+import http from '../../../shared/api/http';
 import SchedulerBottomBar from '../components/SchedulerBottomBar.vue';
 import ScheduleDetailModal from '../components/ScheduleDetailModal.vue';
 import ScheduleFormModal from '../components/ScheduleFormModal.vue';
@@ -121,6 +123,7 @@ const deletingSchedule = ref(false);
 
 const showIssueModal = ref(false);
 const savingIssue = ref(false);
+const issuePhoto = ref(null);
 const issueForm = ref(defaultIssueForm());
 
 onMounted(async () => {
@@ -254,12 +257,12 @@ function goToCurrentWeek() {
 
 function openScheduleModal(seed = null) {
   scheduleEditingId.value = null;
+  showScheduleModal.value = true;
   scheduleForm.value = defaultScheduleForm();
   if (seed) {
     scheduleForm.value.empleado_id = seed.empleado_id ?? '';
     scheduleForm.value.fecha = seed.fecha ?? toIsoDate(new Date());
   }
-  showScheduleModal.value = true;
 }
 
 function closeScheduleModal() {
@@ -269,27 +272,53 @@ function closeScheduleModal() {
   scheduleForm.value = defaultScheduleForm();
 }
 
-async function submitSchedule() {
+async function submitSchedule(opts = null) {
   if (savingSchedule.value) return;
   if (!scheduleForm.value.empleado_id || !scheduleForm.value.fecha || !scheduleForm.value.labor) return;
 
   savingSchedule.value = true;
   clearError();
 
-  const payload = {
-    empleado_id: Number(scheduleForm.value.empleado_id),
-    fecha: scheduleForm.value.fecha,
-    labor: scheduleForm.value.labor,
-    ubicacion: scheduleForm.value.ubicacion || null,
-    crear_orden_trabajo: Boolean(scheduleForm.value.crear_orden_trabajo),
-  };
-  if (scheduleForm.value.vehiculo_id) payload.vehiculo_id = Number(scheduleForm.value.vehiculo_id);
-
   try {
-    if (scheduleEditingId.value) {
-      await updateSchedule(scheduleEditingId.value, payload);
+    if (opts?.multiDay?.length > 0 && !scheduleEditingId.value) {
+      // Multi-day: calcular fechas a partir del lunes de la semana
+      const baseDate = new Date(scheduleForm.value.fecha + 'T00:00:00');
+      const dayOfWeek = baseDate.getDay(); // 0=Dom
+      const monday = new Date(baseDate);
+      monday.setDate(baseDate.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+
+      const dates = opts.multiDay.map((dayIdx) => {
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + dayIdx);
+        return d.toISOString().slice(0, 10);
+      });
+
+      const payload = {
+        empleado_id: Number(scheduleForm.value.empleado_id),
+        labor: scheduleForm.value.labor,
+        ubicacion: scheduleForm.value.ubicacion || null,
+        crear_orden_trabajo: Boolean(scheduleForm.value.crear_orden_trabajo),
+      };
+      if (scheduleForm.value.vehiculo_id) payload.vehiculo_id = Number(scheduleForm.value.vehiculo_id);
+
+      await Promise.all(dates.map((date) => createSchedule({ ...payload, fecha: date })));
     } else {
-      await createSchedule(payload);
+      const payload = {
+        empleado_id: Number(scheduleForm.value.empleado_id),
+        fecha: scheduleForm.value.fecha,
+        labor: scheduleForm.value.labor,
+        ubicacion: scheduleForm.value.ubicacion || null,
+      };
+      if (scheduleForm.value.vehiculo_id) payload.vehiculo_id = Number(scheduleForm.value.vehiculo_id);
+      if (!scheduleEditingId.value) {
+        payload.crear_orden_trabajo = Boolean(scheduleForm.value.crear_orden_trabajo);
+      }
+
+      if (scheduleEditingId.value) {
+        await updateSchedule(scheduleEditingId.value, payload);
+      } else {
+        await createSchedule(payload);
+      }
     }
     closeScheduleModal();
     await loadSchedule();
@@ -350,6 +379,7 @@ function openIssueModal(seed = null) {
 function closeIssueModal() {
   showIssueModal.value = false;
   savingIssue.value = false;
+  issuePhoto.value = null;
   issueForm.value = defaultIssueForm();
 }
 
@@ -360,17 +390,31 @@ async function submitIssue() {
   savingIssue.value = true;
   clearError();
 
-  const payload = {
-    empleado_id: Number(issueForm.value.empleado_id),
-    fecha: issueForm.value.fecha,
-    descripcion: issueForm.value.descripcion,
-    prioridad: issueForm.value.prioridad || 'Normal',
-    pausar_actividad: Boolean(issueForm.value.pausar_actividad),
-  };
-  if (issueForm.value.vehiculo_id) payload.vehiculo_id = Number(issueForm.value.vehiculo_id);
+  const hasPhoto = issuePhoto.value instanceof File;
 
   try {
-    await reportScheduleIssue(payload);
+    if (hasPhoto) {
+      const fd = new FormData();
+      fd.append('empleado_id', Number(issueForm.value.empleado_id));
+      fd.append('fecha', issueForm.value.fecha);
+      fd.append('descripcion', issueForm.value.descripcion);
+      fd.append('prioridad', issueForm.value.prioridad || 'Urgente');
+      fd.append('pausar_actividad', issueForm.value.pausar_actividad ? 1 : 0);
+      if (issueForm.value.vehiculo_id) fd.append('vehiculo_id', Number(issueForm.value.vehiculo_id));
+      fd.append('foto', issuePhoto.value);
+      await http.post('/programacion/novedad', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+    } else {
+      await reportScheduleIssue({
+        empleado_id: Number(issueForm.value.empleado_id),
+        fecha: issueForm.value.fecha,
+        descripcion: issueForm.value.descripcion,
+        prioridad: issueForm.value.prioridad || 'Urgente',
+        pausar_actividad: issueForm.value.pausar_actividad ? 1 : 0,
+        vehiculo_id: issueForm.value.vehiculo_id ? Number(issueForm.value.vehiculo_id) : undefined,
+      });
+    }
     closeIssueModal();
     await loadSchedule();
   } catch (e) {

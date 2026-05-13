@@ -85,11 +85,41 @@ class MovimientoInventarioApiController extends Controller
                     ->where('producto_id', $producto->producto_id)
                     ->value('cantidad') ?? 0;
 
+                // Si no hay registro en bodega, usar el stock del producto directamente
+                if (!$stockOrigen && !DB::table('bodega_producto')
+                    ->where('bodega_id', $bodegaOrigenId)
+                    ->where('producto_id', $producto->producto_id)
+                    ->exists()) {
+                    $stockOrigen = $producto->producto_stock_actual ?? 0;
+                }
+
                 if ($stockOrigen <= 0) {
                     return response()->json([
-                        'message' => 'No es posible realizar salidas. El stock actual en la bodega de origen es 0 o menor.',
+                        'message' => 'No es posible realizar salidas. El stock actual es 0 o menor.',
                         'stock_actual' => $stockOrigen,
                     ], 422);
+                }
+
+                if (in_array($request->transaccion_tipo, ['salida', 'transferencia']) && $request->transaccion_cantidad > $stockOrigen) {
+                    return response()->json([
+                        'message' => "Stock insuficiente. Stock actual: {$stockOrigen}, cantidad solicitada: {$request->transaccion_cantidad}.",
+                        'stock_actual' => $stockOrigen,
+                        'cantidad_solicitada' => $request->transaccion_cantidad,
+                    ], 422);
+                }
+
+                // Sincronizar bodega_producto si no existe
+                if (!DB::table('bodega_producto')
+                    ->where('bodega_id', $bodegaOrigenId)
+                    ->where('producto_id', $producto->producto_id)
+                    ->exists()) {
+                    DB::table('bodega_producto')->insert([
+                        'bodega_id' => $bodegaOrigenId,
+                        'producto_id' => $producto->producto_id,
+                        'cantidad' => $producto->producto_stock_actual ?? 0,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
                 }
             }
 

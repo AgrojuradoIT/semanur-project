@@ -44,6 +44,16 @@ class ProgramacionApiController extends Controller
             'crear_orden_trabajo' => 'boolean' // Opcional, si se quiere forzar OT
         ]);
 
+        $existe = Programacion::where('empleado_id', $request->empleado_id)
+            ->where('fecha', $request->fecha)
+            ->exists();
+
+        if ($existe) {
+            return response()->json([
+                'message' => 'El empleado ya tiene una labor programada para esta misma fecha y hora.'
+            ], 422);
+        }
+
         return DB::transaction(function () use ($request) {
             $programacion = Programacion::create([
                 'fecha' => $request->fecha,
@@ -151,6 +161,17 @@ class ProgramacionApiController extends Controller
             'labor' => 'required|string',
             'ubicacion' => 'nullable|string',
         ]);
+
+        $existe = Programacion::where('empleado_id', $request->empleado_id)
+            ->where('fecha', $request->fecha)
+            ->where('id', '!=', $id)
+            ->exists();
+
+        if ($existe) {
+            return response()->json([
+                'message' => 'El empleado ya tiene una labor programada para esta misma fecha y hora.'
+            ], 422);
+        }
 
         $programacion = Programacion::findOrFail($id);
 

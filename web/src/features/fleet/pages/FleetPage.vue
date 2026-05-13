@@ -585,6 +585,154 @@
         </div>
       </div>
 
+      <!-- Inline Fuel Modal -->
+      <div v-if="showFuelModal" class="modal-overlay" @click.self="showFuelModal = false">
+        <div class="modal">
+          <div class="modal-header">
+            <h3>Registrar Combustible</h3>
+            <button @click="showFuelModal = false" class="modal-close">
+              <span class="material-icons-round">close</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <form @submit.prevent="submitFuel" class="form-grid">
+              <div class="input-group">
+                <label>Tipo de Combustible</label>
+                <select v-model="fuelForm.tipo_combustible" class="input" required>
+                  <option value="gasolina">Gasolina</option>
+                  <option value="acpm">ACPM</option>
+                </select>
+              </div>
+              <div class="input-group">
+                <label>Cantidad (Galones)</label>
+                <input v-model.number="fuelForm.cantidad_galones" type="number" min="0.1" step="0.1" required class="input" />
+              </div>
+              <div class="input-group">
+                <label>Kilometraje Actual</label>
+                <input v-model.number="fuelForm.kilometraje_actual" type="number" min="0" class="input" />
+              </div>
+              <div class="input-group">
+                <label>Horómetro Actual</label>
+                <input v-model.number="fuelForm.horometro_actual" type="number" min="0" class="input" />
+              </div>
+              <div class="input-group full-width">
+                <label>Empleado / Conductor</label>
+                <SearchableSelect
+                  v-model="fuelForm.empleado_id"
+                  :items="operatorsList"
+                  :label-fn="(e) => `${e.nombres} ${e.apellidos || ''}`.trim()"
+                  placeholder="Seleccionar conductor..."
+                />
+              </div>
+              <div class="input-group full-width">
+                <label>Labor / Destino</label>
+                <input v-model="fuelForm.labor" type="text" class="input" placeholder="Ej: Viaje a finca..." />
+              </div>
+              <div class="input-group full-width">
+                <label>Notas</label>
+                <textarea v-model="fuelForm.notas" class="input" rows="2" placeholder="Observaciones..."></textarea>
+              </div>
+              <div class="modal-footer" style="border: none; padding: var(--sp-md) 0 0 0;">
+                <button type="button" @click="showFuelModal = false" class="btn btn-secondary">Cancelar</button>
+                <button type="submit" class="btn btn-primary" :disabled="savingFuel">
+                  <span v-if="savingFuel" class="spinner" style="width:14px;height:14px;border-width:2px;"></span>
+                  <span v-else>Registrar</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Inline Work Order Modal -->
+      <div v-if="showWorkOrderModal" class="modal-overlay" @click.self="showWorkOrderModal = false">
+        <div class="modal">
+          <div class="modal-header">
+            <h3>Nueva Orden de Trabajo</h3>
+            <button @click="showWorkOrderModal = false" class="modal-close">
+              <span class="material-icons-round">close</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <form @submit.prevent="submitWorkOrder" class="form-grid">
+              <div class="input-group full-width">
+                <label>Descripción del Trabajo</label>
+                <textarea v-model="workOrderForm.descripcion" class="input" rows="3" required placeholder="Describe el trabajo a realizar..."></textarea>
+              </div>
+              <div class="input-group">
+                <label>Prioridad</label>
+                <select v-model="workOrderForm.prioridad" class="input" required>
+                  <option value="Alta">Alta</option>
+                  <option value="Media">Media</option>
+                  <option value="Baja">Baja</option>
+                </select>
+              </div>
+              <div class="input-group">
+                <label>Mecánico Asignado</label>
+                <SearchableSelect
+                  v-model="workOrderForm.mecanico_asignado_id"
+                  :items="mechanicsList"
+                  :label-fn="(e) => `${e.nombres} ${e.apellidos || ''}`.trim()"
+                  placeholder="Seleccionar mecánico..."
+                />
+              </div>
+              <div class="modal-footer" style="border: none; padding: var(--sp-md) 0 0 0;">
+                <button type="button" @click="showWorkOrderModal = false" class="btn btn-secondary">Cancelar</button>
+                <button type="submit" class="btn btn-primary" :disabled="savingWorkOrder">
+                  <span v-if="savingWorkOrder" class="spinner" style="width:14px;height:14px;border-width:2px;"></span>
+                  <span v-else>Crear Orden</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Inline Movement/Parts Modal -->
+      <div v-if="showMovementModal" class="modal-overlay" @click.self="showMovementModal = false">
+        <div class="modal">
+          <div class="modal-header">
+            <h3>Registrar Salida de Repuestos</h3>
+            <button @click="showMovementModal = false" class="modal-close">
+              <span class="material-icons-round">close</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <form @submit.prevent="submitMovement" class="form-grid">
+              <div class="input-group full-width">
+                <label>Producto / Repuesto</label>
+                <SearchableSelect
+                  v-model="movementForm.producto_id"
+                  :items="productsList"
+                  :label-fn="(p) => `${p.producto_nombre || p.nombre || ''} (Stock: ${p.stock_actual || 0})`.trim()"
+                  placeholder="Seleccionar producto..."
+                  empty-text="No hay productos disponibles"
+                />
+              </div>
+              <div class="input-group">
+                <label>Cantidad</label>
+                <input v-model.number="movementForm.transaccion_cantidad" type="number" min="1" required class="input" />
+              </div>
+              <div class="input-group">
+                <label>Motivo</label>
+                <input v-model="movementForm.transaccion_motivo" type="text" required class="input" placeholder="Ej: Mantenimiento preventivo" />
+              </div>
+              <div class="input-group full-width">
+                <label>Notas Adicionales</label>
+                <textarea v-model="movementForm.transaccion_motivo" class="input" rows="2" placeholder="Detalles adicionales..."></textarea>
+              </div>
+              <div class="modal-footer" style="border: none; padding: var(--sp-md) 0 0 0;">
+                <button type="button" @click="showMovementModal = false" class="btn btn-secondary">Cancelar</button>
+                <button type="submit" class="btn btn-primary" :disabled="savingMovement">
+                  <span v-if="savingMovement" class="spinner" style="width:14px;height:14px;border-width:2px;"></span>
+                  <span v-else>Registrar Salida</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
       <!-- Vehicle Create/Edit Modal -->
       <div v-if="showVehicleModal" class="modal-overlay" @click.self="closeVehicleModal">
         <div class="modal modal-wide">
@@ -611,21 +759,23 @@
                 <div class="input-group full-width" style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-md);">
                   <div>
                     <label>Operador / Conductor Asignado</label>
-                    <select v-model="vehicleForm.operador_asignado_id" class="input">
-                      <option :value="''">(Sin asignar)</option>
-                      <option v-for="op in operatorsList" :key="op.id" :value="op.id">
-                        {{ op.nombres }} {{ op.apellidos || '' }}
-                      </option>
-                    </select>
+                    <SearchableSelect
+                      v-model="vehicleForm.operador_asignado_id"
+                      :items="operatorsList"
+                      :label-fn="(e) => `${e.nombres} ${e.apellidos || ''}`.trim()"
+                      placeholder="(Sin asignar)"
+                      empty-text="No se encontraron operadores"
+                    />
                   </div>
                   <div>
                     <label>Mecánico Encargado</label>
-                    <select v-model="vehicleForm.mecanico_asignado_id" class="input">
-                      <option :value="''">(Sin asignar)</option>
-                      <option v-for="mec in mechanicsList" :key="mec.id" :value="mec.id">
-                        {{ mec.nombres }} {{ mec.apellidos || '' }}
-                      </option>
-                    </select>
+                    <SearchableSelect
+                      v-model="vehicleForm.mecanico_asignado_id"
+                      :items="mechanicsList"
+                      :label-fn="(e) => `${e.nombres} ${e.apellidos || ''}`.trim()"
+                      placeholder="(Sin asignar)"
+                      empty-text="No se encontraron mecanicos"
+                    />
                   </div>
                 </div>
                 <div class="input-group">
@@ -697,10 +847,16 @@ import { useAsyncState } from '../../../shared/composables/useAsyncState';
 import { fetchFleetVehicles, uploadVehicleImage, getVehicleDetails, getVehicleFuelHistory, getVehicleHourMeters, getVehiclePreoperacionales, getVehicleDocuments, createVehicleDocument, createVehicle, updateVehicle, fetchMechanics, fetchOperators } from '../api/fleetService';
 import { useRefresh } from '../../../shared/composables/useRefresh';
 import { useCatalogsStore } from '../../../shared/stores/catalogs';
+import SearchableSelect from '../../../shared/components/SearchableSelect.vue';
+import { useDynamicIsland } from '../../../shared/composables/useDynamicIsland';
+import { createFuelRecord } from '../../fuel/api/fuelService';
+import { createWorkOrder } from '../../work-orders/api/workOrdersService';
+import { createMovement } from '../../inventory/api/inventoryService';
 
 const router = useRouter();
 const route = useRoute();
 const { refreshTrigger } = useRefresh();
+const { notify: islandNotify } = useDynamicIsland();
 
 const { loading, error, run } = useAsyncState('');
 const search = ref('');
@@ -743,6 +899,37 @@ const vehicleForm = ref({
   operador_asignado_id: '',
   mecanico_asignado_id: ''
 });
+
+// Modales inline para acciones desde detalle de vehiculo
+const showFuelModal = ref(false);
+const fuelForm = ref({
+  tipo_combustible: 'gasolina',
+  cantidad_galones: null,
+  horometro_actual: null,
+  kilometraje_actual: null,
+  empleado_id: '',
+  labor: '',
+  notas: ''
+});
+const savingFuel = ref(false);
+
+const showWorkOrderModal = ref(false);
+const workOrderForm = ref({
+  descripcion: '',
+  mecanico_asignado_id: '',
+  prioridad: 'Media'
+});
+const savingWorkOrder = ref(false);
+
+const showMovementModal = ref(false);
+const movementForm = ref({
+  producto_id: '',
+  transaccion_cantidad: 1,
+  transaccion_motivo: '',
+  bodega_destino_id: null
+});
+const savingMovement = ref(false);
+const productsList = ref([]);
 
 const typeFilters = [
   { value: 'all', label: 'Todos' },
@@ -1015,14 +1202,14 @@ async function submitVehicle() {
         }
       });
       const res = await updateVehicle(vId, payload);
-      alert('Vehículo actualizado exitosamente');
+      islandNotify({ type: 'success', title: 'Vehículo actualizado', message: vehicleForm.value.placa, duration: 15000 });
       // Actualizar vista de detalle
       if (res && res.vehiculo) {
         selectedVehicle.value = { ...selectedVehicle.value, ...res.vehiculo };
       }
     } else {
       await createVehicle(payload);
-      alert('Vehículo creado exitosamente');
+      islandNotify({ type: 'success', title: 'Vehículo creado', message: vehicleForm.value.placa, duration: 15000 });
     }
     
     closeVehicleModal();
@@ -1031,7 +1218,7 @@ async function submitVehicle() {
     
   } catch (err) {
     const msg = err.response?.data?.message || err.response?.data?.errors?.placa?.[0] || 'Error al guardar el vehículo';
-    alert(msg);
+    islandNotify({ type: 'error', title: 'Error al guardar vehículo', message: msg, duration: 60000 });
   } finally {
     loadingVehicle.value = false;
   }
@@ -1058,27 +1245,126 @@ async function submitRenewal() {
 function goToFillChecklist() {
   if (!selectedVehicle.value) return;
   const vId = selectedVehicle.value.vehiculo_id || selectedVehicle.value.id;
-  closeDetailModal();
+  // Abrir modal inline de checklist (redirigimos temporalmente al modulo de checklists)
   router.push({ name: 'checklists', query: { vehiculo_id: vId, action: 'new' } });
 }
 
 function goToRegisterFuel() {
   if (!selectedVehicle.value) return;
   const vId = selectedVehicle.value.vehiculo_id || selectedVehicle.value.id;
-  closeDetailModal();
-  router.push({ name: 'fuel', query: { vehiculo_id: vId, action: 'new' } });
+  fuelForm.value = {
+    tipo_combustible: 'gasolina',
+    cantidad_galones: null,
+    horometro_actual: selectedVehicle.value.horometro_actual || null,
+    kilometraje_actual: selectedVehicle.value.kilometraje_actual || null,
+    empleado_id: selectedVehicle.value.operador_asignado_id || '',
+    labor: '',
+    notas: ''
+  };
+  showFuelModal.value = true;
+}
+
+async function submitFuel() {
+  if (!selectedVehicle.value) return;
+  savingFuel.value = true;
+  try {
+    const vId = selectedVehicle.value.vehiculo_id || selectedVehicle.value.id;
+    await createFuelRecord({
+      vehiculo_id: vId,
+      tipo_destino: 'vehiculo',
+      tipo_combustible: fuelForm.value.tipo_combustible,
+      cantidad_galones: Number(fuelForm.value.cantidad_galones),
+      horometro_actual: fuelForm.value.horometro_actual ? Number(fuelForm.value.horometro_actual) : undefined,
+      kilometraje_actual: fuelForm.value.kilometraje_actual ? Number(fuelForm.value.kilometraje_actual) : undefined,
+      empleado_id: fuelForm.value.empleado_id ? Number(fuelForm.value.empleado_id) : undefined,
+      labor: fuelForm.value.labor?.trim() || null,
+      notas: fuelForm.value.notas?.trim() || null,
+      valor_total: 0
+    });
+    showFuelModal.value = false;
+    // Recargar historial de combustible
+    combustibleList.value = await getVehicleFuelHistory(vId);
+    activeTab.value = 'combustible';
+  } catch (err) {
+    islandNotify({ type: 'error', title: 'Error al registrar combustible', message: err.response?.data?.message || 'Error al registrar combustible', duration: 60000 });
+  } finally {
+    savingFuel.value = false;
+  }
 }
 
 function goToNewWorkOrder() {
   if (!selectedVehicle.value) return;
-  const vId = selectedVehicle.value.vehiculo_id || selectedVehicle.value.id;
-  closeDetailModal();
-  router.push({ name: 'work-orders', query: { vehiculo_id: vId, action: 'new' } });
+  workOrderForm.value = {
+    descripcion: '',
+    mecanico_asignado_id: selectedVehicle.value.mecanico_asignado_id || '',
+    prioridad: 'Media'
+  };
+  showWorkOrderModal.value = true;
+}
+
+async function submitWorkOrder() {
+  if (!selectedVehicle.value) return;
+  savingWorkOrder.value = true;
+  try {
+    const vId = selectedVehicle.value.vehiculo_id || selectedVehicle.value.id;
+    await createWorkOrder({
+      vehiculo_id: vId,
+      descripcion: workOrderForm.value.descripcion?.trim(),
+      mecanico_asignado_id: workOrderForm.value.mecanico_asignado_id ? Number(workOrderForm.value.mecanico_asignado_id) : undefined,
+      prioridad: workOrderForm.value.prioridad
+    });
+    showWorkOrderModal.value = false;
+    // Recargar historial de taller
+    const fullData = await getVehicleDetails(vId);
+    if (fullData.ordenes_trabajo) {
+      selectedVehicle.value.ordenes_trabajo = fullData.ordenes_trabajo;
+    }
+    activeTab.value = 'taller';
+  } catch (err) {
+    islandNotify({ type: 'error', title: 'Error al crear orden', message: err.response?.data?.message || 'Error al crear orden de trabajo', duration: 60000 });
+  } finally {
+    savingWorkOrder.value = false;
+  }
 }
 
 function goToInventory() {
-  closeDetailModal();
-  router.push({ name: 'inventory' });
+  // Cargar productos y abrir modal de salida
+  const catalogsStore = useCatalogsStore();
+  productsList.value = catalogsStore.productos;
+  movementForm.value = {
+    producto_id: '',
+    transaccion_cantidad: 1,
+    transaccion_motivo: '',
+    bodega_destino_id: null
+  };
+  showMovementModal.value = true;
+}
+
+async function submitMovement() {
+  if (!selectedVehicle.value) return;
+  savingMovement.value = true;
+  try {
+    const vId = selectedVehicle.value.vehiculo_id || selectedVehicle.value.id;
+    await createMovement({
+      producto_id: Number(movementForm.value.producto_id),
+      transaccion_tipo: 'salida',
+      transaccion_cantidad: Number(movementForm.value.transaccion_cantidad),
+      transaccion_motivo: movementForm.value.transaccion_motivo?.trim() || 'Salida para vehículo',
+      transaccion_referencia_type: 'Vehiculo',
+      transaccion_referencia_id: vId
+    });
+    showMovementModal.value = false;
+    // Recargar historial de repuestos
+    const fullData = await getVehicleDetails(vId);
+    if (fullData.movimientos) {
+      selectedVehicle.value.movimientos = fullData.movimientos;
+    }
+    activeTab.value = 'repuestos';
+  } catch (err) {
+    islandNotify({ type: 'error', title: 'Error al registrar salida', message: err.response?.data?.message || 'Error al registrar salida', duration: 60000 });
+  } finally {
+    savingMovement.value = false;
+  }
 }
 
 function statusDotClass(rawDate) {
@@ -1175,7 +1461,7 @@ async function handleImageUpload(event) {
     if (updated) selectedVehicle.value = updated;
   } catch (err) {
     console.error('Error al subir imagen:', err);
-    alert('No se pudo subir la imagen');
+    islandNotify({ type: 'error', title: 'Error al subir imagen', message: 'No se pudo subir la imagen', duration: 30000 });
   } finally {
     isUploading.value = false;
     event.target.value = ''; // Reset input

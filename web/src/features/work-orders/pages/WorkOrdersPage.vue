@@ -90,22 +90,24 @@
         <form class="form-grid" @submit.prevent="submitCreate">
           <div class="input-group">
             <label>Vehiculo</label>
-            <select v-model="createForm.vehiculo_id" class="input" required>
-              <option value="">Seleccionar...</option>
-              <option v-for="vehicle in fleetOptions" :key="vehicleOptionId(vehicle)" :value="vehicleOptionId(vehicle)">
-                {{ vehicleOptionLabel(vehicle) }}
-              </option>
-            </select>
+            <SearchableSelect
+              v-model="createForm.vehiculo_id"
+              :items="fleetOptions"
+              :label-fn="vehicleOptionLabel"
+              :value-fn="vehicleOptionId"
+              placeholder="Seleccionar vehiculo..."
+            />
           </div>
 
           <div class="input-group">
             <label>Mecánico Asignado</label>
-            <select v-model="createForm.mecanico_asignado_id" class="input">
-              <option value="">(Sin asignar)</option>
-              <option v-for="emp in employeeOptions" :key="emp.id" :value="emp.id">
-                {{ emp.nombres }} {{ emp.apellidos || '' }}
-              </option>
-            </select>
+            <SearchableSelect
+              v-model="createForm.mecanico_asignado_id"
+              :items="employeeOptions"
+              :label-fn="(e) => `${e.nombres} ${e.apellidos || ''}`.trim()"
+              placeholder="(Sin asignar)"
+              empty-text="No se encontraron mecanicos"
+            />
           </div>
 
           <div class="input-group">
@@ -312,6 +314,7 @@ import {
 } from '../api/workOrdersService';
 import { useCatalogsStore } from '../../../shared/stores/catalogs';
 import { useRefresh } from '../../../shared/composables/useRefresh';
+import SearchableSelect from '../../../shared/components/SearchableSelect.vue';
 
 const { refreshTrigger } = useRefresh();
 

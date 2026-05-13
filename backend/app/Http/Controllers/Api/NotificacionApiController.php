@@ -26,20 +26,28 @@ class NotificacionApiController extends Controller
             $query->whereNull('fecha_leido');
         }
 
-        $notificaciones = $query->orderBy('created_at', 'desc')
-            ->limit(50)
-            ->get();
+        $perPage = min((int) $request->input('per_page', 20), 100);
+        $paginated = $query->orderBy('created_at', 'desc')
+            ->paginate($perPage);
+
+        $items = $paginated->getCollection()->map(function ($item) {
+            $item->leida = !is_null($item->fecha_leido);
+            return $item;
+        });
 
         return response()->json([
             'success' => true,
-            'data' => $notificaciones
+            'data' => $items,
+            'total' => $paginated->total(),
+            'current_page' => $paginated->currentPage(),
+            'last_page' => $paginated->lastPage(),
         ]);
     }
 
     /**
      * Marcar notificación como leída
      */
-    public function markAsRead($id)
+    public function markAsRead(int $id)
     {
         $user = Auth::user();
         $notificacion = Notificacion::where('user_id', $user->id)
@@ -73,6 +81,42 @@ class NotificacionApiController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Todas las notificaciones marcadas como leidas'
+        ]);
+    }
+
+    /**
+     * Eliminar notificación
+     */
+    public function destroy(int $id)
+    {
+        $user = Auth::user();
+        $notificacion = Notificacion::where('user_id', $user->id)
+            ->where('id', $id)
+            ->first();
+
+        if (!$notificacion) {
+            return response()->json(['error' => 'Notificacion no encontrada'], 404);
+        }
+
+        $notificacion->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Notificacion eliminada'
+        ]);
+    }
+
+    /**
+     * Eliminar todas las notificaciones
+     */
+    public function destroyAll()
+    {
+        $user = Auth::user();
+        Notificacion::where('user_id', $user->id)->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Todas las notificaciones eliminadas'
         ]);
     }
 }

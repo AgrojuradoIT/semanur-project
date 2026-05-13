@@ -102,7 +102,21 @@ class OrdenTrabajoApiController extends Controller
 
         try {
             DB::beginTransaction();
-            $mecanicoAsignadoId = $request->mecanico_asignado_id ? (int) $request->mecanico_asignado_id : null;
+            // Resuelve mecanico: el frontend puede enviar empleado_id o user_id
+            // Fase 1: mecanicos no tienen usuario → se guarda null
+            // Fase 2: cuando tengan cuenta → se usa su user_id automáticamente
+            $mecanicoAsignadoId = null;
+            if ($request->mecanico_asignado_id) {
+                $inputId = (int) $request->mecanico_asignado_id;
+                // Primero buscar si es un empleado_id
+                $empleado = Empleado::find($inputId);
+                if ($empleado) {
+                    $mecanicoAsignadoId = $empleado->user_id; // puede ser null
+                } else {
+                    // Si no es empleado, podría ser un user_id directo (Flutter)
+                    $mecanicoAsignadoId = User::find($inputId) ? $inputId : null;
+                }
+            }
 
             // 1. Crear la orden de trabajo base (sin foto aun)
             $orden = new OrdenTrabajo();

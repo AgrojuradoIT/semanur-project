@@ -501,6 +501,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               }
               Navigator.pop(ctx);
               final provider = context.read<InventoryProvider>();
+              final messenger = ScaffoldMessenger.of(context);
               final success = await provider.updateProducto(
                 widget.producto.id,
                 {
@@ -511,7 +512,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               if (success) {
                 setState(() => _capacidadMaxima = parsed);
               }
-              ScaffoldMessenger.of(context).showSnackBar(
+              messenger.showSnackBar(
                 SnackBar(
                   content: Text(
                     success ? 'Capacidad actualizada' : 'Error al actualizar',

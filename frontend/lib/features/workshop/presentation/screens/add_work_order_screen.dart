@@ -13,6 +13,8 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:frontend/features/auth/data/models/empleado_model.dart';
 import 'package:frontend/features/auth/presentation/providers/employee_provider.dart';
+import 'package:frontend/core/widgets/semanur_autocomplete.dart';
+import 'package:frontend/core/widgets/local_error_msg.dart';
 
 class AddWorkOrderScreen extends StatefulWidget {
   const AddWorkOrderScreen({super.key});
@@ -29,6 +31,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
   final ImagePicker _picker = ImagePicker();
   File? _imageFile;
   Empleado? _selectedMechanic;
+  String? _localError;
 
   final List<String> _priorities = ['Baja', 'Media', 'Alta'];
   final List<Map<String, dynamic>> _selectedSpares = [];
@@ -129,11 +132,13 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
           ),
         ),
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
             _buildVehicleSection(fleetProvider),
             const SizedBox(height: 16),
             _buildPrioritySection(),
@@ -147,14 +152,16 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
             _buildSparesSection(),
             const SizedBox(height: 16),
             _buildToolsSection(),
+            LocalErrorMsg(error: _localError),
             const SizedBox(height: 24),
             _buildSubmitButton(workshopProvider),
             const SizedBox(height: 40),
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildVehicleSection(FleetProvider provider) {
     return Container(
@@ -183,7 +190,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
               ),
               const SizedBox(width: 8),
               Text(
-                'VEHÍCULO / MAQUINARIA',
+                'VEHÍCULO / MAQUINARIA *',
                 style: GoogleFonts.oswald(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
@@ -194,43 +201,16 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          DropdownButtonFormField<Vehiculo>(
+          SemanurAutocomplete<Vehiculo>(
+            options: provider.vehiculos,
             initialValue: _selectedVehicle,
-            dropdownColor: const Color(0xFF1E1E1E),
-            style: const TextStyle(color: Colors.white),
-            decoration: InputDecoration(
-              hintText: 'Seleccione Vehículo...',
-              hintStyle: TextStyle(color: Colors.grey.shade600),
-              filled: true,
-              fillColor: const Color(0xFF121212),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: const Color(0xFF333333)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: const Color(0xFF333333)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: AppTheme.primaryYellow),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 12,
-              ),
-            ),
-            items: provider.vehiculos.map((v) {
-              return DropdownMenuItem(
-                value: v,
-                child: Text(
-                  '${v.placa} - ${v.marca} ${v.modelo}',
-                  style: const TextStyle(fontSize: 13),
-                ),
-              );
-            }).toList(),
-            onChanged: (val) => setState(() => _selectedVehicle = val),
-            validator: (val) => val == null ? 'Seleccione un vehículo' : null,
+            hint: 'Seleccione Vehículo...',
+            displayStringForOption: (v) => '${v.placa} - ${v.marca} ${v.modelo}',
+            filterFn: (v, filter) =>
+                v.placa.toLowerCase().contains(filter) ||
+                v.marca.toLowerCase().contains(filter) ||
+                v.modelo.toLowerCase().contains(filter),
+            onSelected: (v) => setState(() => _selectedVehicle = v),
           ),
         ],
       ),
@@ -371,42 +351,13 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          DropdownButtonFormField<Empleado>(
+          SemanurAutocomplete<Empleado>(
+            options: mechanics,
             initialValue: _selectedMechanic,
-            dropdownColor: const Color(0xFF1E1E1E),
-            style: const TextStyle(color: Colors.white),
-            decoration: InputDecoration(
-              hintText: 'Seleccione responsable...',
-              hintStyle: TextStyle(color: Colors.grey.shade600),
-              filled: true,
-              fillColor: const Color(0xFF121212),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: const Color(0xFF333333)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: const Color(0xFF333333)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: AppTheme.primaryYellow),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 12,
-              ),
-            ),
-            items: mechanics.map((e) {
-              return DropdownMenuItem(
-                value: e,
-                child: Text(
-                  e.nombreCompleto,
-                  style: const TextStyle(fontSize: 13),
-                ),
-              );
-            }).toList(),
-            onChanged: (val) => setState(() => _selectedMechanic = val),
+            hint: 'Seleccione responsable...',
+            displayStringForOption: (e) => e.nombreCompleto,
+            filterFn: (e, filter) => e.nombreCompleto.toLowerCase().contains(filter),
+            onSelected: (e) => setState(() => _selectedMechanic = e),
           ),
         ],
       ),
@@ -440,7 +391,7 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
               ),
               const SizedBox(width: 8),
               Text(
-                'DESCRIPCIÓN DE FALLA',
+                'DESCRIPCIÓN DE FALLA *',
                 style: GoogleFonts.oswald(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
@@ -1147,19 +1098,19 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     });
   }
 
-  void _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    void _submit() async {
+    setState(() => _localError = null);
+    if (!_formKey.currentState!.validate()) {
+      setState(() => _localError = 'Completa los campos obligatorios (*)');
+      return;
+    }
 
-    // Validar que haya vehículo seleccionado
     if (_selectedVehicle == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Seleccione un vehículo')));
+      setState(() => _localError = 'Seleccione un vehículo');
       return;
     }
 
     final provider = context.read<WorkshopProvider>();
-    final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
 
     final success = await provider.crearOrden(
@@ -1173,23 +1124,20 @@ class _AddWorkOrderScreenState extends State<AddWorkOrderScreen> {
     );
 
     if (success) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            'ORDEN #${_selectedVehicle?.placa} CREADA EXITOSAMENTE',
-            style: const TextStyle(fontWeight: FontWeight.bold),
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'ORDEN #${_selectedVehicle?.placa} CREADA EXITOSAMENTE',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            backgroundColor: Colors.green,
           ),
-          backgroundColor: Colors.green,
-        ),
-      );
-      navigator.pop();
+        );
+        navigator.pop();
+      }
     } else {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text('ERROR: ${provider.error}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      setState(() => _localError = provider.error);
     }
   }
 }

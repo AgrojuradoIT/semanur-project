@@ -1,456 +1,255 @@
 <template>
-  <div ref="rootEl" class="ss" :class="{ 'ss--open': isOpen, 'ss--disabled': disabled }">
-    <button
-      type="button"
-      class="ss__control"
-      ref="controlEl"
-      :disabled="disabled"
+  <div class="searchable-dropdown" ref="dropdownRef">
+    <div
+      class="dropdown-trigger"
+      :class="{ 'dropdown-open': isOpen, 'dropdown-has-value': !!selectedLabel }"
       @click="toggle"
     >
-      <div class="ss__value">
-        <span v-if="selectedOption" class="ss__value-text">{{ selectedOption.label }}</span>
-        <span v-else class="ss__placeholder">{{ placeholder }}</span>
-        <span v-if="selectedOption?.description" class="ss__value-sub">{{ selectedOption.description }}</span>
+      <span>{{ selectedLabel || placeholder || 'Seleccionar...' }}</span>
+      <span class="material-icons-round dropdown-arrow">expand_more</span>
+    </div>
+    <div v-if="isOpen" class="dropdown-menu">
+      <div class="dropdown-search">
+        <span class="material-icons-round">search</span>
+        <input
+          v-model="search"
+          class="input"
+          type="text"
+          placeholder="Buscar..."
+          ref="searchInput"
+          @keydown="onKeydown"
+        />
       </div>
-
-      <div class="ss__icons">
-        <button
-          v-if="clearable && modelValue !== '' && modelValue !== null && modelValue !== undefined"
-          type="button"
-          class="ss__icon-btn"
-          :disabled="disabled"
-          aria-label="Limpiar"
-          @click.stop="clear"
+      <div class="dropdown-list">
+        <div
+          v-for="(item, idx) in filteredItems"
+          :key="getItemKey(item)"
+          class="dropdown-item"
+          :class="{ 'dropdown-item-active': searchIndex === idx }"
+          @click="selectItem(item)"
         >
-          <span class="material-icons-round">close</span>
-        </button>
-        <span class="material-icons-round ss__chevron">expand_more</span>
-      </div>
-    </button>
-
-    <Teleport to="body">
-      <div
-        v-if="isOpen"
-        ref="dropdownEl"
-        class="ss__dropdown"
-        :style="dropdownStyle"
-        @click.stop
-      >
-        <div class="ss__search">
-          <span class="material-icons-round ss__search-icon">search</span>
-          <input
-            ref="searchEl"
-            v-model="search"
-            type="text"
-            class="ss__search-input"
-            :placeholder="searchPlaceholder"
-          />
+          <slot name="option" :item="item">{{ getItemLabel(item) }}</slot>
         </div>
-
-        <div class="ss__list">
-          <button
-            v-for="opt in visibleOptions"
-            :key="String(opt.value)"
-            type="button"
-            class="ss__option"
-            :class="{ 'ss__option--selected': isSelected(opt) }"
-            @click="select(opt)"
-          >
-            <div class="ss__option-main">
-              <div class="ss__option-label">{{ opt.label }}</div>
-              <div v-if="opt.description" class="ss__option-desc">{{ opt.description }}</div>
-            </div>
-            <span v-if="isSelected(opt)" class="material-icons-round ss__check">check</span>
-          </button>
-
-          <div v-if="visibleOptions.length === 0" class="ss__empty">
-            No hay resultados
-          </div>
-        </div>
-
-        <div v-if="showHint" class="ss__hint">
-          Mostrando {{ visibleOptions.length }} de {{ options.length }}. Usa el buscador para filtrar.
+        <div v-if="filteredItems.length === 0" class="dropdown-empty">
+          {{ emptyText || 'No se encontraron resultados' }}
         </div>
       </div>
-    </Teleport>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 
 const props = defineProps({
   modelValue: { type: [String, Number], default: '' },
-  options: { type: Array, default: () => [] }, // [{ value, label, description?, keywords? }]
-  placeholder: { type: String, default: 'Seleccionar...' },
-  searchPlaceholder: { type: String, default: 'Buscar...' },
-  disabled: { type: Boolean, default: false },
-  clearable: { type: Boolean, default: false },
-  maxVisibleWithoutSearch: { type: Number, default: 180 },
+  items: { type: Array, required: true },
+  labelFn: { type: Function, default: null },
+  valueFn: { type: Function, default: null },
+  keyFn: { type: Function, default: null },
+  placeholder: { type: String, default: '' },
+  emptyText: { type: String, default: 'No se encontraron resultados' },
 });
 
-const emit = defineEmits(['update:modelValue', 'change']);
+const emit = defineEmits(['update:modelValue', 'select']);
 
-const rootEl = ref(null);
-const controlEl = ref(null);
-const dropdownEl = ref(null);
-const searchEl = ref(null);
-const isOpen = ref(false);
 const search = ref('');
-const dropdownStyle = ref({});
+const isOpen = ref(false);
+const searchIndex = ref(-1);
+const dropdownRef = ref(null);
+const searchInput = ref(null);
 
-const selectedOption = computed(() => {
-  const mv = props.modelValue;
-  return props.options.find((o) => String(o.value) === String(mv)) || null;
+const filteredItems = computed(() => {
+  const q = search.value.trim().toLowerCase();
+  if (!q) return props.items;
+  return props.items.filter((item) =>
+    getItemLabel(item).toLowerCase().includes(q),
+  );
 });
 
-const filteredOptions = computed(() => {
-  const term = search.value.trim().toLowerCase();
-  if (!term) return props.options;
-
-  return props.options.filter((opt) => {
-    const haystack = String(opt.keywords ?? `${opt.label} ${opt.description ?? ''}`).toLowerCase();
-    return haystack.includes(term);
-  });
+const selectedLabel = computed(() => {
+  if (!props.modelValue && props.modelValue !== 0) return '';
+  const item = props.items.find((i) => String(getItemValue(i)) === String(props.modelValue));
+  return item ? getItemLabel(item) : '';
 });
 
-const showHint = computed(() => {
-  return !search.value.trim() && props.options.length > props.maxVisibleWithoutSearch;
-});
-
-const visibleOptions = computed(() => {
-  if (!search.value.trim() && props.options.length > props.maxVisibleWithoutSearch) {
-    return props.options.slice(0, props.maxVisibleWithoutSearch);
-  }
-  return filteredOptions.value;
-});
-
-function isSelected(opt) {
-  return String(opt.value) === String(props.modelValue);
+function getItemLabel(item) {
+  if (props.labelFn) return props.labelFn(item);
+  return item.label ?? item.name ?? item.nombre ?? item.text ?? String(item);
 }
 
-function open() {
-  if (props.disabled) return;
-  isOpen.value = true;
-  nextTick(async () => {
-    await updatePosition();
-    searchEl.value?.focus?.();
-  });
+function getItemValue(item) {
+  if (props.valueFn) return props.valueFn(item);
+  return item.value ?? item.id ?? item;
 }
 
-function close() {
-  isOpen.value = false;
-  search.value = '';
+function getItemKey(item) {
+  if (props.keyFn) return props.keyFn(item);
+  return item.id ?? getItemValue(item);
 }
 
 function toggle() {
-  if (isOpen.value) close();
-  else open();
-}
-
-function select(opt) {
-  emit('update:modelValue', opt.value);
-  emit('change', opt.value);
-  close();
-}
-
-function clear() {
-  emit('update:modelValue', '');
-  emit('change', '');
-  close();
-}
-
-function onDocumentPointerDown(e) {
-  const el = rootEl.value;
-  const dd = dropdownEl.value;
-  if (!el) return;
-  if (!el.contains(e.target) && !(dd && dd.contains(e.target))) {
-    close();
+  isOpen.value = !isOpen.value;
+  searchIndex.value = -1;
+  if (isOpen.value) {
+    search.value = '';
+    nextTick(() => searchInput.value?.focus());
   }
 }
 
-function onDocumentKeyDown(e) {
-  if (!isOpen.value) return;
-  if (e.key === 'Escape') close();
+function selectItem(item) {
+  emit('update:modelValue', getItemValue(item));
+  emit('select', item);
+  search.value = '';
+  isOpen.value = false;
+  searchIndex.value = -1;
 }
 
-async function updatePosition() {
-  if (!isOpen.value) return;
-  await nextTick();
-
-  const ctrl = controlEl.value;
-  const dd = dropdownEl.value;
-  if (!ctrl || !dd) return;
-
-  const rect = ctrl.getBoundingClientRect();
-  const ddHeight = dd.offsetHeight || 340;
-  const gap = 8;
-  const viewportPadding = 8;
-
-  const spaceBelow = window.innerHeight - rect.bottom;
-  const spaceAbove = rect.top;
-
-  const openUp = spaceBelow < ddHeight && spaceAbove > spaceBelow;
-
-  let top = openUp ? (rect.top - ddHeight - gap) : (rect.bottom + gap);
-  top = Math.max(viewportPadding, Math.min(top, window.innerHeight - ddHeight - viewportPadding));
-
-  let left = rect.left;
-  let width = rect.width;
-
-  if (left < viewportPadding) left = viewportPadding;
-  if (left + width > window.innerWidth - viewportPadding) {
-    width = Math.max(240, window.innerWidth - left - viewportPadding);
+function onKeydown(e) {
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    searchIndex.value = Math.min(searchIndex.value + 1, filteredItems.value.length - 1);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    searchIndex.value = Math.max(searchIndex.value - 1, 0);
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (searchIndex.value >= 0 && filteredItems.value[searchIndex.value]) {
+      selectItem(filteredItems.value[searchIndex.value]);
+    }
+  } else if (e.key === 'Escape') {
+    isOpen.value = false;
   }
-
-  dropdownStyle.value = {
-    position: 'fixed',
-    top: `${top}px`,
-    left: `${left}px`,
-    width: `${width}px`,
-    zIndex: 1100,
-  };
 }
 
-onMounted(() => {
-  document.addEventListener('pointerdown', onDocumentPointerDown);
-  document.addEventListener('keydown', onDocumentKeyDown);
-});
-
-onBeforeUnmount(() => {
-  document.removeEventListener('pointerdown', onDocumentPointerDown);
-  document.removeEventListener('keydown', onDocumentKeyDown);
-});
-
-watch(
-  () => props.disabled,
-  (v) => {
-    if (v) close();
-  },
-);
-
-watch(isOpen, (v) => {
-  if (v) {
-    window.addEventListener('resize', updatePosition);
-    window.addEventListener('scroll', updatePosition, true);
-    updatePosition();
-  } else {
-    window.removeEventListener('resize', updatePosition);
-    window.removeEventListener('scroll', updatePosition, true);
+function handleClickOutside(e) {
+  if (dropdownRef.value && !dropdownRef.value.contains(e.target)) {
+    isOpen.value = false;
   }
-});
+}
+
+onMounted(() => document.addEventListener('click', handleClickOutside));
+onUnmounted(() => document.removeEventListener('click', handleClickOutside));
 </script>
 
 <style scoped>
-.ss {
+.searchable-dropdown {
   position: relative;
   width: 100%;
 }
 
-.ss__control {
-  width: 100%;
-  text-align: left;
+.dropdown-trigger {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-
   padding: 10px 14px;
   background: var(--bg-dark);
   border: 1px solid var(--surface-2);
   border-radius: var(--radius-sm);
   color: var(--text-main);
-  outline: none;
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  cursor: pointer;
+  transition: border-color var(--transition-fast);
+  font-size: 0.9rem;
+  min-height: 42px;
 }
 
-.ss--open .ss__control {
+.dropdown-trigger:hover {
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(255, 214, 0, 0.08);
 }
 
-.ss--disabled .ss__control {
-  opacity: 0.6;
-  cursor: not-allowed;
+.dropdown-trigger.dropdown-open {
+  border-color: var(--primary);
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
 }
 
-.ss__value {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.ss__value-text {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--text-main);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.ss__value-sub {
-  font-size: 0.78rem;
+.dropdown-arrow {
+  font-size: 20px;
   color: var(--text-gray);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.ss__placeholder {
-  font-size: 0.9rem;
-  color: var(--text-muted);
-  font-weight: 600;
-}
-
-.ss__icons {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  transition: transform 0.2s;
   flex-shrink: 0;
 }
 
-.ss__icon-btn {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: none;
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text-gray);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: background var(--transition-fast), color var(--transition-fast);
-}
-
-.ss__icon-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--text-main);
-}
-
-.ss__icon-btn .material-icons-round {
-  font-size: 18px;
-}
-
-.ss__chevron {
-  font-size: 20px;
-  color: var(--text-gray);
-  transition: transform var(--transition-fast);
-}
-
-.ss--open .ss__chevron {
+.dropdown-open .dropdown-arrow {
   transform: rotate(180deg);
 }
 
-.ss__dropdown {
-  /* Se posiciona dinámicamente con style (fixed) */
-  background: var(--surface);
-  border: 1px solid var(--surface-2);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
-  overflow: hidden;
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: var(--bg-dark);
+  border: 1px solid var(--primary);
+  border-top: none;
+  border-bottom-left-radius: var(--radius-sm);
+  border-bottom-right-radius: var(--radius-sm);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  max-height: 280px;
+  display: flex;
+  flex-direction: column;
 }
 
-.ss__search {
+.dropdown-search {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent);
-}
-
-.ss__search-icon {
-  font-size: 18px;
-  color: var(--text-gray);
-}
-
-.ss__search-input {
-  width: 100%;
-  border: 1px solid var(--surface-2);
-  background: var(--bg-dark);
-  color: var(--text-main);
-  border-radius: var(--radius-sm);
   padding: 8px 10px;
-  outline: none;
-  font-size: 0.88rem;
+  border-bottom: 1px solid var(--surface-2);
+  position: sticky;
+  top: 0;
+  background: var(--bg-dark);
 }
 
-.ss__search-input:focus {
-  border-color: var(--primary);
-}
-
-.ss__list {
-  max-height: 280px;
-  overflow: auto;
-}
-
-.ss__option {
-  width: 100%;
-  border: none;
-  background: transparent;
-  color: var(--text-main);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 10px 12px;
-  cursor: pointer;
-  transition: background var(--transition-fast);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-}
-
-.ss__option:hover {
-  background: rgba(255, 255, 255, 0.04);
-}
-
-.ss__option--selected {
-  background: var(--primary-10);
-}
-
-.ss__option-main {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.ss__option-label {
-  font-size: 0.88rem;
-  font-weight: 650;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.ss__option-desc {
-  font-size: 0.76rem;
-  color: var(--text-gray);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.ss__check {
+.dropdown-search .material-icons-round {
   font-size: 18px;
-  color: var(--primary);
+  color: var(--text-gray);
   flex-shrink: 0;
 }
 
-.ss__empty {
-  padding: 14px 12px;
+.dropdown-search .input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 4px 0;
+  font-size: 0.9rem;
+  color: var(--text-main);
+}
+
+.dropdown-search .input:focus {
+  outline: none;
+  box-shadow: none;
+  border-color: transparent;
+}
+
+.dropdown-search .input::placeholder {
+  color: var(--text-muted);
+}
+
+.dropdown-list {
+  overflow-y: auto;
+  flex: 1;
+}
+
+.dropdown-item {
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--text-main);
+  transition: background 0.15s, color 0.15s;
+}
+
+.dropdown-item:hover,
+.dropdown-item.dropdown-item-active {
+  background: var(--primary-10);
+  color: var(--primary);
+}
+
+.dropdown-empty {
+  padding: 16px;
+  text-align: center;
   color: var(--text-gray);
   font-size: 0.85rem;
 }
-
-.ss__hint {
-  padding: 10px 12px;
-  font-size: 0.76rem;
-  color: var(--text-muted);
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(0, 0, 0, 0.15);
-}
 </style>
-

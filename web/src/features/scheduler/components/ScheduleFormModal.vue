@@ -9,14 +9,14 @@
       </div>
 
       <div class="modal-body">
-        <form class="form-grid" @submit.prevent="$emit('submit')">
+        <form class="form-grid" @submit.prevent="handleSubmit">
           <div class="input-group">
             <label>Empleado</label>
             <SearchableSelect
               v-model="form.empleado_id"
-              :options="employeeOptions"
+              :items="employees"
+              :label-fn="employeeFullName"
               placeholder="Seleccionar..."
-              search-placeholder="Buscar empleado..."
             />
           </div>
 
@@ -34,10 +34,10 @@
             <label>Vehiculo (Opcional)</label>
             <SearchableSelect
               v-model="form.vehiculo_id"
-              :options="vehicleOptions"
+              :items="vehicles"
+              :label-fn="vehicleLabel"
+              :value-fn="vehicleId"
               placeholder="Ninguno"
-              search-placeholder="Buscar vehículo..."
-              :clearable="true"
             />
           </div>
 
@@ -46,18 +46,48 @@
             <input v-model.trim="form.ubicacion" class="input" type="text" />
           </div>
 
-          <div class="input-group full-width">
-            <label style="display: flex; align-items: center; gap: 8px; text-transform: none; letter-spacing: normal">
-              <input v-model="form.crear_orden_trabajo" type="checkbox" />
-              Crear orden de trabajo automaticamente
-            </label>
-          </div>
+          <template v-if="!editingId">
+            <!-- Repetir varios días -->
+            <div class="input-group full-width">
+              <label class="toggle-label" @click="repeatDays = !repeatDays">
+                <span class="toggle-text">Repetir varios dias</span>
+                <span class="toggle-switch" :class="{ active: repeatDays }">
+                  <span class="toggle-thumb"></span>
+                </span>
+              </label>
+            </div>
+
+            <div v-if="repeatDays" class="input-group full-width">
+              <label>Dias de la semana</label>
+              <div class="day-pills">
+                <button
+                  v-for="(day, idx) in dayLabels"
+                  :key="idx"
+                  type="button"
+                  class="day-pill"
+                  :class="{ active: selectedDays.includes(idx) }"
+                  @click="toggleDay(idx)"
+                >
+                  {{ day }}
+                </button>
+              </div>
+            </div>
+
+            <div class="input-group full-width">
+              <label class="toggle-label" @click="form.crear_orden_trabajo = !form.crear_orden_trabajo">
+                <span class="toggle-text">Crear orden de trabajo automaticamente</span>
+                <span class="toggle-switch" :class="{ active: form.crear_orden_trabajo }">
+                  <span class="toggle-thumb"></span>
+                </span>
+              </label>
+            </div>
+          </template>
         </form>
       </div>
 
       <div class="modal-footer">
         <button class="btn btn-secondary" @click="$emit('close')">Cancelar</button>
-        <button class="btn btn-primary" :disabled="saving" @click="$emit('submit')">
+        <button class="btn btn-primary" :disabled="saving" @click="handleSubmit">
           <span class="material-icons-round" style="font-size: 18px">save</span>
           {{ saving ? 'GUARDANDO...' : editingId ? 'ACTUALIZAR' : 'PROGRAMAR' }}
         </button>
@@ -67,7 +97,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { ref, watch } from 'vue';
 import SearchableSelect from '../../../shared/components/SearchableSelect.vue';
 
 const props = defineProps({
@@ -82,28 +112,125 @@ const props = defineProps({
   vehicleLabel: { type: Function, required: true },
 });
 
-defineEmits(['close', 'submit']);
+const emit = defineEmits(['close', 'submit']);
 
-const employeeOptions = computed(() =>
-  props.employees.map((employee) => {
-    const label = props.employeeFullName(employee);
-    return {
-      value: String(employee.id),
-      label,
-      keywords: label,
-    };
-  }),
-);
+const dayLabels = ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom'];
+const repeatDays = ref(false);
+const selectedDays = ref([]);
 
-const vehicleOptions = computed(() =>
-  props.vehicles.map((vehicle) => {
-    const id = props.vehicleId(vehicle);
-    const label = props.vehicleLabel(vehicle);
-    return {
-      value: String(id),
-      label,
-      keywords: label,
-    };
-  }),
-);
+function toggleDay(idx) {
+  const pos = selectedDays.value.indexOf(idx);
+  if (pos >= 0) {
+    selectedDays.value.splice(pos, 1);
+  } else {
+    selectedDays.value.push(idx);
+  }
+}
+
+// Al cambiar la fecha, preseleccionar el día correspondiente
+watch(() => props.form?.fecha, (newDate) => {
+  if (newDate && !props.editingId) {
+    const d = new Date(newDate + 'T00:00:00');
+    const weekday = d.getDay(); // 0=Dom, 1=Lun...6=Sab
+    const idx = weekday === 0 ? 6 : weekday - 1; // 0=Lun, 6=Dom
+    selectedDays.value = [idx];
+  }
+}, { immediate: true });
+
+// Reset al abrir/cerrar
+watch(() => props.visible, (v) => {
+  if (!v) {
+    repeatDays.value = false;
+    selectedDays.value = [];
+  }
+});
+
+function handleSubmit() {
+  if (repeatDays.value && selectedDays.value.length > 0) {
+    // Emitir con los dias seleccionados
+    emit('submit', { multiDay: selectedDays.value });
+  } else {
+    emit('submit');
+  }
+}
 </script>
+
+<style scoped>
+/* Toggle switch */
+.toggle-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  font-weight: 500;
+  padding: 4px 0;
+}
+
+.toggle-text {
+  color: var(--text-main);
+  font-size: 0.9rem;
+}
+
+.toggle-switch {
+  width: 44px;
+  height: 24px;
+  border-radius: 12px;
+  background: var(--surface-3);
+  position: relative;
+  transition: background 0.25s ease;
+  flex-shrink: 0;
+}
+
+.toggle-switch.active {
+  background: var(--primary);
+}
+
+.toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--text-main);
+  transition: transform 0.25s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.toggle-switch.active .toggle-thumb {
+  transform: translateX(20px);
+  background: #000;
+}
+
+/* Day pills */
+.day-pills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.day-pill {
+  padding: 6px 14px;
+  background: var(--surface-1);
+  border: 1px solid var(--surface-3);
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.day-pill:hover {
+  border-color: var(--primary);
+  color: var(--text-main);
+}
+
+.day-pill.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #000;
+}
+</style>

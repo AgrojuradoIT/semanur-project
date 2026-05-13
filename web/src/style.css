@@ -1074,6 +1074,7 @@ select.input {
   border-radius: var(--radius-xl);
   width: 560px;
   max-width: 95vw;
+  height: 85vh;
   max-height: 90vh;
   overflow: hidden;
   display: flex;
@@ -1083,7 +1084,108 @@ select.input {
 }
 
 .modal-wide {
-  width: 720px;
+  width: 900px;
+  height: 90vh;
+}
+
+.modal-wide {
+  width: 900px;
+  height: 90vh;
+}
+
+.modal-wide {
+  width: 900px;
+  height: 90vh;
+}
+
+.modal-wide {
+  width: 900px;
+  height: 90vh;
+}
+
+.modal-wide {
+  width: 900px;
+  height: 90vh;
+}
+
+.modal-wide {
+  width: 900px;
+  height: 90vh;
+}
+
+.modal-wide {
+  width: 900px;
+  height: 90vh;
+}
+
+.modal-wide {
+  width: 900px;
+  height: 90vh;
+}
+
+.modal-wide {
+  width: 900px;
+  height: 90vh;
+}
+
+.modal-wide {
+  width: 900px;
+  height: 90vh;
+}
+
+.modal-wide {
+  width: 900px;
+  height: 90vh;
+}
+
+.modal-wide {
+  width: 900px;
+  height: 90vh;
+}
+
+.modal-wide {
+  width: 900px;
+  height: 90vh;
+}
+
+.modal-wide {
+  width: 900px;
+  height: 90vh;
+}
+
+.modal-wide {
+  width: 900px;
+  height: 90vh;
+}
+
+.modal-wide {
+  width: 900px;
+  height: 90vh;
+}
+
+.modal-wide {
+  width: 900px;
+  height: 90vh;
+}
+
+.modal-wide {
+  width: 900px;
+  height: 90vh;
+}
+
+.modal-wide {
+  width: 900px;
+  height: 90vh;
+}
+
+.modal-wide {
+  width: 900px;
+  height: 90vh;
+}
+
+.modal-wide {
+  width: 900px;
+  height: 90vh;
 }
 
 @keyframes modalSlideUp {
@@ -1651,6 +1753,14 @@ select.input {
   color: #64B5F6;
 }
 
+:root.light-mode .state-pending {
+  color: #1565C0;
+}
+
+:root.light-mode .state-pending .p-veh {
+  color: #1976D2;
+}
+
 .state-done {
   background: rgba(76, 175, 80, 0.12);
   border: 1px solid rgba(76, 175, 80, 0.35);
@@ -1659,6 +1769,14 @@ select.input {
 
 .state-done .p-veh {
   color: #81C784;
+}
+
+:root.light-mode .state-done {
+  color: #2E7D32;
+}
+
+:root.light-mode .state-done .p-veh {
+  color: #388E3C;
 }
 
 .state-issue {
@@ -1673,6 +1791,18 @@ select.input {
 
 .state-issue .task-state-icon {
   color: #EF5350;
+}
+
+:root.light-mode .state-issue {
+  color: #C62828;
+}
+
+:root.light-mode .state-issue .p-veh {
+  color: #D32F2F;
+}
+
+:root.light-mode .state-issue .task-state-icon {
+  color: #C62828;
 }
 
 /* Bottom Bar */

@@ -189,20 +189,24 @@
 
           <div v-if="form.tipo_destino === 'vehiculo'" class="input-group">
             <label>Vehiculo</label>
-            <select v-model="form.vehiculo_id" class="input" required>
-              <option value="">Seleccionar...</option>
-              <option v-for="vehicle in vehicles" :key="vehicleId(vehicle)" :value="vehicleId(vehicle)">
-                {{ vehicleLabel(vehicle) }}
-              </option>
-            </select>
+            <SearchableSelect
+              v-model="form.vehiculo_id"
+              :items="vehicles"
+              :label-fn="vehicleLabel"
+              :value-fn="vehicleId"
+              placeholder="Seleccionar vehiculo..."
+            />
           </div>
 
           <div v-if="form.tipo_destino === 'vehiculo'" class="input-group">
             <label>A quien se le entrega (Empleado)</label>
-            <select v-model="form.empleado_id" class="input" required>
-              <option value="">Seleccionar...</option>
-              <option v-for="user in users" :key="user.id" :value="user.id">{{ employeeLabel(user) }}</option>
-            </select>
+            <SearchableSelect
+              v-model="form.empleado_id"
+              :items="users"
+              :label-fn="employeeLabel"
+              placeholder="Seleccionar empleado..."
+              empty-text="No se encontraron empleados"
+            />
           </div>
 
           <div v-else-if="form.tipo_destino === 'empleado'" class="input-group">
@@ -326,6 +330,7 @@ import {
 } from '../api/fuelService';
 import { useAuthStore } from '../../../shared/stores/auth';
 import { useCatalogsStore } from '../../../shared/stores/catalogs';
+import SearchableSelect from '../../../shared/components/SearchableSelect.vue';
 
 const auth = useAuthStore();
 const userRole = computed(() => auth.user?.role || 'visualizador');

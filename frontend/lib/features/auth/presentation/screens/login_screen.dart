@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:frontend/features/auth/presentation/providers/auth_provider.dart';
 import 'package:frontend/features/home/presentation/screens/home_dashboard.dart';
 import 'package:frontend/core/theme/app_theme.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 class LoginScreen extends StatefulWidget {
   final String? message;
@@ -126,18 +127,23 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 60),
-                  Text(
-                    'BIENVENIDO DE NUEVO',
-                    style: GoogleFonts.oswald(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                  Center(
+                    child: Text(
+                      'BIENVENIDO DE NUEVO',
+                      style: GoogleFonts.oswald(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Inicia sesión para getionar el taller.',
-                    style: TextStyle(color: AppTheme.textGray, fontSize: 14),
+                  const Center(
+                    child: Text(
+                      'Inicia sesión para gestionar el taller.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: AppTheme.textGray, fontSize: 14),
+                    ),
                   ),
                   const SizedBox(height: 40),
 
@@ -180,11 +186,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       onPressed: authProvider.isLoading
                           ? null
                           : () async {
-                              final navigator = Navigator.of(context);
-                              final messenger = ScaffoldMessenger.of(context);
-
                               // Ocultar teclado
                               FocusScope.of(context).unfocus();
+
+                              // Capturar referencias antes del await
+                              final navigator = Navigator.of(context);
+                              final messenger = ScaffoldMessenger.of(context);
 
                               // Validar campos vacíos
                               if (_emailController.text.trim().isEmpty) {
@@ -225,33 +232,40 @@ class _LoginScreenState extends State<LoginScreen> {
                                   // Mostrar error específico
                                   String errorMessage = authProvider.error ??
                                       'Credenciales incorrectas. Verifique su usuario y contraseña.';
-                                  
+
                                   // Limpiar campo de contraseña
                                   _passwordController.clear();
 
-                                  showDialog(
-                                    context: context,
-                                    builder: (ctx) => AlertDialog(
-                                      backgroundColor: AppTheme.surfaceDark,
-                                      title: const Text(
-                                        'Error de Inicio de Sesión',
-                                        style: TextStyle(color: Colors.white),
-                                      ),
-                                      content: Text(
-                                        errorMessage,
-                                        style: const TextStyle(color: AppTheme.textGray),
-                                      ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () => Navigator.of(ctx).pop(),
-                                          child: const Text(
-                                            'OK',
-                                            style: TextStyle(color: AppTheme.primaryYellow),
+                                  navigator.overlay?.context != null
+                                      ? showDialog(
+                                          context: navigator.overlay!.context,
+                                          builder: (ctx) => AlertDialog(
+                                            backgroundColor: AppTheme.surfaceDark,
+                                            title: const Text(
+                                              'Error de Inicio de Sesión',
+                                              style: TextStyle(color: Colors.white),
+                                            ),
+                                            content: Text(
+                                              errorMessage,
+                                              style: const TextStyle(color: AppTheme.textGray),
+                                            ),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () => Navigator.of(ctx).pop(),
+                                                child: const Text(
+                                                  'OK',
+                                                  style: TextStyle(color: AppTheme.primaryYellow),
+                                                ),
+                                              ),
+                                            ],
                                           ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
+                                        )
+                                      : messenger.showSnackBar(
+                                          SnackBar(
+                                            content: Text(errorMessage),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
                                 }
                               } catch (e) {
                                 if (!mounted) return;
@@ -297,6 +311,23 @@ class _LoginScreenState extends State<LoginScreen> {
                           fontSize: 13,
                         ),
                       ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Center(
+                    child: FutureBuilder<PackageInfo>(
+                      future: PackageInfo.fromPlatform(),
+                      builder: (context, snapshot) {
+                        final version = snapshot.hasData ? snapshot.data!.version : '...';
+                        return Text(
+                          'SEMANUR HUB V$version',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            fontSize: 10,
+                            letterSpacing: 1,
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ],

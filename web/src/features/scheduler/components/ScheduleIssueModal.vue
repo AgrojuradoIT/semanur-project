@@ -14,9 +14,9 @@
             <label>Empleado</label>
             <SearchableSelect
               v-model="form.empleado_id"
-              :options="employeeOptions"
+              :items="employees"
+              :label-fn="employeeFullName"
               placeholder="Seleccionar..."
-              search-placeholder="Buscar empleado..."
             />
           </div>
 
@@ -24,10 +24,10 @@
             <label>Vehiculo (Opcional)</label>
             <SearchableSelect
               v-model="form.vehiculo_id"
-              :options="vehicleOptions"
+              :items="vehicles"
+              :label-fn="vehicleLabel"
+              :value-fn="vehicleId"
               placeholder="Ninguno"
-              search-placeholder="Buscar vehículo..."
-              :clearable="true"
             />
           </div>
 
@@ -55,6 +55,11 @@
               Pausar actividad actual
             </label>
           </div>
+
+          <div class="input-group full-width">
+            <label>Foto (Opcional)</label>
+            <input @change="$emit('photo-selected', $event.target.files[0])" type="file" accept="image/*" class="input" />
+          </div>
         </form>
       </div>
 
@@ -70,10 +75,9 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
 import SearchableSelect from '../../../shared/components/SearchableSelect.vue';
 
-const props = defineProps({
+defineProps({
   visible: { type: Boolean, required: true },
   saving: { type: Boolean, required: true },
   form: { type: Object, required: true },
@@ -84,28 +88,5 @@ const props = defineProps({
   vehicleLabel: { type: Function, required: true },
 });
 
-defineEmits(['close', 'submit']);
-
-const employeeOptions = computed(() =>
-  props.employees.map((employee) => {
-    const label = props.employeeFullName(employee);
-    return {
-      value: String(employee.id),
-      label,
-      keywords: label,
-    };
-  }),
-);
-
-const vehicleOptions = computed(() =>
-  props.vehicles.map((vehicle) => {
-    const id = props.vehicleId(vehicle);
-    const label = props.vehicleLabel(vehicle);
-    return {
-      value: String(id),
-      label,
-      keywords: label,
-    };
-  }),
-);
+defineEmits(['close', 'submit', 'photo-selected']);
 </script>

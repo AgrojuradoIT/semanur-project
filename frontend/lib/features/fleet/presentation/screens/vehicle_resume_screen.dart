@@ -151,18 +151,6 @@ class _VehicleResumeScreenState extends State<VehicleResumeScreen>
   void _showEditDialog() {
     if (_vehiculo == null) return;
 
-    final soatController = TextEditingController(
-      text: _vehiculo!.fechaVencimientoSoat != null
-          ? DateFormat('yyyy-MM-dd').format(_vehiculo!.fechaVencimientoSoat!)
-          : '',
-    );
-    final tecnoController = TextEditingController(
-      text: _vehiculo!.fechaVencimientoTecnomecanica != null
-          ? DateFormat(
-              'yyyy-MM-dd',
-            ).format(_vehiculo!.fechaVencimientoTecnomecanica!)
-          : '',
-    );
     final kmController = TextEditingController(
       text: _vehiculo!.kilometrajeProximoMantenimiento?.toString() ?? '',
     );
@@ -175,23 +163,13 @@ class _VehicleResumeScreenState extends State<VehicleResumeScreen>
       builder: (dialogCntx) => AlertDialog(
         backgroundColor: AppTheme.surfaceDark,
         title: Text(
-          'ACTUALIZAR METAS Y FECHAS',
+          'ACTUALIZAR METAS',
           style: GoogleFonts.oswald(color: Colors.white),
         ),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildSectionTitle('Documentación'),
-              const SizedBox(height: 10),
-              _buildDatePicker(dialogCntx, 'Vencimiento SOAT', soatController),
-              const SizedBox(height: 15),
-              _buildDatePicker(
-                dialogCntx,
-                'Vencimiento Tecnomecánica',
-                tecnoController,
-              ),
-              const SizedBox(height: 20),
               _buildSectionTitle('Mantenimiento Preventivo'),
               const SizedBox(height: 10),
               _buildNumberField('Próx. Mantenimiento (Km)', kmController),
@@ -213,12 +191,6 @@ class _VehicleResumeScreenState extends State<VehicleResumeScreen>
           ElevatedButton(
             onPressed: () async {
               final data = <String, dynamic>{};
-              if (soatController.text.isNotEmpty) {
-                data['fecha_vencimiento_soat'] = soatController.text;
-              }
-              if (tecnoController.text.isNotEmpty) {
-                data['fecha_vencimiento_tecnomecanica'] = tecnoController.text;
-              }
               if (kmController.text.isNotEmpty) {
                 data['kilometraje_proximo_mantenimiento'] = kmController.text;
               }
@@ -238,8 +210,8 @@ class _VehicleResumeScreenState extends State<VehicleResumeScreen>
                     SnackBar(
                       content: Text(
                         success
-                            ? 'Fechas actualizadas correctamente'
-                            : 'Error al actualizar fechas',
+                            ? 'Metas actualizadas correctamente'
+                            : 'Error al actualizar metas',
                       ),
                       backgroundColor: success ? Colors.green : Colors.red,
                     ),
@@ -273,52 +245,6 @@ class _VehicleResumeScreenState extends State<VehicleResumeScreen>
     );
   }
 
-  Widget _buildDatePicker(
-    BuildContext context,
-    String label,
-    TextEditingController controller,
-  ) {
-    return TextFormField(
-      controller: controller,
-      style: const TextStyle(color: Colors.white),
-      readOnly: true,
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: const TextStyle(color: AppTheme.textGray),
-        suffixIcon: const Icon(
-          Icons.calendar_today,
-          color: AppTheme.primaryYellow,
-        ),
-        enabledBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: AppTheme.surfaceDark2),
-        ),
-      ),
-      onTap: () async {
-        final date = await showDatePicker(
-          context: context,
-          initialDate: DateTime.now(),
-          firstDate: DateTime(2020),
-          lastDate: DateTime(2030),
-          builder: (context, child) {
-            return Theme(
-              data: ThemeData.dark().copyWith(
-                colorScheme: const ColorScheme.dark(
-                  primary: AppTheme.primaryYellow,
-                  onPrimary: Colors.black,
-                  surface: AppTheme.surfaceDark,
-                  onSurface: Colors.white,
-                ),
-              ),
-              child: child!,
-            );
-          },
-        );
-        if (date != null) {
-          controller.text = DateFormat('yyyy-MM-dd').format(date);
-        }
-      },
-    );
-  }
 
   Widget _buildSectionTitle(String title) {
     return Text(

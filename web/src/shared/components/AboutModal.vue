@@ -3,7 +3,7 @@
     <div v-if="visible" class="modal-overlay" @click.self="$emit('close')">
       <div class="modal modal-about">
         <div class="modal-header">
-          <h3>ACERCA DE</h3>
+          <h3>Acerca de</h3>
           <button class="modal-close" @click="$emit('close')">
             <span class="material-icons-round">close</span>
           </button>
@@ -12,61 +12,52 @@
         <div class="modal-body about-body">
           <!-- Logo -->
           <div class="about-logo">
-            <img :src="logoImage" alt="Semanur HUB" class="about-logo-img" />
+            <img :src="logoImage" alt="Semanur HUB" />
           </div>
 
-          <!-- App Name -->
-          <h1 class="about-app-name">Semanur HUB</h1>
-          <p class="about-tagline">Sistema de Gestión de Taller y Operaciones</p>
-
-          <!-- Version Badge -->
-          <div class="about-version-badge">
-            <span class="material-icons-round">code</span>
-            <span>{{ version }}</span>
+          <!-- Title -->
+          <div class="about-title">
+            <h1>Semanur HUB</h1>
+            <p>Sistema Integral de Gestion de Taller y Operaciones</p>
           </div>
 
-          <!-- Info Cards -->
-          <div class="about-cards">
-            <div class="about-card about-card--primary">
-              <span class="material-icons-round">business</span>
-              <div class="about-card-body">
-                <p class="about-card-label">DESARROLLADO POR</p>
-                <p class="about-card-value">Agropecuaria Juradó S.A.S.</p>
-              </div>
-            </div>
+          <!-- Version -->
+          <div class="about-version">
+            <span class="version-pill">{{ version }}</span>
+          </div>
 
-            <div class="about-card">
-              <span class="material-icons-round">calendar_today</span>
-              <div class="about-card-body">
-                <p class="about-card-label">AÑO</p>
-                <p class="about-card-value">{{ currentYear }}</p>
-              </div>
-            </div>
+          <!-- Divider -->
+          <div class="about-divider"></div>
 
-            <div class="about-card">
-              <span class="material-icons-round">security</span>
-              <div class="about-card-body">
-                <p class="about-card-label">DERECHOS</p>
-                <p class="about-card-value">© {{ currentYear }} Todos reservados</p>
-              </div>
+          <!-- Info Lines -->
+          <div class="about-info">
+            <div class="info-row">
+              <span class="info-label">Desarrollado por</span>
+              <span class="info-value">Agropecuaria Jurado S.A.S.</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Stack</span>
+              <span class="info-value">Vue 3 + Laravel 11 + Flutter</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Derechos</span>
+              <span class="info-value">&copy; {{ currentYear }} Todos los derechos reservados</span>
             </div>
           </div>
 
           <!-- Description -->
           <div class="about-description">
             <p>
-              Semanur HUB es un sistema integral de gestión de taller y operaciones, 
-              diseñado para optimizar el mantenimiento de flota, control de inventarios, 
-              gestión de combustible, órdenes de trabajo y programación de actividades 
-              operativas.
+              Semanur HUB es un sistema integral disenado para optimizar el mantenimiento 
+              de flota, control de inventarios, gestion de combustible, ordenes de trabajo 
+              y programacion de actividades operativas en tiempo real.
             </p>
           </div>
         </div>
 
         <div class="modal-footer about-footer">
           <button class="btn btn-secondary" @click="$emit('close')">
-            <span class="material-icons-round">check_circle</span>
-            CERRAR
+            Cerrar
           </button>
         </div>
       </div>
@@ -78,10 +69,7 @@
 import logoImage from '/logo.png';
 
 defineProps({
-  visible: {
-    type: Boolean,
-    default: false,
-  },
+  visible: { type: Boolean, default: false },
 });
 
 defineEmits(['close']);
@@ -91,9 +79,9 @@ const currentYear = new Date().getFullYear();
 </script>
 
 <style scoped>
-/* Modal About Specific */
 .modal-about {
-  max-width: 520px;
+  max-width: 480px;
+  width: 100%;
 }
 
 .about-body {
@@ -101,137 +89,111 @@ const currentYear = new Date().getFullYear();
   flex-direction: column;
   align-items: center;
   gap: 20px;
-  padding: var(--sp-lg) !important;
+  padding: 32px 40px !important;
+  text-align: center;
 }
 
 /* Logo */
 .about-logo {
   width: 120px;
   height: 120px;
-  border-radius: 50%;
+  border-radius: 20px;
   background: var(--surface-1);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-  margin-bottom: 8px;
-  overflow: hidden;
-  border: 3px solid var(--surface-3);
-  padding: 12px;
+  padding: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 
-.about-logo-img {
+.about-logo img {
   width: 100%;
   height: 100%;
   object-fit: contain;
 }
 
-/* App Name */
-.about-app-name {
-  font-size: 1.75rem;
+/* Title */
+.about-title h1 {
+  font-size: 1.8rem;
   font-weight: 800;
   color: var(--text-main);
   margin: 0;
   letter-spacing: -0.5px;
 }
 
-.about-tagline {
+.about-title p {
   font-size: 0.9rem;
   color: var(--text-gray);
-  margin: 0;
+  margin: 6px 0 0 0;
   font-weight: 500;
 }
 
-/* Version Badge */
-.about-version-badge {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  background: var(--surface-2);
-  border: 1px solid var(--surface-3);
+/* Version */
+.about-version {
+  margin-top: 4px;
+}
+
+.version-pill {
+  display: inline-block;
+  padding: 4px 14px;
+  background: var(--primary-10);
+  border: 1px solid var(--primary-20);
   border-radius: 20px;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.about-version-badge .material-icons-round {
-  font-size: 16px;
+/* Divider */
+.about-divider {
+  width: 60px;
+  height: 3px;
+  background: var(--primary);
+  border-radius: 2px;
+  opacity: 0.6;
 }
 
-/* Info Cards */
-.about-cards {
+/* Info Lines */
+.about-info {
+  width: 100%;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  width: 100%;
 }
 
-.about-card {
+.info-row {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 14px;
-  padding: 14px 16px;
-  background: var(--surface-1);
-  border: 1px solid var(--surface-2);
-  border-radius: var(--radius-md);
-  transition: all 0.2s ease;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--surface-2);
 }
 
-.about-card:hover {
-  border-color: var(--primary);
-  background: var(--surface-2);
+.info-row:last-child {
+  border-bottom: none;
 }
 
-.about-card .material-icons-round {
-  font-size: 24px;
-  color: var(--primary);
-  flex-shrink: 0;
-}
-
-.about-card-body {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.about-card-label {
-  font-size: 0.65rem;
+.info-label {
+  font-size: 0.8rem;
   color: var(--text-gray);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-weight: 700;
-  margin: 0 0 2px 0;
+  font-weight: 500;
 }
 
-.about-card-value {
-  font-size: 0.95rem;
-  font-weight: 600;
+.info-value {
+  font-size: 0.85rem;
   color: var(--text-main);
-  margin: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.about-card--primary {
-  background: linear-gradient(135deg, rgba(76, 175, 80, 0.08) 0%, rgba(76, 175, 80, 0.02) 100%);
-  border-color: rgba(76, 175, 80, 0.3);
-}
-
-.about-card--primary .material-icons-round {
-  color: var(--success);
+  font-weight: 600;
 }
 
 /* Description */
 .about-description {
   width: 100%;
-  text-align: center;
-  padding: 12px;
-  background: rgba(76, 175, 80, 0.05);
-  border: 1px solid rgba(76, 175, 80, 0.2);
+  padding: 16px;
+  background: var(--surface-1);
   border-radius: var(--radius-md);
+  border: 1px solid var(--surface-2);
 }
 
 .about-description p {
@@ -243,9 +205,26 @@ const currentYear = new Date().getFullYear();
 
 /* Footer */
 .about-footer {
-  padding: var(--sp-md) var(--sp-lg);
+  padding: 16px 24px;
   border-top: 1px solid var(--surface-2);
-  background: var(--surface);
-  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  display: flex;
+  justify-content: center;
+}
+
+.about-footer .btn {
+  min-width: 120px;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .about-body {
+    padding: 24px 20px !important;
+  }
+  
+  .info-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
 }
 </style>

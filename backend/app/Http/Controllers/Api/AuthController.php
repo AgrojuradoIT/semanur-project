@@ -86,4 +86,19 @@ class AuthController extends Controller
                 ->get()
         );
     }
+
+    public function updateProfile(Request $request)
+    {
+        $request->validate([
+            'name'           => 'sometimes|string|max:255',
+            'phone'          => 'sometimes|nullable|string|max:30',
+            'license_number' => 'sometimes|nullable|string|max:50',
+        ]);
+
+        $user = $request->user();
+        $user->fill($request->only(['name', 'phone', 'license_number']));
+        $user->save();
+
+        return response()->json($user);
+    }
 }

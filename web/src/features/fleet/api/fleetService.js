@@ -23,7 +23,7 @@ export async function updateVehicle(vehicleId, vehicleData) {
 
 export async function getVehicleFuelHistory(vehicleId) {
   const { data } = await http.get(`/combustible?vehiculo_id=${vehicleId}`);
-  return data;
+  return data.data || [];
 }
 
 export async function getVehicleHourMeters(vehicleId) {

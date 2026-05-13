@@ -67,7 +67,11 @@ class AppVersionResource extends Resource
                             ->required()
                             ->disk('public')
                             ->directory('apks')
-                            ->acceptedFileTypes(['application/vnd.android.package-archive'])
+                            ->acceptedFileTypes([
+                                'application/vnd.android.package-archive',
+                                'application/octet-stream',
+                                'application/zip',
+                            ])
                             ->maxSize(150 * 1024) // 150MB
                             ->label('Archivo APK')
                             ->helperText('Sube el archivo .apk compilado (máx. 150MB)'),

@@ -17,6 +17,7 @@
         <RouterLink v-for="item in admin" :key="item.path" :to="item.path" class="sidebar-item" :class="{ 'active': item.path === '/' ? route.path === '/' : route.path.startsWith(item.path) }">
           <span class="material-icons-round">{{ item.icon }}</span>
           {{ item.label }}
+          <span v-if="item.path === '/notifications' && notifStore.unreadCount > 0" class="sidebar-badge">{{ notifStore.unreadCount > 99 ? '99+' : notifStore.unreadCount }}</span>
         </RouterLink>
       </nav>
 
@@ -136,25 +137,41 @@
         <RouterView />
       </div>
     </main>
+
+    <!-- Dynamic Island -->
+    <DynamicIsland
+      v-model="islandState.show"
+      :type="islandState.type"
+      :title="islandState.title"
+      :message="islandState.message"
+      :duration="islandState.duration"
+      :action-label="islandState.actionLabel"
+      @action="handleIslandAction"
+      @dismiss="dismissIsland"
+    />
   </div>
 </template>
 
 <script setup>
 import { computed, ref, onMounted, onUnmounted } from 'vue';
-import { useRouter, useRoute, RouterLink, RouterView } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '../../shared/stores/auth';
 import { useNotificacionesStore } from '../../shared/stores/notificaciones';
 import { useRefresh } from '../../shared/composables/useRefresh';
+import { useDynamicIsland } from '../../shared/composables/useDynamicIsland';
 import AboutModal from '../../shared/components/AboutModal.vue';
+import DynamicIsland from '../../shared/components/DynamicIsland.vue';
 
 const auth = useAuthStore();
 const notifStore = useNotificacionesStore();
 const router = useRouter();
 const route = useRoute();
+const { islandState, dismiss: dismissIsland, handleAction: handleIslandAction } = useDynamicIsland();
 const { triggerRefresh } = useRefresh();
 
 // About Modal
 const showAboutModal = ref(false);
+let pollTimer = null;
 
 const profileMenuOpen = ref(false);
 const notifPanelOpen = ref(false);
@@ -212,10 +229,16 @@ onMounted(async () => {
   } catch (e) {
     console.warn('No se pudieron cargar notificaciones:', e);
   }
+
+  // Polling cada 60s para nuevas notificaciones
+  pollTimer = setInterval(() => {
+    notifStore.fetchNotificaciones().catch(() => {});
+  }, 60000);
 });
 
 onUnmounted(() => {
   document.removeEventListener('click', closeMenus);
+  if (pollTimer) clearInterval(pollTimer);
 });
 
 function handleRefresh() {
@@ -236,6 +259,7 @@ const operations = computed(() => {
     { path: '/loans', icon: 'handyman', label: 'Prestamos Herr.', modulo: 'prestamos' },
     { path: '/checklists', icon: 'playlist_add_check', label: 'Checklists', modulo: 'checklists' },
     { path: '/fuel', icon: 'local_gas_station', label: 'Combustible', modulo: 'combustible' },
+    { path: '/scheduler', icon: 'calendar_month', label: 'Programacion', modulo: 'personal' },
   ];
   return items.filter(item => auth.canAccessModule(item.modulo));
 });
@@ -244,7 +268,6 @@ const admin = computed(() => {
   const items = [
     { path: '/history', icon: 'history', label: 'Actividad', modulo: 'analitica' },
     { path: '/employees', icon: 'people', label: 'Empleados', modulo: 'personal' },
-    { path: '/scheduler', icon: 'calendar_month', label: 'Programacion', modulo: 'personal' },
     { path: '/notifications', icon: 'notifications', label: 'Notificaciones' },
   ];
   return items.filter(item => !item.modulo || auth.canAccessModule(item.modulo));
@@ -544,6 +567,20 @@ function updateTheme() {
 
 .notif-panel-footer:hover {
   background: var(--surface-2);
+}
+
+/* Sidebar Badge */
+.sidebar-badge {
+  margin-left: auto;
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+  line-height: 1.4;
 }
 
 /* Sidebar About Button */

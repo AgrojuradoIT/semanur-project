@@ -21,11 +21,33 @@ class ChecklistApiController extends Controller
     {
         $query = ListaChequeo::with('items')->where('activo', true);
 
-        if ($request->has('tipo_vehiculo')) {
-            $query->where('tipo_vehiculo', $request->tipo_vehiculo);
+        if ($request->has('tipo_vehiculo') && $request->tipo_vehiculo !== '') {
+            $tipo = strtolower(trim($request->tipo_vehiculo));
+            $query->where(function ($q) use ($tipo) {
+                $q->whereRaw('LOWER(tipo_vehiculo) = ?', [$tipo])
+                  ->orWhereRaw('LOWER(tipo_vehiculo) LIKE ?', ["%{$tipo}%"]);
+            });
         }
 
         $listas = $query->get();
+
+        if ($listas->isEmpty() && $request->filled('tipo_vehiculo')) {
+            $listas = ListaChequeo::with('items')
+                ->where('activo', true)
+                ->where(function ($q) {
+                    $q->whereNull('tipo_vehiculo')
+                      ->orWhere('tipo_vehiculo', '')
+                      ->orWhere('tipo_vehiculo', 'generico');
+                })
+                ->get();
+        }
+
+        if ($listas->isEmpty()) {
+            $listas = ListaChequeo::with('items')
+                ->where('activo', true)
+                ->limit(1)
+                ->get();
+        }
 
         return response()->json($listas);
     }

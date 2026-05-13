@@ -20,6 +20,7 @@ Route::get('/app/version', [\App\Http\Controllers\Api\AppVersionController::clas
 // Rutas protegidas (comunes a todos los usuarios autenticados)
 Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
+    Route::put('/user/profile', [AuthController::class, 'updateProfile']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/refresh', [AuthController::class, 'refresh']);
     Route::post('/logout-all', [AuthController::class, 'logoutAll']);
@@ -28,6 +29,8 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     Route::get('notifications', [\App\Http\Controllers\Api\NotificacionApiController::class, 'index']);
     Route::post('notifications/{id}/read', [\App\Http\Controllers\Api\NotificacionApiController::class, 'markAsRead']);
     Route::post('notifications/read-all', [\App\Http\Controllers\Api\NotificacionApiController::class, 'markAllAsRead']);
+    Route::delete('notifications/read', [\App\Http\Controllers\Api\NotificacionApiController::class, 'destroyRead']);
+    Route::delete('notifications/{id}', [\App\Http\Controllers\Api\NotificacionApiController::class, 'destroy']);
 
     // ─── Combustible ───────────────────────────────────
     Route::middleware('module:combustible')->group(function () {
@@ -90,8 +93,11 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     });
 
     // ─── Personal (Empleados + Programación) ───────────
+    // GET /empleados es público para todos los usuarios autenticados (dropdowns)
+    Route::get('/empleados', [\App\Http\Controllers\Api\EmpleadoApiController::class, 'index']);
+
     Route::middleware('module:personal')->group(function () {
-        Route::apiResource('/empleados', \App\Http\Controllers\Api\EmpleadoApiController::class);
+        Route::apiResource('/empleados', \App\Http\Controllers\Api\EmpleadoApiController::class)->except(['index']);
 
         Route::get('/programacion', [\App\Http\Controllers\Api\ProgramacionApiController::class, 'index']);
         Route::post('/programacion', [\App\Http\Controllers\Api\ProgramacionApiController::class, 'store']);
