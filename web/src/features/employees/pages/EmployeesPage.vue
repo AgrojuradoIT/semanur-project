@@ -59,7 +59,6 @@
             <h4 class="emp-card-name">{{ employeeFullName(emp) }}</h4>
             <span class="emp-card-cargo">{{ emp.cargo || 'Sin cargo' }}</span>
             <div class="emp-card-meta">
-              <span v-if="emp.dependencia" class="emp-chip">{{ emp.dependencia }}</span>
               <span v-if="(emp.estado || '').toLowerCase() === 'retirado'" class="emp-chip emp-chip--red">RETIRADO</span>
               <span v-if="emp.licencia_conduccion || emp.categoria_licencia" class="emp-chip emp-chip--yellow">
                 <span class="material-icons-round" style="font-size: 12px">badge</span>
@@ -157,10 +156,6 @@
                   <div class="emp-info-field">
                     <span class="emp-info-label">Documento</span>
                     <span class="emp-info-value">{{ selectedEmployee.documento || '—' }}</span>
-                  </div>
-                  <div class="emp-info-field">
-                    <span class="emp-info-label">Dependencia</span>
-                    <span class="emp-info-value">{{ selectedEmployee.dependencia || '—' }}</span>
                   </div>
                   <div class="emp-info-field">
                     <span class="emp-info-label">Estado</span>
@@ -367,11 +362,10 @@
           </div>
           <div class="input-group">
             <label>Cargo</label>
-            <input v-model="form.cargo" class="input" />
-          </div>
-          <div class="input-group">
-            <label>Dependencia</label>
-            <input v-model="form.dependencia" class="input" />
+            <select v-model="form.cargo" class="input">
+              <option value="">Seleccionar...</option>
+              <option v-for="cargo in cargosList" :key="cargo" :value="cargo">{{ cargo }}</option>
+            </select>
           </div>
           <div class="input-group">
             <label>Licencia Conducción</label>
@@ -434,11 +428,13 @@ import { computed, onMounted, ref } from 'vue';
 import { useAsyncState } from '../../../shared/composables/useAsyncState';
 import { useRefresh } from '../../../shared/composables/useRefresh';
 import { createEmployee, fetchEmployees, fetchEmployeeDetail, updateEmployee } from '../api/employeesService';
+import http from '../../../shared/api/http';
 
 const { loading, error, run, clearError } = useAsyncState('');
 const { onRefresh } = useRefresh();
 const search = ref('');
 const employees = ref([]);
+const cargosList = ref([]);
 
 // Filters
 const filterEstado = ref('activo');
@@ -475,7 +471,17 @@ const tabs = [
 
 onMounted(async () => {
   await loadEmployees();
+  await loadCargos();
 });
+
+async function loadCargos() {
+  try {
+    const res = await http.get('/cargos');
+    cargosList.value = res.data.cargos || [];
+  } catch {
+    // Fallback to empty lists if endpoint fails
+  }
+}
 
 onRefresh(() => { loadEmployees(); });
 
@@ -493,7 +499,7 @@ const filteredEmployees = computed(() => {
 function defaultForm() {
   return {
     nombres: '', apellidos: '', documento: '', telefono: '',
-    cargo: '', dependencia: '', licencia_conduccion: '', estado: 'activo',
+    cargo: '', licencia_conduccion: '', estado: 'activo',
     crear_usuario: false, email: '', password: '', role: 'operador',
   };
 }
@@ -602,7 +608,7 @@ function openEditModal(emp) {
   form.value = {
     nombres: emp.nombres || '', apellidos: emp.apellidos || '',
     documento: emp.documento || '', telefono: emp.telefono || '',
-    cargo: emp.cargo || '', dependencia: emp.dependencia || '',
+    cargo: emp.cargo || '',
     licencia_conduccion: emp.licencia_conduccion || emp.categoria_licencia || '',
     estado: emp.estado || 'activo',
     crear_usuario: false, email: '', password: '', role: 'operador',
@@ -628,7 +634,6 @@ async function submitForm() {
     documento: form.value.documento?.trim() || null,
     telefono: form.value.telefono?.trim() || null,
     cargo: form.value.cargo?.trim() || null,
-    dependencia: form.value.dependencia?.trim() || null,
     licencia_conduccion: form.value.licencia_conduccion?.trim() || null,
     estado: form.value.estado || 'activo',
   };

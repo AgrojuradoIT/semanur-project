@@ -11,15 +11,9 @@ use Illuminate\Http\Request;
 
 class WorkSessionApiController extends Controller
 {
-    private function isAdmin($user): bool
-    {
-        return strtolower((string) $user->role) === 'admin'
-            || $user->email === 'admin@semanur.com';
-    }
-
     private function canAccessOrden($user, OrdenTrabajo $orden): bool
     {
-        if ($this->isAdmin($user)) {
+        if ($user->isAdmin()) {
             return true;
         }
 
@@ -51,7 +45,6 @@ class WorkSessionApiController extends Controller
             return response()->json(['message' => 'No autorizado para iniciar sesion en esta orden'], 403);
         }
 
-        // Verificar si ya tiene una sesion activa
         $activeSession = WorkSession::where('empleado_id', $empleadoId)
             ->whereNull('fecha_fin')
             ->first();
@@ -79,21 +72,11 @@ class WorkSessionApiController extends Controller
     {
         $user = $request->user();
         $empleadoId = Empleado::where('user_id', $user->id)->value('id');
-        
-        \Log::info('Stop Session - ID: ' . $id . ', Empleado ID: ' . $empleadoId);
-        
+
         $session = WorkSession::findOrFail($id);
 
-        \Log::info('Stop Session - Found session: ' . json_encode([
-            'sesion_id' => $session->sesion_id,
-            'empleado_id' => $session->empleado_id,
-            'orden_trabajo_id' => $session->orden_trabajo_id,
-            'fecha_inicio' => $session->fecha_inicio,
-            'fecha_fin' => $session->fecha_fin,
-        ]));
-
         if (
-            !$this->isAdmin($user)
+            !$user->isAdmin()
             && (!$empleadoId || (int) $session->empleado_id !== (int) $empleadoId)
         ) {
             return response()->json(['message' => 'No autorizado para finalizar esta sesion'], 403);
@@ -107,8 +90,6 @@ class WorkSessionApiController extends Controller
             'fecha_fin' => now(),
             'notas' => $request->notas,
         ]);
-        
-        \Log::info('Stop Session - Updated session with fecha_fin: ' . $session->fecha_fin);
 
         return response()->json([
             'message' => 'Sesion finalizada correctamente',

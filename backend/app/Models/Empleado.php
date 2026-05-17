@@ -17,7 +17,6 @@ class Empleado extends Model
         'telefono',
         'direccion',
         'cargo',
-        'dependencia',
         'licencia_conduccion',
         'categoria_licencia',
         'vencimiento_licencia',

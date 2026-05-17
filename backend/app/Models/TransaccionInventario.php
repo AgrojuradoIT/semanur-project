@@ -10,6 +10,7 @@ class TransaccionInventario extends Model
 
     protected $fillable = [
         'producto_id',
+        'bodega_id',
         'usuario_id',
         'transaccion_tipo',
         'transaccion_cantidad',
@@ -22,6 +23,11 @@ class TransaccionInventario extends Model
     public function producto()
     {
         return $this->belongsTo(Producto::class, 'producto_id', 'producto_id');
+    }
+
+    public function bodega()
+    {
+        return $this->belongsTo(Bodega::class, 'bodega_id', 'bodega_id');
     }
 
     public function usuario()

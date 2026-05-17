@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
             CategoriasSeeder::class,
             VehiculoSeeder::class,
             ProductoSeeder::class,
+            CargoSeeder::class,
         ]);
     }
 }

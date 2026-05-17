@@ -11,6 +11,8 @@ use App\Http\Controllers\Api\PrestamoApiController;
 use App\Http\Controllers\Api\ProductoApiController;
 use App\Http\Controllers\Api\VehiculoApiController;
 use App\Http\Controllers\Api\VehiculoDocumentoApiController;
+use App\Models\Cargo;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
 
 // Rutas públicas
@@ -90,6 +92,15 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
 
         Route::get('/vehiculos/{id}/horometro', [HorometroApiController::class, 'index']);
         Route::post('/horometro', [HorometroApiController::class, 'store']);
+    });
+
+    // ─── Cargos (lista centralizada) ─────────────────────
+    Route::get('/cargos', function () {
+        return response()->json(Cache::remember('api:cargos', now()->addHour(), function () {
+            return [
+                'cargos' => Cargo::where('activo', true)->orderBy('orden')->pluck('nombre'),
+            ];
+        }));
     });
 
     // ─── Personal (Empleados + Programación) ───────────

@@ -6,7 +6,6 @@ class Empleado {
   final String? telefono;
   final String? direccion;
   final String? cargo;
-  final String? dependencia;
   final String? licenciaConduccion;
   final String? categoriaLicencia;
   final DateTime? vencimientoLicencia;
@@ -24,7 +23,6 @@ class Empleado {
     this.telefono,
     this.direccion,
     this.cargo,
-    this.dependencia,
     this.licenciaConduccion,
     this.categoriaLicencia,
     this.vencimientoLicencia,
@@ -52,7 +50,6 @@ class Empleado {
       telefono: json['telefono'],
       direccion: json['direccion'],
       cargo: json['cargo'],
-      dependencia: json['dependencia'],
       licenciaConduccion: json['licencia_conduccion'],
       categoriaLicencia: json['categoria_licencia'],
       vencimientoLicencia: json['vencimiento_licencia'] != null
@@ -74,7 +71,6 @@ class Empleado {
       'telefono': telefono,
       'direccion': direccion,
       'cargo': cargo,
-      'dependencia': dependencia,
       'licencia_conduccion': licenciaConduccion,
       'categoria_licencia': categoriaLicencia,
       'vencimiento_licencia': vencimientoLicencia?.toIso8601String().split(

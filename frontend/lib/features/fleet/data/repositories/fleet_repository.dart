@@ -37,6 +37,7 @@ class FleetRepository {
             'modelo': map['modelo'],
             'tipo': map['tipo'],
             'foto_url': map['imagen_url'] ?? map['foto_url'],
+            'foto_thumb_url': map['imagen_thumb_url'],
             'horometro_actual': toDoubleOrNull(map['horometro_actual']),
             'kilometraje_actual': toDoubleOrNull(map['kilometraje_actual']),
             'horometro_proximo_mantenimiento':

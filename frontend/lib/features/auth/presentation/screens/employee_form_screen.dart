@@ -24,8 +24,7 @@ class _EmployeeFormScreenState extends State<EmployeeFormScreen> {
   late TextEditingController _licenciaController;
   late TextEditingController _resumenController;
 
-  String _selectedCargo = 'Operador';
-  String _selectedDependencia = 'Operaciones';
+  String _selectedCargo = 'Mecánico';
   bool _isLoading = false;
 
   // User Access Fields
@@ -35,18 +34,24 @@ class _EmployeeFormScreenState extends State<EmployeeFormScreen> {
   String _selectedRoleUser = 'operador';
 
   final List<String> _cargos = [
-    'Operador',
+    'Almacenista',
+    'Auxiliar de Cable Vía',
+    'Auxiliar de Mantenimiento',
+    'Auxiliar de Retroexcavadora',
+    'Auxiliar de Taller',
+    'Auxiliar SST',
+    'Conductor de Volqueta',
+    'Coordinador de Tractores Aéreos',
+    'Electricista',
     'Mecánico',
-    'Conductor',
-    'Auxiliar',
-    'Administrativo',
+    'Motosierrista',
+    'Operador de Retroexcavadora',
+    'Operario de Oficios Varios',
+    'Operario de Plataforma',
+    'Soldador',
+    'Tractorista Aéreo',
+    'Tractorista Terrestre',
   ];
-  final List<String> _dependencias = [
-    'Operaciones',
-    'Mantenimiento',
-    'Administración',
-    'Logística',
-  ]; // Example values
 
   @override
   void initState() {
@@ -76,13 +81,6 @@ class _EmployeeFormScreenState extends State<EmployeeFormScreen> {
         _cargos.add(widget.employee!.cargo!);
       }
       _selectedCargo = widget.employee!.cargo!;
-    }
-
-    if (widget.employee?.dependencia != null) {
-      if (!_dependencias.contains(widget.employee!.dependencia)) {
-        _dependencias.add(widget.employee!.dependencia!);
-      }
-      _selectedDependencia = widget.employee!.dependencia!;
     }
   }
 
@@ -126,7 +124,6 @@ class _EmployeeFormScreenState extends State<EmployeeFormScreen> {
         'documento': _documentoController.text,
         'telefono': _telefonoController.text,
         'cargo': _selectedCargo,
-        'dependencia': _selectedDependencia,
         'licencia_conduccion': _licenciaController.text.isNotEmpty
             ? _licenciaController.text
             : null,
@@ -248,28 +245,6 @@ class _EmployeeFormScreenState extends State<EmployeeFormScreen> {
                     )
                     .toList(),
                 onChanged: (val) => setState(() => _selectedCargo = val!),
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                initialValue: _selectedDependencia,
-                dropdownColor: AppTheme.surfaceDark,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  labelText: 'Dependencia / Área',
-                  prefixIcon: Icon(
-                    Icons.business,
-                    color: AppTheme.primaryYellow,
-                  ),
-                  enabledBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: AppTheme.surfaceDark2),
-                  ),
-                ),
-                items: _dependencias
-                    .map(
-                      (dep) => DropdownMenuItem(value: dep, child: Text(dep)),
-                    )
-                    .toList(),
-                onChanged: (val) => setState(() => _selectedDependencia = val!),
               ),
               const SizedBox(height: 16),
               _buildTextField(

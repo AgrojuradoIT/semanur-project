@@ -42,7 +42,6 @@ class EmpleadoApiController extends Controller
                     'documento',
                     'telefono',
                     'cargo',
-                    'dependencia',
                     'licencia_conduccion',
                     'categoria_licencia',
                     'estado',
@@ -64,8 +63,7 @@ class EmpleadoApiController extends Controller
             'apellidos' => 'nullable|string|max:255',
             'documento' => 'nullable|string|max:50|unique:empleados',
             'telefono' => 'nullable|string|max:50',
-            'cargo' => 'nullable|string|max:100',
-            'dependencia' => 'nullable|string|max:100',
+            'cargo' => ['nullable', 'string', 'max:100', Rule::exists('cargos', 'nombre')->where('activo', true)],
             'licencia_conduccion' => 'nullable|string|max:50',
             // User validation if creating user
             'crear_usuario' => 'boolean',
@@ -86,7 +84,6 @@ class EmpleadoApiController extends Controller
                     'phone' => $request->telefono,
                     'license_number' => $request->licencia_conduccion,
                     'cargo' => $request->cargo,
-                    'dependencia' => $request->dependencia,
                 ]);
                 $userId = $user->id;
             }
@@ -128,8 +125,7 @@ class EmpleadoApiController extends Controller
             'apellidos' => 'nullable|string|max:255',
             'documento' => ['nullable', 'string', 'max:50', Rule::unique('empleados')->ignore($empleado->id)],
             'telefono' => 'nullable|string|max:50',
-            'cargo' => 'nullable|string|max:100',
-            'dependencia' => 'nullable|string|max:100',
+            'cargo' => ['nullable', 'string', 'max:100', Rule::exists('cargos', 'nombre')->where('activo', true)],
             'licencia_conduccion' => 'nullable|string|max:50',
             'estado' => 'nullable|string|in:activo,inactivo,retirado',
             'fecha_retiro' => 'nullable|date',

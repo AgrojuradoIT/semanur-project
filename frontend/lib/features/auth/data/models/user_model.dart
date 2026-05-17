@@ -8,7 +8,6 @@ class User {
   final String? phone;
   final String? licenseNumber;
   final String? cargo;
-  final String? dependencia;
 
   final List<String> permisos;
   final List<String> permisosEfectivos;
@@ -22,7 +21,6 @@ class User {
     this.phone,
     this.licenseNumber,
     this.cargo,
-    this.dependencia,
     List<String>? permisos,
     List<String>? permisosEfectivos,
   })  : permisos = permisos ?? [],
@@ -65,7 +63,6 @@ class User {
       phone: json['phone']?.toString() ?? json['telefono']?.toString(),
       licenseNumber: json['license_number']?.toString() ?? json['licencia_conduccion']?.toString(),
       cargo: json['cargo']?.toString(),
-      dependencia: json['dependencia']?.toString(),
       permisos: parseList(json['permisos']),
       permisosEfectivos: parseList(json['permisos_efectivos']),
     );
@@ -81,7 +78,6 @@ class User {
       'phone': phone,
       'license_number': licenseNumber,
       'cargo': cargo,
-      'dependencia': dependencia,
     };
   }
 

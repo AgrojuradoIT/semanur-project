@@ -15,6 +15,7 @@ class Vehiculo extends Model
         'marca',
         'modelo',
         'imagen_url',
+        'imagen_thumb_url',
         'horometro_actual',
         'horometro_proximo_mantenimiento',
         'kilometraje_actual',

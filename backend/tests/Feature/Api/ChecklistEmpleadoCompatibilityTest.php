@@ -54,7 +54,6 @@ class ChecklistEmpleadoCompatibilityTest extends TestCase
             'apellidos' => $partes[1] ?? '',
             'user_id' => $userId,
             'cargo' => 'Operador',
-            'dependencia' => 'Campo',
         ]);
     }
 

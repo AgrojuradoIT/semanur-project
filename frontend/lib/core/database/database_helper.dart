@@ -1003,7 +1003,6 @@ class DatabaseHelper {
         telefono TEXT,
         direccion TEXT,
         cargo TEXT,
-        dependencia TEXT,
         licencia_conduccion TEXT,
         categoria_licencia TEXT,
         vencimiento_licencia TEXT,
@@ -1027,7 +1026,6 @@ class DatabaseHelper {
         'telefono': e['telefono'],
         'direccion': e['direccion'],
         'cargo': e['cargo'],
-        'dependencia': e['dependencia'],
         'licencia_conduccion': e['licencia_conduccion'],
         'categoria_licencia': e['categoria_licencia'],
         'vencimiento_licencia': e['vencimiento_licencia'],
@@ -1057,7 +1055,7 @@ class DatabaseHelper {
     for (var u in usersJson) {
       // Adaptar campos si es necesario o guardar direct json
       // Asumimos que el json viene compatible con model User
-      // User model: id, name, email, role, phone, license_number, cargo, dependencia
+      // User model: id, name, email, role, phone, license_number, cargo
       batch.insert('users', {
         'id': u['id'],
         'name': u['name'],
@@ -1066,7 +1064,6 @@ class DatabaseHelper {
         'phone': u['phone'],
         'license_number': u['license_number'],
         'cargo': u['cargo'],
-        'dependencia': u['dependencia'],
         'last_updated': DateTime.now().toIso8601String(),
       }, conflictAlgorithm: ConflictAlgorithm.replace);
     }
@@ -1083,7 +1080,6 @@ class DatabaseHelper {
         phone TEXT,
         license_number TEXT,
         cargo TEXT,
-        dependencia TEXT,
         last_updated TEXT
       )
     ''');

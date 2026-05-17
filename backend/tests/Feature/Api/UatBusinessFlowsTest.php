@@ -182,7 +182,6 @@ class UatBusinessFlowsTest extends TestCase
             'apellidos' => $partes[1] ?? '',
             'user_id' => $userId,
             'cargo' => $cargo,
-            'dependencia' => 'Operaciones',
         ]);
     }
 

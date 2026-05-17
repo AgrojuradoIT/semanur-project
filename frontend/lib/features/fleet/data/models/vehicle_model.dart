@@ -8,6 +8,8 @@ class Vehiculo {
   final String tipo;
   final String marca;
   final String modelo;
+  final String? imagenUrl;
+  final String? imagenThumbUrl;
   final double horometroActual;
   final double? horometroProximoMantenimiento;
   final double kilometrajeActual;
@@ -25,6 +27,8 @@ class Vehiculo {
     required this.tipo,
     required this.marca,
     required this.modelo,
+    this.imagenUrl,
+    this.imagenThumbUrl,
     this.horometroActual = 0,
     this.horometroProximoMantenimiento,
     this.kilometrajeActual = 0,
@@ -51,6 +55,8 @@ class Vehiculo {
       tipo: json['tipo'] ?? '',
       marca: json['marca'] ?? '',
       modelo: json['modelo'] ?? '',
+      imagenUrl: json['imagen_url'],
+      imagenThumbUrl: json['imagen_thumb_url'],
       horometroActual: (json['horometro_actual'] is num)
           ? json['horometro_actual'].toDouble()
           : double.parse(json['horometro_actual']?.toString() ?? '0'),
@@ -106,6 +112,8 @@ class Vehiculo {
       'tipo': tipo,
       'marca': marca,
       'modelo': modelo,
+      'imagen_url': imagenUrl,
+      'imagen_thumb_url': imagenThumbUrl,
       'horometro_actual': horometroActual,
       'horometro_proximo_mantenimiento': horometroProximoMantenimiento,
       'kilometraje_actual': kilometrajeActual,

@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\EmpleadoResource\Pages;
+use App\Models\Cargo;
 use App\Models\Empleado;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
@@ -39,8 +40,9 @@ class EmpleadoResource extends Resource
                 Forms\Components\TextInput::make('telefono')
                     ->tel()
                     ->maxLength(20),
-                Forms\Components\TextInput::make('cargo')
-                    ->maxLength(255),
+                Forms\Components\Select::make('cargo')
+                    ->options(Cargo::where('activo', true)->orderBy('orden')->pluck('nombre', 'nombre'))
+                    ->searchable(),
                 Forms\Components\Select::make('estado')
                     ->options([
                         'activo' => 'Activo',

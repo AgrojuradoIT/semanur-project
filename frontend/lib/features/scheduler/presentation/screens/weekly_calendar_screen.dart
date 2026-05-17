@@ -807,7 +807,7 @@ class _WeeklyCalendarScreenState extends State<WeeklyCalendarScreen> {
         )
         .toList();
     filtered.sort(
-      (a, b) => (a.dependencia ?? '').compareTo(b.dependencia ?? ''),
+      (a, b) => (a.cargo ?? '').compareTo(b.cargo ?? ''),
     );
     return filtered;
   }

@@ -38,7 +38,6 @@ class AuthUsersAccessTest extends TestCase
             'phone' => '3001234567',
             'license_number' => 'LIC-123',
             'cargo' => 'Administrador',
-            'dependencia' => 'Taller',
         ]);
 
         User::factory()->create([
@@ -62,7 +61,6 @@ class AuthUsersAccessTest extends TestCase
         $this->assertArrayHasKey('phone', $users[0]);
         $this->assertArrayHasKey('license_number', $users[0]);
         $this->assertArrayHasKey('cargo', $users[0]);
-        $this->assertArrayHasKey('dependencia', $users[0]);
         $this->assertArrayNotHasKey('password', $users[0]);
         $this->assertArrayNotHasKey('remember_token', $users[0]);
     }

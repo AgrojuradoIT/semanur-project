@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Bodega;
 use App\Models\Empleado;
 use App\Models\OrdenTrabajo;
 use App\Models\PrestamoHerramienta;
@@ -17,11 +18,6 @@ use Illuminate\Validation\ValidationException;
 
 class OrdenTrabajoApiController extends Controller
 {
-    private function isAdmin($user): bool
-    {
-        return strtolower((string) $user->role) === 'admin';
-    }
-
     private function getEmpleadoIdForUser(int $userId): ?int
     {
         return Empleado::where('user_id', $userId)->value('id');
@@ -29,7 +25,7 @@ class OrdenTrabajoApiController extends Controller
 
     private function canAccessOrden(User $user, OrdenTrabajo $orden): bool
     {
-        if ($this->isAdmin($user)) {
+        if ($user->isAdmin()) {
             return true;
         }
 
@@ -41,11 +37,10 @@ class OrdenTrabajoApiController extends Controller
 
     public function index(Request $request)
     {
-        // Si es un mecanico, solo ve sus ordenes asignadas. Si es admin, ve todas.
         $user = $request->user();
         $query = OrdenTrabajo::with(['vehiculo', 'mecanico', 'movimientos_inventario.producto', 'sesiones']);
 
-        if (!$this->isAdmin($user)) {
+        if (!$user->isAdmin()) {
             $ids = [(int) $user->id];
             $empleadoId = $this->getEmpleadoIdForUser((int) $user->id);
             if ($empleadoId !== null) {
@@ -61,7 +56,6 @@ class OrdenTrabajoApiController extends Controller
     public function show(Request $request, $id)
     {
         $user = $request->user();
-        // Cargar orden con todas las relaciones incluyendo sesiones
         $orden = OrdenTrabajo::with([
             'vehiculo',
             'mecanico',
@@ -77,9 +71,6 @@ class OrdenTrabajoApiController extends Controller
         if (!$this->canAccessOrden($user, $orden)) {
             return response()->json(['message' => 'No autorizado para ver esta orden'], 403);
         }
-
-        // Debug: Log para verificar sesiones
-        \Log::info('OrdenTrabajo show: ID=' . $id . ', Sesiones count=' . $orden->sesiones->count());
 
         return response()->json($orden);
     }
@@ -102,7 +93,7 @@ class OrdenTrabajoApiController extends Controller
 
         try {
             DB::beginTransaction();
-            // Resuelve mecanico: el frontend puede enviar empleado_id o user_id
+// Resuelve mecanico: el frontend puede enviar empleado_id o user_id
             // Fase 1: mecanicos no tienen usuario → se guarda null
             // Fase 2: cuando tengan cuenta → se usa su user_id automáticamente
             $mecanicoAsignadoId = null;
@@ -118,25 +109,17 @@ class OrdenTrabajoApiController extends Controller
                 }
             }
 
-            // 1. Crear la orden de trabajo base (sin foto aun)
             $orden = new OrdenTrabajo();
             $orden->vehiculo_id = $request->vehiculo_id;
             $orden->mecanico_asignado_id = $mecanicoAsignadoId;
             $orden->prioridad = $request->prioridad;
             $orden->descripcion = $request->descripcion;
             $orden->estado = 'Abierta';
-            
-            // Usar fecha y hora actual de Bogotá - now() ya está configurado en America/Bogota
-            // Importante: Asignar DESPUES de setear los otros campos y ANTES del save()
-            $currentDateTime = now();
-            \Log::info('Creando OT - Fecha actual: ' . $currentDateTime->toIso8601String());
-            
-            $orden->fecha_inicio = $currentDateTime;
+            $orden->fecha_inicio = now();
             $orden->save();
-            
-            \Log::info('OT Creada - ID: ' . $orden->orden_trabajo_id . ' - Fecha guardada: ' . $orden->fecha_inicio->toIso8601String());
 
-            // 2. Procesar repuestos (salidas de inventario)
+            $bodegaId = $this->resolveDefaultBodegaId();
+
             if ($request->has('repuestos')) {
                 foreach ($request->repuestos as $repuesto) {
                     $cantidad = (float) $repuesto['cantidad'];
@@ -150,6 +133,7 @@ class OrdenTrabajoApiController extends Controller
 
                     TransaccionInventario::create([
                         'producto_id' => $repuesto['producto_id'],
+                        'bodega_id' => $bodegaId,
                         'usuario_id' => $request->user()->id,
                         'transaccion_tipo' => 'salida',
                         'transaccion_cantidad' => $cantidad,
@@ -161,7 +145,6 @@ class OrdenTrabajoApiController extends Controller
                 }
             }
 
-            // 3. Procesar prestamos de herramientas
             if ($request->has('herramientas')) {
                 foreach ($request->herramientas as $tool) {
                     $cantidad = isset($tool['cantidad']) ? (float) $tool['cantidad'] : 1.0;
@@ -186,6 +169,7 @@ class OrdenTrabajoApiController extends Controller
 
                     TransaccionInventario::create([
                         'producto_id' => $tool['producto_id'],
+                        'bodega_id' => $bodegaId,
                         'usuario_id' => $request->user()->id,
                         'transaccion_tipo' => 'salida',
                         'transaccion_cantidad' => $cantidad,
@@ -197,7 +181,6 @@ class OrdenTrabajoApiController extends Controller
                 }
             }
 
-            // 4. Procesar foto de evidencia con el sistema de media
             if ($request->hasFile('foto_evidencia')) {
                 $media = $mediaService->storeUploadedFile(
                     $request->file('foto_evidencia'),
@@ -207,7 +190,6 @@ class OrdenTrabajoApiController extends Controller
                     userId: $request->user()->id
                 );
 
-                // Mantener compatibilidad con el campo existente en la tabla
                 $orden->foto_evidencia = $media->path;
                 $orden->save();
             }
@@ -265,7 +247,7 @@ class OrdenTrabajoApiController extends Controller
     {
         $user = $request->user();
 
-        if (!$this->isAdmin($user)) {
+        if (!$user->isAdmin()) {
             return response()->json(['message' => 'No autorizado para eliminar órdenes de trabajo'], 403);
         }
 
@@ -288,5 +270,10 @@ class OrdenTrabajoApiController extends Controller
 
             return response()->json(['message' => 'Orden de trabajo eliminada correctamente']);
         });
+    }
+
+    private function resolveDefaultBodegaId(): ?int
+    {
+        return Bodega::value('bodega_id');
     }
 }

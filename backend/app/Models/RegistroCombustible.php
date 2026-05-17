@@ -25,6 +25,7 @@ class RegistroCombustible extends Model
         'placa_manual',
         'notas',
         'labor',
+        'transaccion_id',
     ];
 
     protected $casts = [
@@ -48,5 +49,10 @@ class RegistroCombustible extends Model
     public function empleado()
     {
         return $this->belongsTo(Empleado::class, 'empleado_id', 'id');
+    }
+
+    public function transaccion()
+    {
+        return $this->belongsTo(TransaccionInventario::class, 'transaccion_id', 'transaccion_id');
     }
 }

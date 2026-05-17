@@ -139,7 +139,6 @@ class TallerAuthorizationTest extends TestCase
             'apellidos' => $partes[1] ?? '',
             'user_id' => $userId,
             'cargo' => 'Mecanico',
-            'dependencia' => 'Taller',
         ]);
     }
 

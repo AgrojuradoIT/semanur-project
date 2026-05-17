@@ -6,6 +6,8 @@ import 'package:frontend/features/fleet/presentation/providers/fleet_provider.da
 import 'package:frontend/features/fleet/presentation/screens/vehicle_resume_screen.dart';
 import 'package:frontend/core/theme/app_theme.dart';
 import 'package:frontend/features/fleet/data/models/vehicle_model.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:frontend/core/network/api_client.dart';
 
 class VehicleCategoryListScreen extends StatelessWidget {
   final String category; // 'Tractores', 'Volquetas', etc.
@@ -107,11 +109,34 @@ class VehicleCategoryListScreen extends StatelessWidget {
                 color: AppTheme.backgroundDark,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(
-                _getIconForType(vehicle.tipo),
-                color: AppTheme.primaryYellow,
-                size: 24,
-              ),
+              child: (vehicle.imagenThumbUrl != null || vehicle.imagenUrl != null)
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: CachedNetworkImage(
+                        imageUrl: _buildVehicleImageUrl(vehicle),
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => const Center(
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppTheme.primaryYellow,
+                            ),
+                          ),
+                        ),
+                        errorWidget: (context, url, error) => Icon(
+                          _getIconForType(vehicle.tipo),
+                          color: AppTheme.primaryYellow,
+                          size: 24,
+                        ),
+                      ),
+                    )
+                  : Icon(
+                      _getIconForType(vehicle.tipo),
+                      color: AppTheme.primaryYellow,
+                      size: 24,
+                    ),
             ),
             const SizedBox(width: 15),
             Expanded(
@@ -145,6 +170,17 @@ class VehicleCategoryListScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _buildVehicleImageUrl(Vehiculo vehicle) {
+    final baseUrl = ApiClient().baseUrl;
+    if (vehicle.imagenThumbUrl != null) {
+      return '$baseUrl/storage/${vehicle.imagenThumbUrl}';
+    }
+    if (vehicle.imagenUrl != null) {
+      return '$baseUrl/storage/${vehicle.imagenUrl}';
+    }
+    return '';
   }
 
   IconData _getIconForType(String tipo) {

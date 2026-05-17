@@ -214,7 +214,7 @@ class EmployeeProfileScreen extends StatelessWidget {
   }
 
   Widget _buildRolesSection(Color primary, Color surface) {
-    // Convertir cargo a rol principal y dependencias a roles secundarios si hubiera
+    // Cargo como rol principal
     final currentRole = employee.cargo ?? 'Sin Rol';
 
     return Padding(
@@ -229,8 +229,6 @@ class EmployeeProfileScreen extends StatelessWidget {
             runSpacing: 12,
             children: [
               _buildRoleChip(currentRole, true, primary, surface),
-              if (employee.dependencia != null)
-                _buildRoleChip(employee.dependencia!, false, primary, surface),
               // Chips inactivos de ejemplo visual
               if (currentRole.toLowerCase() != 'admin')
                 _buildRoleChip('Admin', false, primary, surface),
@@ -303,7 +301,7 @@ class EmployeeProfileScreen extends StatelessWidget {
               employee.resumenProfesional != null &&
                       employee.resumenProfesional!.isNotEmpty
                   ? employee.resumenProfesional!
-                  : 'Especialista con experiencia en ${employee.dependencia ?? "diversas áreas"}. '
+                  : 'Especialista con experiencia en diversas áreas. '
                         'Actualmente desempeñando funciones como ${employee.cargo ?? "colaborador"} '
                         'en Semanur Hub desde ${employee.id < 100 ? "hace varios años" : "recientemente"}.',
               style: GoogleFonts.inter(

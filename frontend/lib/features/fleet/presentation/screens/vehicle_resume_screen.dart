@@ -8,6 +8,8 @@ import 'package:frontend/features/fleet/data/models/vehicle_model.dart';
 import 'package:intl/intl.dart';
 import 'package:frontend/core/theme/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:frontend/core/network/api_client.dart';
 import 'fuel_history_screen.dart';
 import 'hour_meter_history_screen.dart';
 import 'checklist_form_screen.dart';
@@ -76,6 +78,17 @@ class _VehicleResumeScreenState extends State<VehicleResumeScreen>
     return t.contains('tractor') ||
         t.contains('maquinaria') ||
         t.contains('pesada');
+  }
+
+  String _buildVehicleImageUrl(Vehiculo vehicle) {
+    final baseUrl = ApiClient().baseUrl;
+    if (vehicle.imagenThumbUrl != null) {
+      return '$baseUrl/storage/${vehicle.imagenThumbUrl}';
+    }
+    if (vehicle.imagenUrl != null) {
+      return '$baseUrl/storage/${vehicle.imagenUrl}';
+    }
+    return '';
   }
 
   @override
@@ -300,16 +313,45 @@ class _VehicleResumeScreenState extends State<VehicleResumeScreen>
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
                   color: AppTheme.primaryYellow.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: Icon(
-                  _isMachinery ? Icons.construction : Icons.directions_car,
-                  color: AppTheme.primaryYellow,
-                  size: 32,
-                ),
+                child: (_vehiculo!.imagenUrl != null || _vehiculo!.imagenThumbUrl != null)
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: CachedNetworkImage(
+                          imageUrl: _buildVehicleImageUrl(_vehiculo!),
+                          width: 48,
+                          height: 48,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => const SizedBox(
+                            width: 48,
+                            height: 48,
+                            child: Center(
+                              child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppTheme.primaryYellow,
+                                ),
+                              ),
+                            ),
+                          ),
+                          errorWidget: (context, url, error) => Icon(
+                            _isMachinery ? Icons.construction : Icons.directions_car,
+                            color: AppTheme.primaryYellow,
+                            size: 32,
+                          ),
+                        ),
+                      )
+                    : Icon(
+                        _isMachinery ? Icons.construction : Icons.directions_car,
+                        color: AppTheme.primaryYellow,
+                        size: 32,
+                      ),
               ),
               const SizedBox(width: 16),
               Expanded(

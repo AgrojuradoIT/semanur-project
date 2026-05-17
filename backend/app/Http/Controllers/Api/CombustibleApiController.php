@@ -104,8 +104,11 @@ class CombustibleApiController extends Controller
                     $request->labor,
                 );
 
-                TransaccionInventario::create([
+                $bodegaId = $this->resolveDefaultBodegaId();
+
+                $transaccion = TransaccionInventario::create([
                     'producto_id' => $producto->producto_id,
+                    'bodega_id' => $bodegaId,
                     'usuario_id' => $request->user()->id,
                     'transaccion_tipo' => 'salida',
                     'transaccion_cantidad' => $request->cantidad_galones,
@@ -131,6 +134,7 @@ class CombustibleApiController extends Controller
                     'placa_manual' => $request->placa_manual,
                     'notas' => $request->notas,
                     'labor' => $request->labor,
+                    'transaccion_id' => $transaccion->transaccion_id,
                 ]);
 
                 return response()->json([
@@ -186,16 +190,25 @@ class CombustibleApiController extends Controller
         }
 
         return DB::transaction(function () use ($registro) {
-            $transaccion = TransaccionInventario::where('transaccion_motivo', 'Consumo de Combustible (Interno)')
-                ->where('transaccion_tipo', 'salida')
-                ->where('transaccion_cantidad', $registro->cantidad_galones)
-                ->where('created_at', '>=', $registro->created_at->subMinute())
-                ->where('created_at', '<=', $registro->created_at->addMinute())
-                ->first();
+            $transaccion = null;
+
+            if ($registro->transaccion_id) {
+                $transaccion = TransaccionInventario::find($registro->transaccion_id);
+            }
+
+            if (!$transaccion) {
+                $transaccion = TransaccionInventario::where('transaccion_motivo', 'Consumo de Combustible (Interno)')
+                    ->where('transaccion_tipo', 'salida')
+                    ->where('transaccion_cantidad', $registro->cantidad_galones)
+                    ->where('created_at', '>=', $registro->created_at->copy()->subMinute())
+                    ->where('created_at', '<=', $registro->created_at->copy()->addMinute())
+                    ->first();
+            }
 
             if ($transaccion) {
                 TransaccionInventario::create([
                     'producto_id' => $transaccion->producto_id,
+                    'bodega_id' => $transaccion->bodega_id,
                     'usuario_id' => auth()->id(),
                     'transaccion_tipo' => 'ingreso',
                     'transaccion_cantidad' => $transaccion->transaccion_cantidad,
@@ -212,5 +225,10 @@ class CombustibleApiController extends Controller
                 'message' => 'Registro eliminado' . ($transaccion ? ' y stock revertido' : ''),
             ]);
         });
+    }
+
+    private function resolveDefaultBodegaId(): ?int
+    {
+        return \App\Models\Bodega::value('bodega_id');
     }
 }

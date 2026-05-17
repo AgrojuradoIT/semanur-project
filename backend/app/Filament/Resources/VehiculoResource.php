@@ -12,6 +12,9 @@ use Filament\Actions;
 use Filament\Schemas\Schema;
 use BackedEnum;
 
+use Filament\Forms\Components\FileUpload;
+use Illuminate\Support\Facades\Storage;
+
 class VehiculoResource extends Resource
 {
     protected static ?string $model = Vehiculo::class;
@@ -34,8 +37,54 @@ class VehiculoResource extends Resource
                 Forms\Components\TextInput::make('modelo')
                     ->required()
                     ->maxLength(255),
-                Forms\Components\TextInput::make('imagen_url')
-                    ->maxLength(255),
+                FileUpload::make('imagen_url')
+                    ->label('Foto del vehículo')
+                    ->image()
+                    ->disk('public')
+                    ->directory('vehiculos')
+                    ->maxSize(5120)
+                    ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
+                    ->saveUploadedFileUsing(function ($file, $record) {
+                        $uuid = \Illuminate\Support\Str::uuid()->toString();
+                        
+                        $manager = \Intervention\Image\ImageManager::usingDriver(
+                            \Intervention\Image\Drivers\Gd\Driver::class
+                        );
+                        
+                        $tempPath = $file->getRealPath();
+                        
+                        // Imagen principal (max 1200px, WebP 80%)
+                        $mainImg = $manager->decodePath($tempPath);
+                        $mainImg->scale(width: 1200);
+                        $mainEncoded = $mainImg->encodeUsingFormat(\Intervention\Image\Format::WEBP, quality: 80);
+                        $mainPath = "vehiculos/{$uuid}.webp";
+                        Storage::disk('public')->put($mainPath, $mainEncoded->toString());
+                        
+                        // Thumbnail (200x200, WebP 80%)
+                        $thumbImg = $manager->decodePath($tempPath);
+                        $thumbImg->cover(width: 200, height: 200);
+                        $thumbEncoded = $thumbImg->encodeUsingFormat(\Intervention\Image\Format::WEBP, quality: 80);
+                        $thumbPath = "vehiculos/thumbs/{$uuid}.webp";
+                        Storage::disk('public')->put($thumbPath, $thumbEncoded->toString());
+                        
+                        if ($record) {
+                            $old = $record->imagen_url;
+                            $oldThumb = $record->imagen_thumb_url;
+                            $record->imagen_thumb_url = $thumbPath;
+                            $record->save();
+                            if ($old) Storage::disk('public')->delete($old);
+                            if ($oldThumb) Storage::disk('public')->delete($oldThumb);
+                        }
+                        
+                        return $mainPath;
+                    })
+                    ->deleteUploadedFileUsing(function ($record) {
+                        if ($record) {
+                            if ($record->imagen_url) Storage::disk('public')->delete($record->imagen_url);
+                            if ($record->imagen_thumb_url) Storage::disk('public')->delete($record->imagen_thumb_url);
+                        }
+                    })
+                    ->columnSpanFull(),
                 Forms\Components\TextInput::make('horometro_actual')
                     ->numeric()
                     ->default(0),
@@ -51,6 +100,11 @@ class VehiculoResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\ImageColumn::make('imagen_url')
+                    ->label('Foto')
+                    ->circular()
+                    ->size(40)
+                    ->disk('public'),
                 Tables\Columns\TextColumn::make('placa')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('tipo')

@@ -165,25 +165,46 @@ class VehiculoApiController extends Controller
     {
         $request->validate([
             'vehiculo_id' => 'required|exists:vehiculos,vehiculo_id',
-            'imagen' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120', // 5MB max
+            'imagen' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
         ]);
 
         $vehiculo = Vehiculo::find($request->vehiculo_id);
 
         if ($request->hasFile('imagen')) {
-            // Delete old image if it exists
-            if ($vehiculo->imagen_url && \Illuminate\Support\Facades\Storage::disk('public')->exists($vehiculo->imagen_url)) {
-                \Illuminate\Support\Facades\Storage::disk('public')->delete($vehiculo->imagen_url);
-            }
-
-            // Store new image
-            $path = $request->file('imagen')->store('vehiculos', 'public');
+            $uuid = Str::uuid()->toString();
             
-            // Save path
-            $vehiculo->imagen_url = $path;
+            $manager = \Intervention\Image\ImageManager::usingDriver(
+                \Intervention\Image\Drivers\Gd\Driver::class
+            );
+            
+            $tempPath = $request->file('imagen')->getRealPath();
+            
+            // Process and resize main image (max 1200px width)
+            $mainImage = $manager->decodePath($tempPath);
+            $mainImage->scale(width: 1200);
+            $mainEncoded = $mainImage->encodeUsingFormat(\Intervention\Image\Format::WEBP, quality: 80);
+            $mainPath = "vehiculos/{$uuid}.webp";
+            Storage::disk('public')->put($mainPath, $mainEncoded->toString());
+            
+            // Generate thumbnail (200x200)
+            $thumbImage = $manager->decodePath($tempPath);
+            $thumbImage->cover(width: 200, height: 200);
+            $thumbEncoded = $thumbImage->encodeUsingFormat(\Intervention\Image\Format::WEBP, quality: 80);
+            $thumbPath = "vehiculos/thumbs/{$uuid}.webp";
+            Storage::disk('public')->put($thumbPath, $thumbEncoded->toString());
+            
+            // Fix race condition: save new path BEFORE deleting old
+            $oldPath = $vehiculo->imagen_url;
+            $oldThumbPath = $vehiculo->imagen_thumb_url ?? null;
+            
+            $vehiculo->imagen_url = $mainPath;
+            $vehiculo->imagen_thumb_url = $thumbPath;
             $vehiculo->save();
+            
+            // Delete old images AFTER save succeeds
+            if ($oldPath) Storage::disk('public')->delete($oldPath);
+            if ($oldThumbPath) Storage::disk('public')->delete($oldThumbPath);
 
-            // Refresh relations to return complete object
             $vehiculo->load(['operador', 'mecanico']);
 
             return response()->json([

@@ -30,7 +30,6 @@ class User extends Authenticatable implements FilamentUser
         'phone',
         'license_number',
         'cargo',
-        'dependencia',
     ];
 
     protected $appends = ['permisos_efectivos'];

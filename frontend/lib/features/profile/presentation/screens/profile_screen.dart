@@ -42,7 +42,6 @@ class ProfileScreen extends StatelessWidget {
                           _infoItem('Rol', user?.role),
                           _infoItem('Telefono', user?.phone),
                           _infoItem('Cargo', user?.cargo),
-                          _infoItem('Dependencia', user?.dependencia),
                           _infoItem('Licencia', user?.licenseNumber),
                         ],
                       ),
@@ -148,7 +147,7 @@ class ProfileScreen extends StatelessWidget {
         ? user?.role
         : (user?.cargo?.toString().isNotEmpty == true)
             ? user?.cargo
-            : user?.dependencia;
+            : 'Sin asignar';
 
     return Column(
       children: [

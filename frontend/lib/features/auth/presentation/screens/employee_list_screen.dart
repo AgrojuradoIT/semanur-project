@@ -276,7 +276,7 @@ class _EmployeeListScreenState extends State<EmployeeListScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   Text(
-                    employee.dependencia ?? 'Sin área asignada',
+                    employee.cargo ?? 'Sin cargo asignado',
                     style: const TextStyle(color: Colors.white54, fontSize: 12),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,

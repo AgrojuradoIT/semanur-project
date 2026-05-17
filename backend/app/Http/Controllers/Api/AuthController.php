@@ -81,7 +81,7 @@ class AuthController extends Controller
 
         return response()->json(
             User::query()
-                ->select(['id', 'name', 'email', 'role', 'phone', 'license_number', 'cargo', 'dependencia'])
+                ->select(['id', 'name', 'email', 'role', 'phone', 'license_number', 'cargo'])
                 ->orderBy('name')
                 ->get()
         );

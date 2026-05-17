@@ -87,7 +87,6 @@ class VehiculoAssignmentCompatibilityTest extends TestCase
             'nombres' => $partes[0],
             'apellidos' => $partes[1] ?? '',
             'cargo' => 'Operativo',
-            'dependencia' => 'Campo',
             'user_id' => $userId,
         ]);
     }

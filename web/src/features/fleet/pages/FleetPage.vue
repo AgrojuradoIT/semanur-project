@@ -116,7 +116,13 @@
               <!-- The user requested "botones arriba de la foto y placa" which means tabs go first, then the identity section -->
               <div class="fd-identity">
                 <div class="fd-image-container" @click="isEditing ? $refs.fileInput.click() : null" :style="{ cursor: isEditing ? 'pointer' : 'default' }">
-                  <img :src="getVehicleImage(selectedVehicle)" alt="Vehicle Image" class="fd-image" />
+                  <img 
+                    :src="getVehicleImage(selectedVehicle)" 
+                    alt="Vehicle Image" 
+                    class="fd-image"
+                    loading="lazy"
+                    @error="$event.target.src = '/fleet/generic.png'" 
+                  />
                   <div class="fd-image-overlay" v-if="isEditing">
                     <span class="material-icons-round">photo_camera</span>
                     <span>{{ isUploading ? 'SUBIENDO...' : 'CAMBIAR IMAGEN' }}</span>
@@ -1472,12 +1478,8 @@ async function handleImageUpload(event) {
 function getVehicleImage(v) {
   if (!v) return '/fleet/generic.png';
 
-  // If backend provides an image, use it
   if (v.imagen_url) {
-    // Basic check if it's a full URL or relative
     if (v.imagen_url.startsWith('http')) return v.imagen_url;
-    // Assuming backend serves from static or similar, might need adjustment 
-    // depending on where the backend serves images from.
     return `${import.meta.env.VITE_API_BASE_URL.replace('/api', '')}/storage/${v.imagen_url}`;
   }
   
@@ -1500,6 +1502,12 @@ function getVehicleImage(v) {
   }
 
   return '/fleet/generic.png';
+}
+
+function getVehicleThumbImage(v) {
+  if (!v?.imagen_thumb_url) return getVehicleImage(v);
+  if (v.imagen_thumb_url.startsWith('http')) return v.imagen_thumb_url;
+  return `${import.meta.env.VITE_API_BASE_URL.replace('/api', '')}/storage/${v.imagen_thumb_url}`;
 }
 </script>
 
