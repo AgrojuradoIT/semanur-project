@@ -201,12 +201,16 @@ async function loadData() {
         fetchSemanas(),
       ]);
 
+      console.log('[Preop] Templates loaded:', templatesData);
+      console.log('[Preop] Semanas loaded:', semanasData);
+
       templates.value = templatesData;
-      semanas.value = semanasData.data || semanasData;
+      semanas.value = semanasData?.data || semanasData || [];
+      console.log('[Preop] semanas.value:', semanas.value);
       vehicles.value = catalogsStore.vehiculos;
       employees.value = catalogsStore.empleados.filter((e) => {
         const c = (e.cargo || '').toLowerCase();
-        return c.includes('operador') || c.includes('conductor') || c.includes('inspector') || c.includes('supervisor');
+        return c.includes('operador') || c.includes('conductor') || c.includes('inspector') || c.includes('supervisor') || c.includes('jefe') || c.includes('coordinador');
       });
     }, 'Error al cargar inspecciones');
   } catch (e) {
@@ -278,17 +282,21 @@ async function handleCreateSemana() {
 
   saving.value = true;
   try {
-    await createSemana({
+    const payload = {
       vehiculo_id: Number(createForm.value.vehiculo_id),
       inspector_id: Number(createForm.value.inspector_id),
       semana_inicio: createForm.value.semana_inicio,
-    });
+    };
+    console.log('[Preop] Creating semana with payload:', payload);
+    const result = await createSemana(payload);
+    console.log('[Preop] Create result:', result);
     closeCreateModal();
     await loadData();
     islandNotify({ type: 'success', title: 'Semana creada', message: 'La inspeccion semanal se registro correctamente', duration: 15000 });
   } catch (e) {
-    const msg = e?.response?.data?.message || e?.message || 'Error al crear semana';
-    islandNotify({ type: 'error', title: 'Error al guardar', message: msg, duration: 60000 });
+    console.error('[Preop] Create semana error:', e);
+    const msg = e?.response?.data?.message || e?.response?.data?.errors || e?.message || 'Error al crear semana';
+    islandNotify({ type: 'error', title: 'Error al guardar', message: typeof msg === 'string' ? msg : JSON.stringify(msg), duration: 60000 });
   } finally {
     saving.value = false;
   }
