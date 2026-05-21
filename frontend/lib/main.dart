@@ -37,6 +37,8 @@ import 'package:frontend/features/workshop/presentation/providers/workshop_provi
 import 'package:frontend/features/workshop/presentation/providers/session_provider.dart';
 import 'package:frontend/features/fleet/data/repositories/fleet_repository.dart';
 import 'package:frontend/features/fleet/presentation/providers/fleet_provider.dart';
+import 'package:frontend/features/preoperacionales/data/repositories/preoperacional_repository.dart';
+import 'package:frontend/features/preoperacionales/presentation/providers/preoperacional_provider.dart';
 import 'package:frontend/core/providers/sync_provider.dart';
 import 'package:frontend/features/notifications/presentation/providers/notification_provider.dart';
 import 'package:frontend/features/auth/presentation/screens/login_screen.dart';
@@ -151,13 +153,21 @@ void main() async {
   final fleetChecklistRepo = fleet_repo.ChecklistRepository(apiClient);
   final globalChecklistRepo = checklist_repo.ChecklistRepository(apiClient);
   final programacionRepository = ProgramacionRepository(apiClient);
+  final preoperacionalRepository = PreoperacionalRepository(apiClient);
 
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ChangeNotifierProvider(create: (_) => AuthProvider(authRepository)),
         ChangeNotifierProvider(create: (_) => SyncProvider(apiClient)),
+        ChangeNotifierProxyProvider<SyncProvider, NotificationProvider>(
+          create: (ctx) => NotificationProvider(
+            apiClient: apiClient,
+            syncProvider: ctx.read<SyncProvider>(),
+          ),
+          update: (_, sync, prev) =>
+              prev ?? NotificationProvider(apiClient: apiClient, syncProvider: sync),
+        ),
         ChangeNotifierProvider(
           create: (_) => InventoryProvider(inventoryRepository),
         ),
@@ -208,6 +218,11 @@ void main() async {
           ),
           update: (_, sync, prev) =>
               prev ?? SessionProvider(apiClient, syncProvider: sync),
+        ),
+        ChangeNotifierProxyProvider<SyncProvider, PreoperacionalProvider>(
+          create: (ctx) => PreoperacionalProvider(preoperacionalRepository),
+          update: (_, sync, prev) =>
+              prev ?? PreoperacionalProvider(preoperacionalRepository),
         ),
       ],
       child: const MyApp(),

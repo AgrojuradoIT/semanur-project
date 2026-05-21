@@ -8,6 +8,7 @@ import 'package:frontend/features/fleet/presentation/providers/checklist_provide
 import 'package:frontend/core/database/database_helper.dart'; // Import DB Helper
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:frontend/core/utils/vehicle_utils.dart';
 import 'dart:io';
 
 class ChecklistFormScreen extends StatefulWidget {
@@ -144,6 +145,8 @@ class _ChecklistFormScreenState extends State<ChecklistFormScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            _buildDeprecationBanner(),
+            const SizedBox(height: 12),
             _buildHeader(),
             const SizedBox(height: 20),
 
@@ -301,6 +304,33 @@ class _ChecklistFormScreenState extends State<ChecklistFormScreen> {
     );
   }
 
+  Widget _buildDeprecationBanner() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.orange.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline, color: Colors.orange, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Esta función será reemplazada próximamente. Use el nuevo módulo de Inspecciones.',
+              style: const TextStyle(
+                color: Colors.orange,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildHeader() {
     return Card(
       child: Padding(
@@ -329,10 +359,10 @@ class _ChecklistFormScreenState extends State<ChecklistFormScreen> {
     return TextFormField(
       controller: _horometroController,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      decoration: const InputDecoration(
-        labelText: 'Horómetro / Kilometraje Actual',
+      decoration: InputDecoration(
+        labelText: primaryMeasurementLabel(widget.vehiculo.tipo),
         border: OutlineInputBorder(),
-        prefixIcon: Icon(Icons.speed),
+        prefixIcon: Icon(isMachinery(widget.vehiculo.tipo) ? Icons.timer : Icons.speed),
       ),
       validator: (val) {
         if (val == null || val.isEmpty) return 'Requerido';
