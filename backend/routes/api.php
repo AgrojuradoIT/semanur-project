@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\PrestamoApiController;
 use App\Http\Controllers\Api\ProductoApiController;
 use App\Http\Controllers\Api\VehiculoApiController;
 use App\Http\Controllers\Api\VehiculoDocumentoApiController;
+use App\Http\Controllers\Api\PreoperacionalV2Controller;
 use App\Models\Cargo;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
@@ -31,6 +32,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     Route::get('notifications', [\App\Http\Controllers\Api\NotificacionApiController::class, 'index']);
     Route::post('notifications/{id}/read', [\App\Http\Controllers\Api\NotificacionApiController::class, 'markAsRead']);
     Route::post('notifications/read-all', [\App\Http\Controllers\Api\NotificacionApiController::class, 'markAllAsRead']);
+    Route::post('notifications/sync-read', [\App\Http\Controllers\Api\NotificacionApiController::class, 'syncRead']);
     Route::delete('notifications/read', [\App\Http\Controllers\Api\NotificacionApiController::class, 'destroyRead']);
     Route::delete('notifications/{id}', [\App\Http\Controllers\Api\NotificacionApiController::class, 'destroy']);
 
@@ -140,6 +142,17 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::get('/media', [MediaApiController::class, 'index']);
         Route::post('/media', [MediaApiController::class, 'store']);
         Route::delete('/media/{id}', [MediaApiController::class, 'destroy']);
+    });
+
+    // ─── Preoperacionales V2 ─────────────────────────────
+    Route::prefix('v2/preoperacionales')->group(function () {
+        Route::get('/templates', [PreoperacionalV2Controller::class, 'templates']);
+        Route::get('/pendientes-hoy', [PreoperacionalV2Controller::class, 'pendientesHoy']);
+        Route::get('/semanas', [PreoperacionalV2Controller::class, 'indexSemanas']);
+        Route::get('/semanas/{id}', [PreoperacionalV2Controller::class, 'showSemana']);
+        Route::post('/semanas', [PreoperacionalV2Controller::class, 'storeSemana']);
+        Route::post('/semanas/{semanaId}/dias/{diaSemana}', [PreoperacionalV2Controller::class, 'submitDailyForm']);
+        Route::put('/semanas/{id}/fuera-servicio', [PreoperacionalV2Controller::class, 'markFueraServicio']);
     });
 
     // ─── Analítica ─────────────────────────────────────
