@@ -137,8 +137,8 @@ const openSections = ref(new Set());
 const loading = ref(false);
 
 const activeForm = computed(() => {
-  if (!props.semana?.dailyForms) return null;
-  return props.semana.dailyForms.find((df) => df.dia_semana === activeDia.value);
+  if (!props.semana?.daily_forms) return null;
+  return props.semana.daily_forms.find((df) => df.dia_semana === activeDia.value);
 });
 
 const activeSections = computed(() => {
@@ -148,8 +148,8 @@ const activeSections = computed(() => {
 
 const weekRange = computed(() => {
   if (!props.semana?.semana_inicio) return '';
-  const start = new Date(props.semana.semana_inicio);
-  const end = new Date(props.semana.semana_fin);
+  const start = new Date(props.semana.semana_inicio + 'T00:00:00');
+  const end = props.semana.semana_fin ? new Date(props.semana.semana_fin + 'T00:00:00') : start;
   const fmt = (d) => d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short' });
   return `${fmt(start)} - ${fmt(end)}`;
 });
@@ -165,19 +165,19 @@ function sectionItemCount(section) {
 
 function getResponse(itemId) {
   if (!activeForm.value?.responses) return null;
-  return activeForm.value.responses.find((r) => r.template_item_id === itemId);
+  return activeForm.value.responses.find((r) => r.item_id === itemId);
 }
 
 function itemStatusClass(itemId) {
   const resp = getResponse(itemId);
   if (!resp) return 'status-pending';
-  return resp.valor === 'B' ? 'status-bueno' : 'status-malo';
+  return resp.estado === 'B' ? 'status-bueno' : 'status-malo';
 }
 
 function itemStatusLabel(itemId) {
   const resp = getResponse(itemId);
   if (!resp) return 'Pendiente';
-  return resp.valor === 'B' ? 'Bueno' : 'Malo';
+  return resp.estado === 'B' ? 'Bueno' : 'Malo';
 }
 
 function itemObservation(itemId) {
@@ -186,12 +186,12 @@ function itemObservation(itemId) {
 }
 
 function dayTabDotClass(dia) {
-  const form = props.semana?.dailyForms?.find((df) => df.dia_semana === dia);
+  const form = props.semana?.daily_forms?.find((df) => df.dia_semana === dia);
   if (!form) return 'dot-pending';
   if (form.estado === 'fuera_servicio') return 'dot-fuera';
   if (form.estado === 'completado') {
-    const hasMalo = form.responses?.some((r) => r.valor === 'M');
-    const hasCritical = form.responses?.some((r) => r.es_critico && r.valor === 'M');
+    const hasMalo = form.responses?.some((r) => r.estado === 'M');
+    const hasCritical = form.responses?.some((r) => r.item?.es_critico && r.estado === 'M');
     if (hasCritical) return 'dot-critical';
     if (hasMalo) return 'dot-warning';
     return 'dot-completed';
@@ -210,8 +210,9 @@ function toggleSection(sectionId) {
 
 function estadoClass(estado) {
   const map = {
-    activa: 'badge-info',
-    completada: 'badge-success',
+    pendiente: 'badge-neutral',
+    en_progreso: 'badge-info',
+    completado: 'badge-success',
     fuera_servicio: 'badge-danger',
     vencida: 'badge-warning',
   };
@@ -220,8 +221,9 @@ function estadoClass(estado) {
 
 function estadoLabel(estado) {
   const map = {
-    activa: 'Activa',
-    completada: 'Completada',
+    pendiente: 'Pendiente',
+    en_progreso: 'En Progreso',
+    completado: 'Completado',
     fuera_servicio: 'Fuera Servicio',
     vencida: 'Vencida',
   };

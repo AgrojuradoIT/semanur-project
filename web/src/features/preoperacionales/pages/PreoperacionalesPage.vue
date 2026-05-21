@@ -18,10 +18,10 @@
         </select>
         <select v-model="selectedStatus" class="filter-select">
           <option value="all">Todos los estados</option>
-          <option value="activa">Activa</option>
-          <option value="completada">Completada</option>
+          <option value="pendiente">Pendiente</option>
+          <option value="en_progreso">En Progreso</option>
+          <option value="completado">Completado</option>
           <option value="fuera_servicio">Fuera Servicio</option>
-          <option value="vencida">Vencida</option>
         </select>
         <button class="btn btn-primary btn-sm" @click="openCreateModal">
           <span class="material-icons-round" style="font-size: 18px">add_circle</span>
@@ -47,27 +47,27 @@
         <div class="summary-card">
           <span class="card-value">{{ completadas }}</span>
           <span class="card-label">Completadas</span>
-          <span class="card-icon">&#128994;</span>
+          <span class="card-icon material-icons-round" style="color: var(--success)">check_circle</span>
         </div>
         <div class="summary-card">
           <span class="card-value">{{ enProgreso }}</span>
           <span class="card-label">En Progreso</span>
-          <span class="card-icon">&#128992;</span>
+          <span class="card-icon material-icons-round" style="color: var(--warning)">pending</span>
         </div>
         <div class="summary-card">
           <span class="card-value">{{ pendientes }}</span>
           <span class="card-label">Pendientes</span>
-          <span class="card-icon">&#9898;</span>
+          <span class="card-icon material-icons-round" style="color: var(--text-muted)">radio_button_unchecked</span>
         </div>
         <div class="summary-card">
           <span class="card-value">{{ fueraServicio }}</span>
           <span class="card-label">Fuera Servicio</span>
-          <span class="card-icon">&#128308;</span>
+          <span class="card-icon material-icons-round" style="color: var(--danger)">block</span>
         </div>
         <div class="summary-card">
           <span class="card-value">{{ vencidas }}</span>
           <span class="card-label">Vencidas</span>
-          <span class="card-icon">&#9940;</span>
+          <span class="card-icon material-icons-round" style="color: var(--danger)">error</span>
         </div>
       </div>
 
@@ -218,11 +218,11 @@ const filteredSemanas = computed(() => {
   let result = semanas.value;
 
   if (selectedWeek.value !== 'all') {
-    result = result.filter((s) => s.fecha_inicio === selectedWeek.value);
+    result = result.filter((s) => s.semana_inicio === selectedWeek.value);
   }
 
   if (selectedVehicle.value !== 'all') {
-    result = result.filter((s) => String(s.vehiculoId) === String(selectedVehicle.value));
+    result = result.filter((s) => String(s.vehiculo_id) === String(selectedVehicle.value));
   }
 
   if (selectedStatus.value !== 'all') {
@@ -232,14 +232,14 @@ const filteredSemanas = computed(() => {
   return result;
 });
 
-const completadas = computed(() => semanas.value.filter((s) => s.estado === 'completada').length);
-const enProgreso = computed(() => semanas.value.filter((s) => s.estado === 'activa').length);
+const completadas = computed(() => semanas.value.filter((s) => s.estado === 'completado').length);
+const enProgreso = computed(() => semanas.value.filter((s) => s.estado === 'en_progreso').length);
 const pendientes = computed(() => semanas.value.filter((s) => !s.estado || s.estado === 'pendiente').length);
 const fueraServicio = computed(() => semanas.value.filter((s) => s.estado === 'fuera_servicio').length);
 const vencidas = computed(() => semanas.value.filter((s) => s.estado === 'vencida').length);
 
 const weekOptions = computed(() => {
-  const weeks = [...new Set(semanas.value.map((s) => s.fecha_inicio).filter(Boolean))];
+  const weeks = [...new Set(semanas.value.map((s) => s.semana_inicio).filter(Boolean))];
   return weeks.map((w) => ({
     value: w,
     label: formatDate(w),
@@ -296,7 +296,7 @@ async function handleCreateSemana() {
 
 function openDetailModal(semana) {
   selectedSemana.value = semana;
-  selectedTemplate.value = templates.value.find((t) => t.id === semana.templateId) || {};
+  selectedTemplate.value = templates.value.find((t) => t.id === semana.template_id) || null;
   showDetail.value = true;
 }
 

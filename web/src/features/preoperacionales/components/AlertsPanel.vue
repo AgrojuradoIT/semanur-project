@@ -36,25 +36,25 @@ const alerts = computed(() => {
   const result = [];
 
   for (const semana of props.semanas) {
-    const placa = semana.vehiculoPlaca || 'Sin placa';
+    const placa = semana.vehiculo_placa || semana.vehiculo?.placa || 'Sin placa';
 
     // 1. Critical failure alerts
-    if (semana.dailyForms) {
-      for (const form of semana.dailyForms) {
-        if (form.estado !== 'completado') continue;
+    if (semana.daily_forms) {
+      for (const form of semana.daily_forms) {
+        if (!form.completado) continue;
         const responses = form.responses || [];
 
         const criticalFailures = responses.filter(
-          (r) => r.es_critico && r.valor === 'M'
+          (r) => r.item?.es_critico && r.estado === 'M'
         );
 
         for (const failure of criticalFailures) {
           const diaLabel = diaLabelMap[form.dia_semana] || form.dia_semana;
-          const itemDesc = failure.pregunta || failure.nombre || 'Item';
+          const itemDesc = failure.item?.pregunta || failure.pregunta || 'Item';
           result.push({
             type: 'critical',
-            icon: '\u26A0',
-            message: `${placa}: ${itemDesc} = Malo el ${diaLabel} \u2014 Ver detalle`,
+            icon: '⚠',
+            message: `${placa}: ${itemDesc} = Malo el ${diaLabel} — Ver detalle`,
             action: () => viewSemana(semana),
           });
         }
@@ -65,15 +65,15 @@ const alerts = computed(() => {
     if (semana.estado === 'fuera_servicio') {
       result.push({
         type: 'fuera-servicio',
-        icon: '\uD83D\uDD34',
-        message: `${placa}: Marcado fuera de servicio \u2014 Ver detalle`,
+        icon: '🔴',
+        message: `${placa}: Marcado fuera de servicio — Ver detalle`,
         action: () => viewSemana(semana),
       });
     }
 
-    // 3. Document expiry alerts (from documentosVehiculoSnapshot)
-    if (semana.documentosVehiculoSnapshot) {
-      const docs = semana.documentosVehiculoSnapshot;
+    // 3. Document expiry alerts (from documentos_vehiculo_snapshot)
+    if (semana.documentos_vehiculo_snapshot) {
+      const docs = semana.documentos_vehiculo_snapshot;
       const today = new Date();
 
       for (const doc of Object.values(docs)) {
@@ -84,15 +84,15 @@ const alerts = computed(() => {
         if (diffDays > 0 && diffDays <= 15) {
           result.push({
             type: 'warning',
-            icon: '\u26A0',
-            message: `${placa}: ${doc.tipo || 'Documento'} vence en ${diffDays} d\u00EDas \u2014 Ver documento`,
+            icon: '⚠',
+            message: `${placa}: ${doc.tipo || 'Documento'} vence en ${diffDays} días — Ver documento`,
             action: () => {},
           });
         } else if (diffDays <= 0) {
           result.push({
             type: 'critical',
-            icon: '\u26D4',
-            message: `${placa}: ${doc.tipo || 'Documento'} vencido \u2014 Ver documento`,
+            icon: '⛔',
+            message: `${placa}: ${doc.tipo || 'Documento'} vencido — Ver documento`,
             action: () => {},
           });
         }
@@ -103,8 +103,8 @@ const alerts = computed(() => {
     if (semana.estado === 'vencida') {
       result.push({
         type: 'overdue',
-        icon: '\u26D4',
-        message: `${placa}: Semana vencida sin completar \u2014 Asignar operador`,
+        icon: '⛔',
+        message: `${placa}: Semana vencida sin completar — Asignar operador`,
         action: () => viewSemana(semana),
       });
     }

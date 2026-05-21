@@ -23,8 +23,8 @@
             class="semana-row"
             @click="$emit('row-click', semana)"
           >
-            <td class="vehiculo-cell">{{ semana.vehiculoPlaca || 'Sin placa' }}</td>
-            <td class="tipo-cell">{{ templateName(semana.templateId) }}</td>
+            <td class="vehiculo-cell">{{ semana.vehiculo_placa || semana.vehiculo?.placa || 'Sin placa' }}</td>
+            <td class="tipo-cell">{{ templateName(semana.template_id) }}</td>
             <td v-for="dia in dias" :key="dia">
               <span class="day-cell" :class="dayStatusClass(semana, dia)" :title="dayTooltip(semana, dia)">
                 {{ dayIcon(semana, dia) }}
@@ -104,10 +104,10 @@ function dayStatus(semana, dia) {
 
   if (form.estado === 'fuera_servicio') return 'fuera_servicio';
 
-  if (form.estado === 'completado') {
+  if (form.completado) {
     const responses = form.responses || [];
-    const hasCritical = responses.some((r) => r.es_critico && r.valor === 'M');
-    const hasMalo = responses.some((r) => r.valor === 'M');
+    const hasCritical = responses.some((r) => r.item?.es_critico && r.estado === 'M');
+    const hasMalo = responses.some((r) => r.estado === 'M');
 
     if (hasCritical) return 'critical';
     if (hasMalo) return 'warning';
@@ -124,14 +124,14 @@ function dayStatusClass(semana, dia) {
 function dayIcon(semana, dia) {
   const status = dayStatus(semana, dia);
   const icons = {
-    completed: '&#10003;',
-    warning: '&#9888;',
-    critical: '&#9888;',
-    pending: '&#9675;',
-    future: '&#8212;',
-    fuera_servicio: '&#128683;',
+    completed: '✓',
+    warning: '⚠',
+    critical: '⚠',
+    pending: '○',
+    future: '—',
+    fuera_servicio: '🚫',
   };
-  return icons[status] || '&#9675;';
+  return icons[status] || '○';
 }
 
 function dayTooltip(semana, dia) {
@@ -139,9 +139,9 @@ function dayTooltip(semana, dia) {
   const tooltips = {
     completed: 'Completado - Todo bien',
     warning: 'Completado con observaciones',
-    critical: 'Falla cr&iacute;tica detectada',
+    critical: 'Falla crítica detectada',
     pending: 'Pendiente',
-    future: 'D&iacute;a futuro',
+    future: 'Día futuro',
     fuera_servicio: 'Fuera de servicio',
   };
   return tooltips[status] || '';
@@ -149,8 +149,9 @@ function dayTooltip(semana, dia) {
 
 function estadoClass(estado) {
   const map = {
-    activa: 'badge-info',
-    completada: 'badge-success',
+    pendiente: 'badge-neutral',
+    en_progreso: 'badge-info',
+    completado: 'badge-success',
     fuera_servicio: 'badge-danger',
     vencida: 'badge-warning',
   };
@@ -159,8 +160,9 @@ function estadoClass(estado) {
 
 function estadoLabel(estado) {
   const map = {
-    activa: 'Activa',
-    completada: 'Completada',
+    pendiente: 'Pendiente',
+    en_progreso: 'En Progreso',
+    completado: 'Completado',
     fuera_servicio: 'Fuera Servicio',
     vencida: 'Vencida',
   };
