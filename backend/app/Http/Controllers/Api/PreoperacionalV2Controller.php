@@ -83,7 +83,7 @@ class PreoperacionalV2Controller extends Controller
             // Check if there's a week record for this vehicle+template+week
             $semana = PreoperacionalSemana::where('vehiculo_id', $vehiculo->vehiculo_id)
                 ->where('template_id', $template->id)
-                ->where('semana_inicio', $semanaInicio)
+                ->whereDate('semana_inicio', $semanaInicio)
                 ->first();
 
             // Check if today's daily form is already completed
@@ -151,13 +151,13 @@ class PreoperacionalV2Controller extends Controller
 
             $semanaInicio = Carbon::parse($validated['semana_inicio']);
             $semanaFin = $semanaInicio->copy()->endOfWeek(Carbon::SUNDAY);
-            $semanaNumero = $semanaInicio->weekNumber;
+            $semanaNumero = $semanaInicio->isoWeek;
             $semanaAnio = $semanaInicio->year;
 
             // Check deduplication
             $existing = PreoperacionalSemana::where('vehiculo_id', $validated['vehiculo_id'])
                 ->where('template_id', $templateId)
-                ->where('semana_inicio', $semanaInicio->format('Y-m-d'))
+                ->whereDate('semana_inicio', $semanaInicio->format('Y-m-d'))
                 ->first();
 
             if ($existing) {
@@ -493,9 +493,8 @@ class PreoperacionalV2Controller extends Controller
             7 => 'domingo',
         ];
 
-        // Carbon's dayOfWeek: 0=Sunday, 1=Monday, ..., 6=Saturday
-        // We need ISO day: 1=Monday, ..., 7=Sunday
-        $isoDay = $date->isoDayOfWeek;
+        // Carbon's dayOfWeekIso: 1=Monday, ..., 7=Sunday
+        $isoDay = $date->dayOfWeekIso;
 
         return $map[$isoDay] ?? 'lunes';
     }
