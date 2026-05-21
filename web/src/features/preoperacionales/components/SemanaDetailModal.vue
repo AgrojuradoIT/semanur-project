@@ -1,6 +1,6 @@
 <template>
   <Teleport to="body">
-    <div v-if="modelValue" class="modal-overlay" @click.self="close">
+    <div v-if="modelValue && semana" class="modal-overlay" @click.self="close">
       <div class="modal modal-wide semana-detail-modal">
         <!-- Header -->
         <div class="modal-header">
@@ -116,8 +116,8 @@ import { computed, ref, watch } from 'vue';
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
-  semana: { type: Object, default: () => ({}) },
-  template: { type: Object, default: () => ({}) },
+  semana: { type: Object, default: null },
+  template: { type: Object, default: null },
 });
 
 const emit = defineEmits(['update:modelValue', 'fuera-servicio']);
@@ -137,19 +137,19 @@ const openSections = ref(new Set());
 const loading = ref(false);
 
 const activeForm = computed(() => {
-  if (!props.semana.dailyForms) return null;
+  if (!props.semana?.dailyForms) return null;
   return props.semana.dailyForms.find((df) => df.dia_semana === activeDia.value);
 });
 
 const activeSections = computed(() => {
-  if (!props.template.sections) return [];
+  if (!props.template?.sections) return [];
   return props.template.sections;
 });
 
 const weekRange = computed(() => {
-  if (!props.semana.fecha_inicio) return '';
-  const start = new Date(props.semana.fecha_inicio);
-  const end = new Date(props.semana.fecha_fin);
+  if (!props.semana?.semana_inicio) return '';
+  const start = new Date(props.semana.semana_inicio);
+  const end = new Date(props.semana.semana_fin);
   const fmt = (d) => d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short' });
   return `${fmt(start)} - ${fmt(end)}`;
 });
@@ -186,7 +186,7 @@ function itemObservation(itemId) {
 }
 
 function dayTabDotClass(dia) {
-  const form = props.semana.dailyForms?.find((df) => df.dia_semana === dia);
+  const form = props.semana?.dailyForms?.find((df) => df.dia_semana === dia);
   if (!form) return 'dot-pending';
   if (form.estado === 'fuera_servicio') return 'dot-fuera';
   if (form.estado === 'completado') {
