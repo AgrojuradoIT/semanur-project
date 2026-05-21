@@ -256,11 +256,20 @@ const operations = computed(() => {
     { path: '/inventory', icon: 'inventory_2', label: 'Inventario', modulo: 'inventario' },
     { path: '/fleet', icon: 'local_shipping', label: 'Flota', modulo: 'flota' },
     { path: '/work-orders', icon: 'build_circle', label: 'Ordenes de Trabajo', modulo: 'taller' },
+  ];
+
+  if (auth.isJefeDeTaller) {
+    items.push({ path: '/work-orders/audit', icon: 'security', label: 'Auditoría OTs', modulo: 'taller' });
+  }
+
+  items.push(
     { path: '/loans', icon: 'handyman', label: 'Prestamos Herr.', modulo: 'prestamos' },
     { path: '/checklists', icon: 'playlist_add_check', label: 'Checklists', modulo: 'checklists' },
+    { path: '/preoperacionales', icon: 'assignment_turned_in', label: 'Inspecciones', modulo: 'checklists' },
     { path: '/fuel', icon: 'local_gas_station', label: 'Combustible', modulo: 'combustible' },
     { path: '/scheduler', icon: 'calendar_month', label: 'Programacion', modulo: 'personal' },
-  ];
+  );
+
   return items.filter(item => auth.canAccessModule(item.modulo));
 });
 
