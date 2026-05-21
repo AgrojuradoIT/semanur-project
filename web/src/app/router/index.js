@@ -7,11 +7,13 @@ import DashboardPage from '../../features/dashboard/pages/DashboardPage.vue';
 import InventoryPage from '../../features/inventory/pages/InventoryPage.vue';
 import FleetPage from '../../features/fleet/pages/FleetPage.vue';
 import WorkOrdersPage from '../../features/work-orders/pages/WorkOrdersPage.vue';
+import AuditWorkOrders from '../../features/work-orders/pages/AuditWorkOrders.vue';
 import EmployeesPage from '../../features/employees/pages/EmployeesPage.vue';
 import HistoryPage from '../../features/history/pages/HistoryPage.vue';
 import LoansPage from '../../features/loans/pages/LoansPage.vue';
 import FuelPage from '../../features/fuel/pages/FuelPage.vue';
 import ChecklistsPage from '../../features/checklists/pages/ChecklistsPage.vue';
+import PreoperacionalesPage from '../../features/preoperacionales/pages/PreoperacionalesPage.vue';
 import SchedulerPage from '../../features/scheduler/pages/SchedulerPage.vue';
 import NotificationsPage from '../../features/notifications/pages/NotificationsPage.vue';
 import { useAuthStore } from '../../shared/stores/auth';
@@ -37,6 +39,12 @@ const shellChildren = [
     meta: { title: 'Ordenes de Trabajo', requiresAuth: true, modulo: 'taller' },
   },
   {
+    path: 'work-orders/audit',
+    name: 'work-orders-audit',
+    component: AuditWorkOrders,
+    meta: { title: 'Auditoría de OTs', requiresAuth: true, modulo: 'taller' },
+  },
+  {
     path: 'history',
     name: 'history',
     component: HistoryPage,
@@ -59,6 +67,12 @@ const shellChildren = [
     name: 'checklists',
     component: ChecklistsPage,
     meta: { title: 'Checklists', requiresAuth: true, modulo: 'checklists' },
+  },
+  {
+    path: 'preoperacionales',
+    name: 'preoperacionales',
+    component: PreoperacionalesPage,
+    meta: { title: 'Inspecciones Preoperacionales', requiresAuth: true, modulo: 'checklists' },
   },
   {
     path: 'fuel',
