@@ -25,7 +25,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 19,
+      version: 22,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -184,6 +184,75 @@ class DatabaseHelper {
         debugPrint('v19 migration error (server_id): $e');
       }
     }
+    if (oldVersion < 20) {
+      // Versión 20: agregar tipo_combustible y metodo_seguimiento a vehiculos
+      try {
+        await db.execute(
+          "ALTER TABLE vehiculos ADD COLUMN tipo_combustible TEXT DEFAULT 'acpm'",
+        );
+        debugPrint('v20 migration: tipo_combustible added to vehiculos');
+      } catch (e) {
+        debugPrint('v20 migration error (tipo_combustible): $e');
+      }
+      try {
+        await db.execute(
+          "ALTER TABLE vehiculos ADD COLUMN metodo_seguimiento TEXT DEFAULT 'kilometraje'",
+        );
+        debugPrint('v20 migration: metodo_seguimiento added to vehiculos');
+      } catch (e) {
+        debugPrint('v20 migration error (metodo_seguimiento): $e');
+      }
+    }
+    if (oldVersion < 21) {
+      // Versión 21: agregar categoria a vehiculos
+      try {
+        await db.execute(
+          "ALTER TABLE vehiculos ADD COLUMN categoria TEXT DEFAULT 'vehiculo'",
+        );
+        debugPrint('v21 migration: categoria added to vehiculos');
+      } catch (e) {
+        debugPrint('v21 migration error (categoria): $e');
+      }
+    }
+    if (oldVersion < 22) {
+      // Versión 22: tablas para preoperacional v2 offline cache
+      try {
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS preoperacional_cached_responses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            semana_id INTEGER NOT NULL,
+            daily_form_id INTEGER,
+            item_id INTEGER NOT NULL,
+            dia_semana TEXT NOT NULL,
+            fecha TEXT NOT NULL,
+            estado TEXT NOT NULL,
+            observacion TEXT,
+            foto_path TEXT,
+            synced INTEGER DEFAULT 0,
+            created_at TEXT NOT NULL
+          )
+        ''');
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS preoperacional_cached_semanas (
+            semana_id INTEGER PRIMARY KEY,
+            vehiculo_id INTEGER NOT NULL,
+            template_id INTEGER,
+            inspector_id INTEGER,
+            semana_inicio TEXT,
+            semana_fin TEXT,
+            semana_numero INTEGER,
+            semana_anio INTEGER,
+            vehiculo_placa TEXT,
+            full_json TEXT,
+            estado TEXT DEFAULT 'pendiente',
+            last_updated TEXT NOT NULL
+          )
+        ''');
+        debugPrint('v22 migration: preoperacional v2 offline cache tables created');
+      } catch (e) {
+        debugPrint('v22 migration error (preoperacional tables): $e');
+      }
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -200,6 +269,7 @@ class DatabaseHelper {
     await _createUsersTable(db);
     await _createEmpleadosTable(db);
     await _createNotificationsTable(db);
+    await _createPreoperacionalV2Tables(db);
   }
 
   Future<void> _createNotificationsTable(Database db) async {
@@ -215,6 +285,40 @@ class DatabaseHelper {
         fecha_leido TEXT,
         fecha_proximo_recordatorio TEXT,
         estado TEXT DEFAULT 'pendiente'
+      )
+    ''');
+  }
+
+  Future<void> _createPreoperacionalV2Tables(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS preoperacional_cached_responses (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        semana_id INTEGER NOT NULL,
+        daily_form_id INTEGER,
+        item_id INTEGER NOT NULL,
+        dia_semana TEXT NOT NULL,
+        fecha TEXT NOT NULL,
+        estado TEXT NOT NULL,
+        observacion TEXT,
+        foto_path TEXT,
+        synced INTEGER DEFAULT 0,
+        created_at TEXT NOT NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS preoperacional_cached_semanas (
+        semana_id INTEGER PRIMARY KEY,
+        vehiculo_id INTEGER NOT NULL,
+        template_id INTEGER,
+        inspector_id INTEGER,
+        semana_inicio TEXT,
+        semana_fin TEXT,
+        semana_numero INTEGER,
+        semana_anio INTEGER,
+        vehiculo_placa TEXT,
+        full_json TEXT,
+        estado TEXT DEFAULT 'pendiente',
+        last_updated TEXT NOT NULL
       )
     ''');
   }
@@ -356,6 +460,7 @@ class DatabaseHelper {
       CREATE TABLE IF NOT EXISTS vehiculos (
         vehiculo_id INTEGER PRIMARY KEY,
         placa TEXT,
+        categoria TEXT DEFAULT 'vehiculo',
         marca TEXT,
         modelo TEXT,
         tipo TEXT,
@@ -368,6 +473,8 @@ class DatabaseHelper {
         fecha_vencimiento_tecnomecanica TEXT,
         operador_asignado_id INTEGER,
         mecanico_asignado_id INTEGER,
+        tipo_combustible TEXT DEFAULT 'acpm',
+        metodo_seguimiento TEXT DEFAULT 'kilometraje',
         last_updated TEXT
       )
     ''');
