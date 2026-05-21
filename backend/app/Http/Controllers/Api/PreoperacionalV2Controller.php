@@ -131,7 +131,7 @@ class PreoperacionalV2Controller extends Controller
             $inspector = Empleado::findOrFail($validated['inspector_id']);
 
             // Auto-resolve template if not provided
-            $templateId = $validated['template_id'];
+            $templateId = $validated['template_id'] ?? null;
             if (!$templateId) {
                 $template = PreoperacionalTemplate::where('activo', true)
                     ->where('tipo_vehiculo', $vehiculo->tipo)
