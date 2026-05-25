@@ -6,6 +6,7 @@ class Vehiculo {
   final int id;
   final String placa;
   final String tipo;
+  final String categoria;
   final String marca;
   final String modelo;
   final String? imagenUrl;
@@ -25,6 +26,7 @@ class Vehiculo {
     required this.id,
     required this.placa,
     required this.tipo,
+    this.categoria = 'vehiculo',
     required this.marca,
     required this.modelo,
     this.imagenUrl,
@@ -53,6 +55,7 @@ class Vehiculo {
       id: parseInt(json['vehiculo_id']) ?? 0,
       placa: json['placa'] ?? '',
       tipo: json['tipo'] ?? '',
+      categoria: json['categoria'] ?? 'vehiculo',
       marca: json['marca'] ?? '',
       modelo: json['modelo'] ?? '',
       imagenUrl: json['imagen_url'],
@@ -110,6 +113,7 @@ class Vehiculo {
       'vehiculo_id': id,
       'placa': placa,
       'tipo': tipo,
+      'categoria': categoria,
       'marca': marca,
       'modelo': modelo,
       'imagen_url': imagenUrl,

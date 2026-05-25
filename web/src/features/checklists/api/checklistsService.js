@@ -1,3 +1,6 @@
+// DEPRECATED: This legacy checklists service will be replaced by the new
+// preoperacionales system (v2). Use preoperacionalesService.js for the new
+// weekly inspection workflow. See /preoperacionales route.
 import http from '../../../shared/api/http';
 import { extractList } from '../../../shared/utils/apiResponse';
 

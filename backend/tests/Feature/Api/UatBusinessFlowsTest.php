@@ -21,7 +21,7 @@ class UatBusinessFlowsTest extends TestCase
     public function test_uat_work_order_session_and_closure_flow(): void
     {
         $admin = User::factory()->create(['role' => 'admin', 'email' => 'admin@semanur.com']);
-        $mecanicoUser = User::factory()->create(['role' => 'mecanico']);
+        $mecanicoUser = User::factory()->create(['role' => 'mecanico', 'permisos' => ['taller']]);
         $mecanicoEmpleado = $this->crearEmpleado($mecanicoUser->id, 'Mecanico Uno', 'Mecanico');
         $vehiculo = $this->crearVehiculo('UAT101');
 
@@ -102,6 +102,8 @@ class UatBusinessFlowsTest extends TestCase
         $response = $this->postJson('/api/combustible', [
             'tipo_destino' => 'empleado',
             'empleado_id' => $operadorEmpleado->id,
+            'tipo_combustible' => 'acpm',
+            'tercero_nombre' => 'Operador Uno',
             'cantidad_galones' => 10,
             'valor_total' => 120000,
             'estacion_servicio' => 'Tanque principal',
@@ -119,8 +121,8 @@ class UatBusinessFlowsTest extends TestCase
             ->first();
 
         $this->assertNotNull($transaccion);
-        $this->assertSame('Empleado', $transaccion->transaccion_referencia_type);
-        $this->assertSame($operadorEmpleado->id, (int) $transaccion->transaccion_referencia_id);
+        $this->assertSame('EmpleadoTexto', $transaccion->transaccion_referencia_type);
+        $this->assertNull($transaccion->transaccion_referencia_id);
     }
 
     public function test_uat_loan_return_and_checklist_with_employee_ids(): void

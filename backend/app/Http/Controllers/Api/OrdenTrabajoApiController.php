@@ -30,9 +30,14 @@ class OrdenTrabajoApiController extends Controller
         }
 
         $assignedId = (int) $orden->mecanico_asignado_id;
+        if ($assignedId === 0) {
+            return false;
+        }
 
-        $empleadoId = $this->getEmpleadoIdForUser((int) $user->id);
-        return $empleadoId !== null && $assignedId === $empleadoId;
+        $userId = (int) $user->id;
+        $empleadoId = $this->getEmpleadoIdForUser($userId);
+
+        return $assignedId === $userId || ($empleadoId !== null && $assignedId === $empleadoId);
     }
 
     public function index(Request $request)

@@ -16,7 +16,7 @@ class InventarioImportComprasTest extends TestCase
 
     public function test_preview_returns_summary_for_new_and_existing_products(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        Sanctum::actingAs(User::factory()->create(['role' => 'admin']));
 
         $categoria = Categoria::create([
             'categoria_nombre' => 'Insumos',
@@ -58,7 +58,7 @@ class InventarioImportComprasTest extends TestCase
 
     public function test_apply_creates_products_and_movements(): void
     {
-        Sanctum::actingAs($user = User::factory()->create());
+        Sanctum::actingAs($user = User::factory()->create(['role' => 'admin']));
 
         $categoria = Categoria::create([
             'categoria_nombre' => 'Insumos',

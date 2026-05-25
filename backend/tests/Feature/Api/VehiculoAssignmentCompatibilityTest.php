@@ -30,7 +30,7 @@ class VehiculoAssignmentCompatibilityTest extends TestCase
             'marca' => 'CAT',
             'modelo' => 'D6',
             'operador_asignado_id' => $operadorEmpleado->id,
-            'mecanico_asignado_id' => $mecanicoUser->id,
+            'mecanico_asignado_id' => $mecanicoEmpleado->id,
         ]);
 
         $response->assertCreated();

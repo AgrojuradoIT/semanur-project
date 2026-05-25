@@ -34,18 +34,49 @@ class _ChecklistListScreenState extends State<ChecklistListScreen> {
           style: GoogleFonts.oswald(),
         ),
       ),
-      body: provider.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : provider.checklists.isEmpty
-          ? const Center(child: Text('No hay listas de chequeo disponibles'))
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: provider.checklists.length,
-              itemBuilder: (context, index) {
-                final checklist = provider.checklists[index];
-                return _buildChecklistCard(checklist);
-              },
+      body: Column(
+        children: [
+          _buildDeprecationBanner(),
+          Expanded(
+            child: provider.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : provider.checklists.isEmpty
+                ? const Center(child: Text('No hay listas de chequeo disponibles'))
+                : ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: provider.checklists.length,
+                    itemBuilder: (context, index) {
+                      final checklist = provider.checklists[index];
+                      return _buildChecklistCard(checklist);
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDeprecationBanner() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      color: Colors.orange.withValues(alpha: 0.15),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline, color: Colors.orange, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Esta función será reemplazada próximamente. Use el nuevo módulo de Inspecciones.',
+              style: const TextStyle(
+                color: Colors.orange,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
             ),
+          ),
+        ],
+      ),
     );
   }
 

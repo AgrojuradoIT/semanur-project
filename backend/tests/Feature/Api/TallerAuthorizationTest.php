@@ -17,9 +17,9 @@ class TallerAuthorizationTest extends TestCase
 
     public function test_non_assigned_user_cannot_view_work_order(): void
     {
-        $mecanico = User::factory()->create(['role' => 'mecanico']);
+        $mecanico = User::factory()->create(['role' => 'mecanico', 'permisos' => ['taller']]);
         $mecanicoEmpleado = $this->crearEmpleadoParaUsuario($mecanico->id, 'Mecanico Uno');
-        $usuarioNoAsignado = User::factory()->create(['role' => 'operador']);
+        $usuarioNoAsignado = User::factory()->create(['role' => 'operador', 'permisos' => ['taller']]);
         $orden = $this->crearOrdenTrabajo($mecanicoEmpleado->id);
 
         Sanctum::actingAs($usuarioNoAsignado);
@@ -31,9 +31,9 @@ class TallerAuthorizationTest extends TestCase
 
     public function test_non_assigned_user_cannot_update_work_order_status(): void
     {
-        $mecanico = User::factory()->create(['role' => 'mecanico']);
+        $mecanico = User::factory()->create(['role' => 'mecanico', 'permisos' => ['taller']]);
         $mecanicoEmpleado = $this->crearEmpleadoParaUsuario($mecanico->id, 'Mecanico Uno');
-        $usuarioNoAsignado = User::factory()->create(['role' => 'operador']);
+        $usuarioNoAsignado = User::factory()->create(['role' => 'operador', 'permisos' => ['taller']]);
         $orden = $this->crearOrdenTrabajo($mecanicoEmpleado->id);
 
         Sanctum::actingAs($usuarioNoAsignado);
@@ -47,7 +47,7 @@ class TallerAuthorizationTest extends TestCase
 
     public function test_admin_can_view_and_update_work_order(): void
     {
-        $mecanico = User::factory()->create(['role' => 'mecanico']);
+        $mecanico = User::factory()->create(['role' => 'mecanico', 'permisos' => ['taller']]);
         $mecanicoEmpleado = $this->crearEmpleadoParaUsuario($mecanico->id, 'Mecanico Uno');
         $admin = User::factory()->create(['role' => 'admin', 'email' => 'admin@semanur.com']);
         $orden = $this->crearOrdenTrabajo($mecanicoEmpleado->id);
@@ -69,9 +69,10 @@ class TallerAuthorizationTest extends TestCase
 
     public function test_non_assigned_user_cannot_start_work_session_on_assigned_order(): void
     {
-        $mecanico = User::factory()->create(['role' => 'mecanico']);
+        $mecanico = User::factory()->create(['role' => 'mecanico', 'permisos' => ['taller']]);
         $mecanicoEmpleado = $this->crearEmpleadoParaUsuario($mecanico->id, 'Mecanico Uno');
-        $usuarioNoAsignado = User::factory()->create(['role' => 'operador']);
+        $usuarioNoAsignado = User::factory()->create(['role' => 'operador', 'permisos' => ['taller']]);
+        $this->crearEmpleadoParaUsuario($usuarioNoAsignado->id, 'No Asignado');
         $orden = $this->crearOrdenTrabajo($mecanicoEmpleado->id);
 
         Sanctum::actingAs($usuarioNoAsignado);
@@ -85,13 +86,14 @@ class TallerAuthorizationTest extends TestCase
 
     public function test_user_cannot_stop_another_users_session(): void
     {
-        $mecanico = User::factory()->create(['role' => 'mecanico']);
+        $mecanico = User::factory()->create(['role' => 'mecanico', 'permisos' => ['taller']]);
         $mecanicoEmpleado = $this->crearEmpleadoParaUsuario($mecanico->id, 'Mecanico Uno');
-        $usuarioNoAsignado = User::factory()->create(['role' => 'operador']);
+        $usuarioNoAsignado = User::factory()->create(['role' => 'operador', 'permisos' => ['taller']]);
+        $this->crearEmpleadoParaUsuario($usuarioNoAsignado->id, 'No Asignado');
         $orden = $this->crearOrdenTrabajo($mecanicoEmpleado->id);
 
         $sesion = WorkSession::create([
-            'user_id' => $mecanico->id,
+            'empleado_id' => $mecanicoEmpleado->id,
             'orden_trabajo_id' => $orden->orden_trabajo_id,
             'fecha_inicio' => now()->subHour(),
         ]);
@@ -99,7 +101,7 @@ class TallerAuthorizationTest extends TestCase
         Sanctum::actingAs($usuarioNoAsignado);
 
         $this->postJson('/api/sesiones-trabajo/' . $sesion->sesion_id . '/stop', [
-            'notas' => 'Intento no autorizado',
+            'notes' => 'Intento no autorizado',
         ])
             ->assertForbidden()
             ->assertJson(['message' => 'No autorizado para finalizar esta sesion']);
@@ -107,7 +109,7 @@ class TallerAuthorizationTest extends TestCase
 
     public function test_assigned_mechanic_can_start_and_stop_own_session(): void
     {
-        $mecanico = User::factory()->create(['role' => 'mecanico']);
+        $mecanico = User::factory()->create(['role' => 'mecanico', 'permisos' => ['taller']]);
         $mecanicoEmpleado = $this->crearEmpleadoParaUsuario($mecanico->id, 'Mecanico Uno');
         $orden = $this->crearOrdenTrabajo($mecanicoEmpleado->id);
 
@@ -126,7 +128,7 @@ class TallerAuthorizationTest extends TestCase
 
         $this->assertDatabaseHas('sesiones_trabajo', [
             'sesion_id' => $sessionId,
-            'user_id' => $mecanico->id,
+            'empleado_id' => $mecanicoEmpleado->id,
         ]);
     }
 

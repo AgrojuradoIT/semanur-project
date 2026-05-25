@@ -316,10 +316,6 @@
                   <span class="material-icons-round">fact_check</span>
                   Historial Preoperacional
                 </h3>
-                <button class="fd-btn-outline" style="color: var(--success); border-color: var(--success); display: flex; align-items: center; gap: 6px; padding: 6px 16px; font-size: 0.75rem;" @click="goToFillChecklist">
-                  <span class="material-icons-round">assignment_turned_in</span>
-                  LLENAR PRE-OPERACIONAL
-                </button>
               </div>
               <div v-if="!preoperacionalesList.length" class="empty-state">
                 <span class="material-icons-round">assignment</span>
@@ -379,7 +375,7 @@
                     <tr v-for="fuel in combustibleList" :key="fuel.id">
                       <td style="color: var(--text-gray);">{{ formatDate(fuel.fecha) }}</td>
                       <td style="font-weight: 500;">
-                        {{ fuel.empleado?.nombre ?? fuel.tercero_nombre ?? 'N/D' }}
+                        {{ fuel.empleado?.name ?? fuel.empleado?.nombre ?? fuel.tercero_nombre ?? 'N/D' }}
                       </td>
                       <td>{{ fuel.estacion_servicio || 'Interno' }}</td>
                       <td style="text-align: right; font-weight: bold; color: var(--primary);">
@@ -762,6 +758,32 @@
                     <option v-for="t in typeFilters.filter(f => f.value !== 'all')" :key="t.value" :value="t.value">{{ t.label }}</option>
                   </select>
                 </div>
+                <div class="input-group">
+                  <label>Categoría <span style="color: var(--danger);">*</span></label>
+                  <select v-model="vehicleForm.categoria" required class="input">
+                    <option value="vehiculo">Vehículo</option>
+                    <option value="maquinaria">Maquinaria Pesada</option>
+                    <option value="equipo_menor">Equipo Menor</option>
+                  </select>
+                </div>
+                <div class="input-group full-width" style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-md);">
+                  <div>
+                    <label>Tipo de Combustible</label>
+                    <select v-model="vehicleForm.tipo_combustible" class="input">
+                      <option value="acpm">ACPM / Diesel</option>
+                      <option value="gasolina">Gasolina</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label>Método de Seguimiento</label>
+                    <select v-model="vehicleForm.metodo_seguimiento" class="input">
+                      <option value="kilometraje">Kilometraje</option>
+                      <option value="horometro">Horómetro</option>
+                      <option value="ambos">Ambos</option>
+                      <option value="ninguno">Ninguno</option>
+                    </select>
+                  </div>
+                </div>
                 <div class="input-group full-width" style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-md);">
                   <div>
                     <label>Operador / Conductor Asignado</label>
@@ -850,7 +872,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAsyncState } from '../../../shared/composables/useAsyncState';
-import { fetchFleetVehicles, uploadVehicleImage, getVehicleDetails, getVehicleFuelHistory, getVehicleHourMeters, getVehiclePreoperacionales, getVehicleDocuments, createVehicleDocument, createVehicle, updateVehicle, fetchMechanics, fetchOperators } from '../api/fleetService';
+import { fetchFleetVehicles, uploadVehicleImage, getVehicleDetails, getVehicleFuelHistory, getVehicleHourMeters, getVehicleDocuments, createVehicleDocument, createVehicle, updateVehicle, fetchMechanics, fetchOperators } from '../api/fleetService';
 import { useRefresh } from '../../../shared/composables/useRefresh';
 import { useCatalogsStore } from '../../../shared/stores/catalogs';
 import SearchableSelect from '../../../shared/components/SearchableSelect.vue';
@@ -896,6 +918,9 @@ const renewForm = ref({
 const vehicleForm = ref({
   placa: '',
   tipo: '',
+  categoria: 'vehiculo',
+  tipo_combustible: 'acpm',
+  metodo_seguimiento: 'kilometraje',
   marca: '',
   modelo: '',
   kilometraje_actual: 0,
@@ -1105,18 +1130,17 @@ async function goToVehicle(vehicle) {
   loadingDetails.value = true;
   try {
     const vId = vehicle.vehiculo_id || vehicle.id;
-    const [fullData, fuelData, horoData, preopsData, docsData] = await Promise.all([
+    const [fullData, fuelData, horoData, docsData] = await Promise.all([
       getVehicleDetails(vId),
       getVehicleFuelHistory(vId),
       isMachinery(vehicle) ? getVehicleHourMeters(vId) : Promise.resolve([]),
-      getVehiclePreoperacionales(vId),
       getVehicleDocuments(vId)
     ]);
     
     selectedVehicle.value = { ...vehicle, ...fullData };
     combustibleList.value = fuelData;
     horometroList.value = horoData;
-    preoperacionalesList.value = preopsData;
+    preoperacionalesList.value = [];
     documentosList.value = docsData;
   } catch (err) {
     console.error('Error fetching vehicle details:', err);
@@ -1160,6 +1184,9 @@ function openVehicleModal(vehicle = null) {
     vehicleForm.value = {
       placa: vehicle.placa || '',
       tipo: (vehicle.tipo || '').toLowerCase(),
+      categoria: vehicle.categoria || 'vehiculo',
+      tipo_combustible: vehicle.tipo_combustible || 'acpm',
+      metodo_seguimiento: vehicle.metodo_seguimiento || 'kilometraje',
       marca: vehicle.marca || '',
       modelo: vehicle.modelo || '',
       kilometraje_actual: vehicle.kilometraje_actual || 0,
@@ -1174,6 +1201,9 @@ function openVehicleModal(vehicle = null) {
     vehicleForm.value = {
       placa: '',
       tipo: '',
+      categoria: 'vehiculo',
+      tipo_combustible: 'acpm',
+      metodo_seguimiento: 'kilometraje',
       marca: '',
       modelo: '',
       kilometraje_actual: 0,
@@ -1248,12 +1278,6 @@ async function submitRenewal() {
   }
 }
 
-function goToFillChecklist() {
-  if (!selectedVehicle.value) return;
-  const vId = selectedVehicle.value.vehiculo_id || selectedVehicle.value.id;
-  // Abrir modal inline de checklist (redirigimos temporalmente al modulo de checklists)
-  router.push({ name: 'checklists', query: { vehiculo_id: vId, action: 'new' } });
-}
 
 function goToRegisterFuel() {
   if (!selectedVehicle.value) return;

@@ -14,7 +14,7 @@ class PrestamoEmpleadoCompatibilityTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_store_accepts_empleado_id_and_maps_to_user_id(): void
+    public function test_store_saves_mecanico_empleado_id(): void
     {
         $admin = User::factory()->create(['role' => 'admin', 'email' => 'admin@semanur.com']);
         $mecanicoUser = User::factory()->create(['role' => 'mecanico']);
@@ -33,7 +33,7 @@ class PrestamoEmpleadoCompatibilityTest extends TestCase
         $response->assertOk();
         $this->assertDatabaseHas('prestamos_herramientas', [
             'producto_id' => $producto->producto_id,
-            'mecanico_id' => $mecanicoUser->id,
+            'mecanico_id' => $mecanicoEmpleado->id,
             'admin_id' => $admin->id,
         ]);
         $this->assertSame(8.0, (float) $producto->fresh()->producto_stock_actual);

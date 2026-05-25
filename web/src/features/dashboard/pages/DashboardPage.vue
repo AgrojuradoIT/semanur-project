@@ -25,7 +25,7 @@
           v-for="fuel in fuelStock"
           :key="fuel.producto_id"
           class="fuel-tank-card"
-          :class="{ 'fuel-tank-low': fuel.producto_stock_actual <= fuel.producto_alerta_stock_minimo }"
+          :class="`fuel-tank-${getFuelLevelStatus(fuel)}`"
         >
           <!-- Background icon -->
           <span class="fuel-tank-bg-icon material-icons-round">{{ fuelIcon(fuel.producto_nombre) }}</span>
@@ -36,10 +36,10 @@
               <div class="fuel-tank-indicator">
                 <span
                   class="fuel-dot"
-                  :class="fuel.producto_stock_actual <= fuel.producto_alerta_stock_minimo ? 'fuel-dot-danger' : 'fuel-dot-ok'"
+                  :class="`fuel-dot-${getFuelLevelStatus(fuel)}`"
                 ></span>
                 <span class="fuel-tank-label">
-                  {{ fuel.producto_stock_actual <= fuel.producto_alerta_stock_minimo ? 'Nivel Crítico' : 'Nivel Normal' }}
+                  {{ getFuelLevelText(fuel) }}
                 </span>
               </div>
               <span class="fuel-tank-sku">{{ fuel.producto_sku }}</span>
@@ -51,21 +51,19 @@
               <div class="fuel-tank-main">
                 <span
                   class="fuel-tank-value"
-                  :class="fuel.producto_stock_actual <= fuel.producto_alerta_stock_minimo ? 'value-danger' : 'value-primary'"
+                  :class="`value-${getFuelLevelStatus(fuel)}`"
                 >
                   {{ formatNumber(fuel.producto_stock_actual) }}
                   <span class="fuel-tank-unit">{{ fuel.producto_unidad_medida || 'GAL' }}</span>
                 </span>
-                <span class="fuel-pct-label"
-                  :class="fuel.producto_stock_actual <= fuel.producto_alerta_stock_minimo ? 'pct-danger' : ''"
-                >
+                <span class="fuel-pct-label" :class="`pct-${getFuelLevelStatus(fuel)}`">
                   {{ fuelBarPercent(fuel).toFixed(0) }}% Capacidad
                 </span>
                 <!-- Progress bar -->
                 <div class="fuel-bar-track">
                   <div
                     class="fuel-bar-fill"
-                    :class="fuel.producto_stock_actual <= fuel.producto_alerta_stock_minimo ? 'bar-danger' : 'bar-ok'"
+                    :class="`bar-${getFuelLevelStatus(fuel)}`"
                     :style="{ width: fuelBarPercent(fuel) + '%' }"
                   ></div>
                 </div>
@@ -377,6 +375,25 @@ function fuelBarPercent(fuel) {
   const min = Number(fuel.producto_alerta_stock_minimo || 1);
   return Math.min((stock / Math.max(min * 3, stock)) * 100, 100);
 }
+
+function getFuelLevelStatus(fuel) {
+  const stock = Number(fuel.producto_stock_actual || 0);
+  const min = Number(fuel.producto_alerta_stock_minimo || 0);
+
+  // Critical is 50% of the minimum alert threshold (e.g., if min is 800, critical is 400)
+  const criticalThreshold = min / 2;
+
+  if (stock <= criticalThreshold) return 'danger';
+  if (stock <= min) return 'warning';
+  return 'ok';
+}
+
+function getFuelLevelText(fuel) {
+  const status = getFuelLevelStatus(fuel);
+  if (status === 'danger') return 'Nivel Crítico';
+  if (status === 'warning') return 'Nivel Bajo';
+  return 'Nivel Óptimo';
+}
 </script>
 
 <style scoped>
@@ -475,12 +492,20 @@ function fuelBarPercent(fuel) {
   background: linear-gradient(90deg, var(--primary), var(--success));
 }
 
-.fuel-tank-low::before {
+.fuel-tank-danger::before {
   background: linear-gradient(90deg, #f97316, #ef4444);
 }
 
-.fuel-tank-low {
+.fuel-tank-danger {
   border-color: rgba(239, 68, 68, 0.4);
+}
+
+.fuel-tank-warning::before {
+  background: linear-gradient(90deg, #facc15, #f59e0b);
+}
+
+.fuel-tank-warning {
+  border-color: rgba(245, 158, 11, 0.4);
 }
 
 /* Big ghost icon */
@@ -529,6 +554,12 @@ function fuelBarPercent(fuel) {
 .fuel-dot-ok {
   background: var(--success);
   box-shadow: 0 0 8px var(--success);
+}
+
+.fuel-dot-warning {
+  background: #f59e0b;
+  box-shadow: 0 0 8px #f59e0b;
+  animation: pulseDot 2s infinite;
 }
 
 .fuel-dot-danger {
@@ -594,7 +625,8 @@ function fuelBarPercent(fuel) {
   margin-left: 6px;
 }
 
-.value-primary { color: var(--primary); }
+.value-ok { color: var(--primary); }
+.value-warning { color: #f59e0b; }
 .value-danger { color: #ef4444; }
 
 .fuel-pct-label {
@@ -603,6 +635,8 @@ function fuelBarPercent(fuel) {
   font-weight: 600;
 }
 
+.pct-ok { color: var(--text-gray); }
+.pct-warning { color: #f59e0b; font-weight: 700; }
 .pct-danger { color: #f97316; font-weight: 700; }
 
 .fuel-bar-track {
@@ -621,6 +655,11 @@ function fuelBarPercent(fuel) {
 .bar-ok {
   background: linear-gradient(90deg, var(--primary), var(--success));
   box-shadow: 0 0 16px rgba(242, 242, 13, 0.3);
+}
+
+.bar-warning {
+  background: linear-gradient(90deg, #fde047, #f59e0b);
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.3);
 }
 
 .bar-danger {

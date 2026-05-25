@@ -9,6 +9,7 @@ class SemanurAutocomplete<T extends Object> extends StatelessWidget {
   final String hint;
   final bool Function(T, String) filterFn;
   final String? Function(T?)? validator;
+  final void Function(String)? onChanged;
 
   const SemanurAutocomplete({
     super.key,
@@ -19,6 +20,7 @@ class SemanurAutocomplete<T extends Object> extends StatelessWidget {
     required this.hint,
     required this.filterFn,
     this.validator,
+    this.onChanged,
   });
 
   @override
@@ -28,27 +30,44 @@ class SemanurAutocomplete<T extends Object> extends StatelessWidget {
         text: initialValue != null ? displayStringForOption(initialValue!) : '',
       ),
       optionsBuilder: (TextEditingValue textEditingValue) {
-        if (textEditingValue.text.isEmpty) {
+        final text = textEditingValue.text;
+        if (text.isEmpty || (initialValue != null && text == displayStringForOption(initialValue!))) {
           return options;
         }
         return options.where((option) =>
-            filterFn(option, textEditingValue.text.toLowerCase()));
+            filterFn(option, text.toLowerCase()));
       },
       displayStringForOption: displayStringForOption,
-      onSelected: onSelected,
+      onSelected: (option) {
+        onSelected(option);
+        FocusManager.instance.primaryFocus?.unfocus();
+      },
       fieldViewBuilder:
           (context, controller, focusNode, onFieldSubmitted) {
         return TextFormField(
           controller: controller,
           focusNode: focusNode,
+          onTap: () {
+            // Trigger options view legally by updating selection to force notification
+            final text = controller.text;
+            controller.value = TextEditingValue(
+              text: text,
+              selection: TextSelection.fromPosition(
+                TextPosition(offset: text.length),
+              ),
+            );
+          },
           style: const TextStyle(color: Colors.white, fontSize: 13),
           validator: (value) {
             if (validator != null) {
-              // Note: This validator is tricky with Autocomplete
-              // because the controller text might not match the T object.
-              // But for simple "Required" checks it works.
+              return validator!(initialValue); // or however it validates
             }
             return null;
+          },
+          onChanged: (value) {
+            if (onChanged != null) {
+              onChanged!(value);
+            }
           },
           decoration: InputDecoration(
             hintText: hint,

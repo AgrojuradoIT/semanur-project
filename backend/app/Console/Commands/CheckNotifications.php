@@ -26,11 +26,21 @@ class CheckNotifications extends Command
     protected $description = 'Revisar stock, vencimientos y mantenimientos para generar notificaciones';
 
     /**
+     * Cache for recent unread notifications.
+     */
+    private $recentUnreadNotifs;
+
+    /**
      * Execute the console command.
      */
     public function handle()
     {
         $this->info('Iniciando revision de notificaciones...');
+
+        $this->recentUnreadNotifs = Notificacion::whereNull('fecha_leido')
+            ->where('created_at', '>', Carbon::now()->subDay())
+            ->get()
+            ->groupBy(fn($n) => $n->user_id . '-' . $n->tipo . '-' . $n->relacionado_id);
 
         $this->checkStockBajo();
         $this->checkVencimientosDocumentos();
@@ -57,7 +67,7 @@ class CheckNotifications extends Command
                     'stock_bajo',
                     "Stock bajo: {$p->producto_nombre}",
                     "El producto {$p->producto_nombre} ({$p->producto_sku}) tiene {$p->producto_stock_actual} unidades. Minimo requerido: {$p->producto_alerta_stock_minimo}",
-                    $p->id,
+                    $p->producto_id,
                     'alta'
                 );
             }
@@ -98,7 +108,7 @@ class CheckNotifications extends Command
                             "vencimiento_$tipo",
                             "Documento $tipo proximo a vencer: {$v->placa}",
                             "El $tipo del vehiculo {$v->placa} ({$v->marca}) $msg Fecha: " . $fechaVenc->format('d/m/Y'),
-                            "{$v->id}|{$v->placa}",
+                            "{$v->vehiculo_id}|{$v->placa}",
                             $prioridad
                         );
                     }
@@ -126,7 +136,7 @@ class CheckNotifications extends Command
                             'mantenimiento_preventivo',
                             "Mantenimiento proximo (Km): {$v->placa}",
                             "Al vehiculo {$v->placa} le faltan $restanteKm Km para su mantenimiento preventivo.",
-                            "{$v->id}|{$v->placa}",
+                            "{$v->vehiculo_id}|{$v->placa}",
                             'media'
                         );
                     }
@@ -143,7 +153,7 @@ class CheckNotifications extends Command
                             'mantenimiento_preventivo',
                             "Mantenimiento proximo (Horas): {$v->placa}",
                             "Al vehiculo {$v->placa} le faltan $restanteHrs horas para su mantenimiento preventivo.",
-                            "{$v->id}|{$v->placa}",
+                            "{$v->vehiculo_id}|{$v->placa}",
                             'media'
                         );
                     }
@@ -158,15 +168,12 @@ class CheckNotifications extends Command
      */
     private function upsertNotificacion($userId, $tipo, $titulo, $mensaje, $relId, $prioridad)
     {
-        $existe = Notificacion::where('user_id', $userId)
-            ->where('tipo', $tipo)
-            ->where('relacionado_id', $relId)
-            ->whereNull('fecha_leido')
-            ->where('created_at', '>', Carbon::now()->subDay())
-            ->exists();
+        $key = $userId . '-' . $tipo . '-' . $relId;
+
+        $existe = $this->recentUnreadNotifs->has($key) && $this->recentUnreadNotifs->get($key)->isNotEmpty();
 
         if (!$existe) {
-            Notificacion::create([
+            $notificacion = Notificacion::create([
                 'user_id' => $userId,
                 'tipo' => $tipo,
                 'titulo' => $titulo,
@@ -174,6 +181,12 @@ class CheckNotifications extends Command
                 'relacionado_id' => $relId,
                 'prioridad' => $prioridad
             ]);
+
+            // Add the created notification to the memory cache to prevent duplicates in the same run
+            if (!$this->recentUnreadNotifs->has($key)) {
+                $this->recentUnreadNotifs->put($key, collect());
+            }
+            $this->recentUnreadNotifs->get($key)->push($notificacion);
         }
     }
 }

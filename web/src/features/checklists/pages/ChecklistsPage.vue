@@ -1,5 +1,14 @@
 <template>
   <div class="table-container">
+    <!-- Deprecation Banner -->
+    <div class="deprecation-banner">
+      <span class="material-icons-round">warning</span>
+      <div>
+        <strong>Esta funcion sera reemplazada proximaente.</strong>
+        Use el nuevo modulo de <router-link to="/preoperacionales">Inspecciones Preoperacionales</router-link> para el sistema semanal.
+      </div>
+    </div>
+
     <div class="table-header">
       <h3 class="table-title">HISTORIAL DE CHECKLISTS</h3>
       <div class="table-actions">
@@ -752,6 +761,43 @@ function vehicleLabel(vehicle) {
   .toggle-btn {
     flex: 1;
   }
+}
+
+/* Deprecation Banner */
+.deprecation-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-sm);
+  padding: var(--sp-sm) var(--sp-md);
+  margin-bottom: var(--sp-md);
+  background: rgba(255, 152, 0, 0.1);
+  border: 1px solid rgba(255, 152, 0, 0.3);
+  border-left: 4px solid var(--warning);
+  border-radius: var(--radius-md);
+  color: var(--warning);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.deprecation-banner .material-icons-round {
+  font-size: 20px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.deprecation-banner strong {
+  display: block;
+  margin-bottom: 2px;
+}
+
+.deprecation-banner a {
+  color: var(--primary);
+  text-decoration: underline;
+  font-weight: 600;
+}
+
+.deprecation-banner a:hover {
+  color: var(--primary-light, var(--primary));
 }
 </style>
 

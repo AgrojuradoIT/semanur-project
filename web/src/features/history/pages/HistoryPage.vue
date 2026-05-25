@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div>
     <div class="card" style="margin-bottom: 16px">
       <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between">
@@ -137,14 +137,13 @@ watch(refreshTrigger, loadData);
 async function loadData() {
   try {
     await run(async () => {
-      const { movimientos, ordenes, combustible, prestamos, checklists } = await fetchHistorySources();
+      const { movimientos, ordenes, combustible, prestamos } = await fetchHistorySources();
 
       const events = [
         ...mapMovements(movimientos),
         ...mapWorkOrders(ordenes),
         ...mapFuel(combustible),
         ...mapLoans(prestamos),
-        ...mapChecklists(checklists),
       ];
 
       events.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
@@ -273,16 +272,4 @@ function mapLoans(items) {
   }));
 }
 
-function mapChecklists(items) {
-  return items.map((c) => ({
-    id: `chk_${c.id}`,
-    module: 'Flota',
-    action: 'Estado',
-    user: c.operador?.name || c.usuario_nombre || c.usuarioNombre || 'Conductor',
-    title: `Preoperacional - ${c.vehiculo?.placa || c.vehiculo_placa || 'Vehiculo'}`,
-    description: `Estado: ${c.estado || 'N/A'}`,
-    timestamp: c.fecha || c.created_at || new Date().toISOString(),
-    reference: `CHK-${c.id}`,
-  }));
-}
 </script>

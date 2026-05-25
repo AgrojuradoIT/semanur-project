@@ -1,20 +1,15 @@
-# Archivos comprimidos
-*.zip
-*.rar
-*.7z
-*.tar.gz
+# Ignorar todo en la raíz por defecto
+/*
 
-# Documentación
-docs/
-DOCUMENTACION_SISTEMA.md
-pensamientos de logica.md
-"Listado de productos _ Servicios.xlsx"
+# Excepciones (carpetas permitidas)
+!/backend/
+!/frontend/
+!/web/
+!.gitignore
+!README.md
 
-# Skills y Agentes
+# Reglas generales adicionales (aplican dentro de las carpetas)
 .agents/
-skill.md
-
-# Archivos de Sistema y Entorno
 .env
 .DS_Store
 Thumbs.db
@@ -23,3 +18,7 @@ vendor/
 .vscode/
 .idea/
 *.log
+*.zip
+*.rar
+*.7z
+*.tar.gz

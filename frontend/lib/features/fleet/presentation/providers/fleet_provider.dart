@@ -142,13 +142,7 @@ class FleetProvider extends ChangeNotifier {
       _invalidateAlertsCache();
       notifyListeners();
 
-      // Cachear en segundo plano
-      try {
-        final vehiculosMap = _vehiculos.map((v) => v.toJson()).toList();
-        await DatabaseHelper().saveVehiculos(vehiculosMap);
-      } catch (e) {
-        debugPrint('Error cacheando vehículos: $e');
-      }
+
     } catch (e) {
       _isFetching = false;
       debugPrint('Error obteniendo vehículos de API: $e. Intentando local...');

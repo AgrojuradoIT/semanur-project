@@ -28,6 +28,7 @@ import 'package:frontend/core/providers/sync_provider.dart';
 import 'package:frontend/core/utils/fuel_utils.dart';
 import 'package:frontend/features/scheduler/presentation/screens/weekly_calendar_screen.dart';
 import 'package:frontend/features/scheduler/presentation/screens/incident_report_screen.dart';
+import 'package:frontend/features/preoperacionales/presentation/screens/vehicle_selection_screen.dart';
 
 class HomeDashboard extends StatefulWidget {
   const HomeDashboard({super.key});
@@ -521,6 +522,12 @@ class _HomeDashboardState extends State<HomeDashboard> {
         Icons.local_shipping_outlined,
         '18 Activos',
         () => Navigator.push(context, MaterialPageRoute(builder: (_) => const VehicleListScreen())),
+      ));
+      modules.add(_ModuleEntry(
+        'Inspecciones',
+        Icons.assignment_turned_in,
+        'Preoperacional diario',
+        () => Navigator.push(context, MaterialPageRoute(builder: (_) => const VehicleSelectionScreen())),
       ));
     }
     if (user == null || user.canAccessModule('prestamos')) {

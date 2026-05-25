@@ -22,8 +22,10 @@ class WorkSessionApiController extends Controller
             return false;
         }
 
-        $empleadoId = Empleado::where('user_id', $user->id)->value('id');
-        return $empleadoId !== null && $assignedId === (int) $empleadoId;
+        $userId = (int) $user->id;
+        $empleadoId = Empleado::where('user_id', $userId)->value('id');
+
+        return $assignedId === $userId || ($empleadoId !== null && $assignedId === (int) $empleadoId);
     }
 
     public function start(Request $request)

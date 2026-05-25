@@ -296,17 +296,20 @@ class ComprasImportService
 
                 // Obtener IDs de productos recién creados por SKU
                 $movementRows = [];
+                $quantitiesToAdd = [];
 
                 if (!empty($newSkuQuantities)) {
                     $newProducts = Producto::whereIn('producto_sku', array_keys($newSkuQuantities))
                         ->pluck('producto_id', 'producto_sku');
 
                     foreach ($newProducts as $sku => $productoId) {
+                        $qty = (float) $newSkuQuantities[$sku];
+                        $quantitiesToAdd[$productoId] = ($quantitiesToAdd[$productoId] ?? 0.0) + $qty;
                         $movementRows[] = [
                             'producto_id' => $productoId,
                             'usuario_id' => $userId,
                             'transaccion_tipo' => 'ingreso',
-                            'transaccion_cantidad' => $newSkuQuantities[$sku],
+                            'transaccion_cantidad' => $qty,
                             'transaccion_motivo' => 'Importación compras Siigo',
                             'transaccion_referencia_type' => 'compra',
                             'transaccion_referencia_id' => null,
@@ -319,11 +322,14 @@ class ComprasImportService
 
                 // --- 2) Transacciones para productos existentes ---
                 foreach ($preview['existing'] as $sku => $row) {
+                    $productoId = $row['producto_id'];
+                    $qty = (float) $row['cantidad_total'];
+                    $quantitiesToAdd[$productoId] = ($quantitiesToAdd[$productoId] ?? 0.0) + $qty;
                     $movementRows[] = [
-                        'producto_id' => $row['producto_id'],
+                        'producto_id' => $productoId,
                         'usuario_id' => $userId,
                         'transaccion_tipo' => 'ingreso',
-                        'transaccion_cantidad' => (float) $row['cantidad_total'],
+                        'transaccion_cantidad' => $qty,
                         'transaccion_motivo' => 'Importación compras Siigo',
                         'transaccion_referencia_type' => 'compra',
                         'transaccion_referencia_id' => null,
@@ -339,6 +345,27 @@ class ComprasImportService
                     \DB::table('transaccion_inventarios')->insert($chunk);
                 }
                 $movementsCreated = count($movementRows);
+
+                // --- 3) Incrementar stock_actual de productos afectados ---
+                if (!empty($quantitiesToAdd)) {
+                    ksort($quantitiesToAdd);
+                    $cases = [];
+                    $ids = [];
+                    foreach ($quantitiesToAdd as $prodId => $qty) {
+                        $cases[] = "WHEN " . (int)$prodId . " THEN " . (float)$qty;
+                        $ids[] = (int)$prodId;
+                    }
+                    $idsString = implode(',', $ids);
+                    $casesString = implode(' ', $cases);
+                    \DB::statement("
+                        UPDATE productos 
+                        SET producto_stock_actual = producto_stock_actual + CASE producto_id
+                            $casesString
+                            ELSE 0
+                        END
+                        WHERE producto_id IN ($idsString)
+                    ");
+                }
             });
         } catch (\Throwable $e) {
             $errors[] = "Error en importación masiva: {$e->getMessage()}";

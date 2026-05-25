@@ -99,15 +99,23 @@ class EmpleadoApiController extends Controller
 
     public function show($id)
     {
-        $empleado = Empleado::with('user')->findOrFail($id);
+        $empleado = Empleado::with('user')
+            ->withCount([
+                'ordenesTrabajoAsignadas',
+                'prestamosHerramientas',
+                'registrosCombustible',
+                'checklists',
+                'sesiones'
+            ])
+            ->findOrFail($id);
 
         // Contar estadísticas reales
         $stats = [
-            'ot_asignadas'   => $empleado->ordenesTrabajoAsignadas()->count(),
-            'prestamos'      => $empleado->prestamosHerramientas()->count(),
-            'tanqueos'       => $empleado->registrosCombustible()->count(),
-            'checklists'     => $empleado->checklists()->count(),
-            'sesiones'       => $empleado->sesiones()->count(),
+            'ot_asignadas'   => $empleado->ordenes_trabajo_asignadas_count,
+            'prestamos'      => $empleado->prestamos_herramientas_count,
+            'tanqueos'       => $empleado->registros_combustible_count,
+            'checklists'     => $empleado->checklists_count,
+            'sesiones'       => $empleado->sesiones_count,
         ];
 
         $data = $empleado->toArray();
