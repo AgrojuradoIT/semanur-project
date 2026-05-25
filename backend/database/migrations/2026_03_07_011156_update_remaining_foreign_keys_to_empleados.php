@@ -14,6 +14,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
+
         // 1. Prestamos Herramientas
         $this->migratePrestamosHerramientas();
 
@@ -199,6 +203,10 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
+
         // Revert Respuestas
         Schema::table('respuestas_lista_chequeo', function (Blueprint $table) {
             $table->dropForeign(['operador_id']);

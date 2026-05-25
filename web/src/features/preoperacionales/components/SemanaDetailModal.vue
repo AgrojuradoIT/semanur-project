@@ -1,35 +1,37 @@
 <template>
   <Teleport to="body">
-    <div v-if="modelValue && semana" class="modal-overlay" @click.self="close">
-      <div class="modal modal-wide semana-detail-modal">
+    <div v-if="modelValue && semana" class="drawer-overlay" @click.self="close">
+      <div class="side-drawer" :class="{ 'drawer-open': modelValue }">
         <!-- Header -->
-        <div class="modal-header">
-          <div class="modal-title-group">
-            <h3>{{ semana.vehiculoPlaca || 'Veh&iacute;culo' }}</h3>
+        <div class="drawer-header">
+          <div class="drawer-title-group">
+            <h3>{{ semana.vehiculo_placa || 'Veh&iacute;culo' }}</h3>
             <span class="week-range">{{ weekRange }}</span>
             <span class="badge" :class="estadoClass(semana.estado)">{{ estadoLabel(semana.estado) }}</span>
           </div>
-          <button class="modal-close" @click="close">
-            <span class="material-icons-round" style="font-size: 18px">close</span>
+          <button class="drawer-close" @click="close" title="Cerrar panel">
+            <span class="material-icons-round">close</span>
           </button>
         </div>
 
         <!-- Tabs -->
-        <div class="day-tabs">
-          <button
-            v-for="dia in dias"
-            :key="dia.key"
-            class="day-tab"
-            :class="{ 'day-tab--active': activeDia === dia.key }"
-            @click="activeDia = dia.key"
-          >
-            <span class="day-tab-label">{{ dia.label }}</span>
-            <span class="day-tab-dot" :class="dayTabDotClass(dia.key)"></span>
-          </button>
+        <div class="day-tabs-scroll">
+          <div class="day-tabs">
+            <button
+              v-for="dia in dias"
+              :key="dia.key"
+              class="day-tab"
+              :class="{ 'day-tab--active': activeDia === dia.key }"
+              @click="activeDia = dia.key"
+            >
+              <span class="day-tab-label">{{ dia.label }}</span>
+              <span class="day-tab-dot" :class="dayTabDotClass(dia.key)"></span>
+            </button>
+          </div>
         </div>
 
         <!-- Body -->
-        <div class="modal-body">
+        <div class="drawer-body">
           <div v-if="loading" class="page-loading">
             <span class="spinner"></span>
             Cargando formulario...
@@ -95,15 +97,16 @@
         </div>
 
         <!-- Footer -->
-        <div class="modal-footer">
+        <div class="drawer-footer">
           <button
             v-if="semana.estado !== 'fuera_servicio'"
             class="btn btn-danger"
             @click="confirmFueraServicio"
           >
             <span class="material-icons-round" style="font-size: 18px">block</span>
-            MARCAR FUERA DE SERVICIO
+            FUERA DE SERVICIO
           </button>
+          <div class="spacer"></div>
           <button class="btn btn-secondary" @click="close">Cerrar</button>
         </div>
       </div>
@@ -136,14 +139,41 @@ const activeDia = ref('lunes');
 const openSections = ref(new Set());
 const loading = ref(false);
 
+watch(() => props.modelValue, (isOpen) => {
+  if (isOpen && props.semana?.daily_forms) {
+    const todayStr = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'][new Date().getDay()];
+    // Default to today if it exists, otherwise first completed, otherwise 'lunes'
+    const todayForm = props.semana.daily_forms.find(f => f.dia_semana === todayStr);
+    const completedForm = props.semana.daily_forms.find(f => f.completado);
+    
+    if (todayForm?.completado) {
+      activeDia.value = todayStr;
+    } else if (completedForm) {
+      activeDia.value = completedForm.dia_semana;
+    } else {
+      activeDia.value = todayStr;
+    }
+  }
+});
+
 const activeForm = computed(() => {
   if (!props.semana?.daily_forms) return null;
   return props.semana.daily_forms.find((df) => df.dia_semana === activeDia.value);
 });
 
 const activeSections = computed(() => {
-  if (!props.template?.sections) return [];
-  return props.template.sections;
+  const sections = [];
+  if (props.template?.sections && props.template.sections.length > 0) {
+    sections.push(...props.template.sections);
+  }
+  if (props.template?.items && props.template.items.length > 0) {
+    sections.push({
+      id: 'flat-items',
+      nombre: 'Generales',
+      items: props.template.items
+    });
+  }
+  return sections;
 });
 
 const weekRange = computed(() => {
@@ -171,13 +201,25 @@ function getResponse(itemId) {
 function itemStatusClass(itemId) {
   const resp = getResponse(itemId);
   if (!resp) return 'status-pending';
-  return resp.estado === 'B' ? 'status-bueno' : 'status-malo';
+  const good = ['B', 'C', 'N'];
+  const bad = ['M', 'NC', 'A'];
+  if (good.includes(resp.estado)) return 'status-bueno';
+  if (bad.includes(resp.estado)) return 'status-malo';
+  return 'status-pending';
 }
 
 function itemStatusLabel(itemId) {
   const resp = getResponse(itemId);
   if (!resp) return 'Pendiente';
-  return resp.estado === 'B' ? 'Bueno' : 'Malo';
+  const map = {
+    B: 'Bueno',
+    M: 'Malo',
+    C: 'Cumple',
+    NC: 'No Cumple',
+    N: 'Normal',
+    A: 'Anormal'
+  };
+  return map[resp.estado] || resp.estado;
 }
 
 function itemObservation(itemId) {
@@ -187,9 +229,9 @@ function itemObservation(itemId) {
 
 function dayTabDotClass(dia) {
   const form = props.semana?.daily_forms?.find((df) => df.dia_semana === dia);
+  if (props.semana?.estado === 'fuera_servicio') return 'dot-fuera';
   if (!form) return 'dot-pending';
-  if (form.estado === 'fuera_servicio') return 'dot-fuera';
-  if (form.estado === 'completado') {
+  if (form.completado) {
     const hasMalo = form.responses?.some((r) => r.estado === 'M');
     const hasCritical = form.responses?.some((r) => r.item?.es_critico && r.estado === 'M');
     if (hasCritical) return 'dot-critical';
@@ -243,37 +285,94 @@ watch(activeForm, (form) => {
   if (form && activeSections.value.length > 0) {
     openSections.value = new Set([activeSections.value[0].id]);
   }
-});
+}, { immediate: true });
 </script>
 
 <style scoped>
-.semana-detail-modal {
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
   display: flex;
-  flex-direction: column;
+  justify-content: flex-end;
 }
 
-.modal-title-group {
+.side-drawer {
+  width: 100%;
+  max-width: 500px;
+  background: var(--surface);
+  height: 100vh;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.1);
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideIn {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.drawer-header {
+  padding: var(--sp-lg);
+  border-bottom: 1px solid var(--surface-2);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  background: var(--surface);
+}
+
+.drawer-title-group {
+  display: flex;
+  flex-direction: column;
   gap: var(--sp-sm);
 }
 
-.modal-title-group h3 {
+.drawer-title-group h3 {
   margin: 0;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-primary);
 }
 
 .week-range {
-  font-size: 0.8rem;
-  color: var(--text-gray);
+  font-size: 0.85rem;
+  color: var(--text-muted);
 }
 
-/* Day tabs */
+.drawer-close {
+  background: var(--surface-2);
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: all 0.2s;
+}
+
+.drawer-close:hover {
+  background: var(--surface-3);
+  color: var(--text-primary);
+}
+
+.day-tabs-scroll {
+  background: var(--surface-1);
+  border-bottom: 1px solid var(--surface-2);
+  overflow-x: auto;
+}
+
 .day-tabs {
   display: flex;
-  border-bottom: 1px solid var(--surface-2);
-  padding: 0 var(--sp-lg);
-  background: var(--bg-dark);
-  overflow-x: auto;
+  padding: 0 var(--sp-md);
+  min-width: max-content;
 }
 
 .day-tab {
@@ -315,6 +414,29 @@ watch(activeForm, (form) => {
 .dot-pending { background: var(--text-muted); }
 .dot-fuera { background: var(--danger); }
 
+.drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-lg);
+  background: var(--bg-dark);
+}
+
+.drawer-footer {
+  padding: var(--sp-md) var(--sp-lg);
+  border-top: 1px solid var(--surface-2);
+  display: flex;
+  gap: var(--sp-sm);
+  background: var(--surface);
+  align-items: center;
+}
+
+.spacer {
+  flex: 1;
+}
+
 /* Form review */
 .form-review {
   display: flex;
@@ -326,6 +448,7 @@ watch(activeForm, (form) => {
   border: 1px solid var(--surface-2);
   border-radius: var(--radius-md);
   overflow: hidden;
+  background: var(--surface);
 }
 
 .section-header {
@@ -334,23 +457,23 @@ watch(activeForm, (form) => {
   gap: var(--sp-sm);
   width: 100%;
   padding: var(--sp-sm) var(--sp-md);
-  background: var(--surface-1, var(--surface-2));
+  background: var(--surface-1);
   border: none;
-  color: var(--text-main);
-  font-size: 0.9rem;
-  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-weight: 700;
   cursor: pointer;
   transition: background var(--transition-fast);
 }
 
 .section-header:hover {
-  background: var(--surface-3);
+  background: var(--surface-2);
 }
 
 .section-header .material-icons-round {
   font-size: 20px;
   transition: transform var(--transition-fast);
-  color: var(--text-gray);
+  color: var(--text-muted);
 }
 
 .section-header .section-expanded {
@@ -361,14 +484,15 @@ watch(activeForm, (form) => {
   margin-left: auto;
   font-size: 0.75rem;
   color: var(--text-muted);
-  font-weight: 400;
+  font-weight: 600;
+  background: var(--surface-2);
+  padding: 2px 8px;
+  border-radius: 12px;
 }
 
 .section-items {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: var(--sp-sm) var(--sp-md);
   background: var(--surface);
 }
 
@@ -377,15 +501,22 @@ watch(activeForm, (form) => {
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--sp-md);
-  padding: 10px 14px;
-  background: var(--bg-dark);
-  border-radius: var(--radius-sm);
-  border-left: 3px solid transparent;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--surface-2);
+  transition: background 0.2s;
+}
+
+.review-item:last-child {
+  border-bottom: none;
+}
+
+.review-item:hover {
+  background: var(--surface-1);
 }
 
 .review-item--critical {
-  border-left-color: var(--warning);
-  background: linear-gradient(90deg, rgba(255, 152, 0, 0.05) 0%, var(--bg-dark) 100%);
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.05) 0%, transparent 100%);
+  border-left: 3px solid var(--danger);
 }
 
 .review-item-content {
@@ -394,10 +525,10 @@ watch(activeForm, (form) => {
 }
 
 .review-item-question {
-  font-weight: 600;
-  color: var(--text-main);
-  margin: 0 0 4px 0;
-  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin: 0 0 6px 0;
+  font-size: 0.9rem;
   line-height: 1.4;
 }
 
@@ -405,9 +536,9 @@ watch(activeForm, (form) => {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.72rem;
-  color: var(--warning);
-  font-weight: 600;
+  font-size: 0.75rem;
+  color: var(--danger);
+  font-weight: 700;
   margin: 0;
 }
 
@@ -419,63 +550,53 @@ watch(activeForm, (form) => {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 4px;
+  gap: 6px;
   flex-shrink: 0;
 }
 
 .status-badge {
-  padding: 4px 10px;
+  padding: 4px 12px;
   border-radius: 20px;
-  font-size: 0.72rem;
-  font-weight: 600;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.status-bueno {
-  background: var(--success-10);
-  color: var(--success);
-}
-
-.status-malo {
-  background: var(--danger-10);
-  color: var(--danger);
-}
-
-.status-pending {
-  background: var(--surface-2);
-  color: var(--text-muted);
-}
+.status-bueno { background: rgba(34, 197, 94, 0.15); color: var(--success); }
+.status-malo { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
+.status-pending { background: var(--surface-2); color: var(--text-muted); }
 
 .item-observation {
-  font-size: 0.75rem;
-  color: var(--text-gray);
+  font-size: 0.8rem;
+  color: var(--text-muted);
   margin: 0;
-  max-width: 200px;
+  max-width: 220px;
   text-align: right;
   font-style: italic;
 }
 
 /* Observaciones generales */
 .observaciones-generales {
-  margin-top: var(--sp-md);
   padding: var(--sp-md);
-  background: var(--bg-dark);
+  background: var(--surface);
   border-radius: var(--radius-md);
-  border: 1px solid var(--surface-2);
+  border: 1px dashed var(--surface-2);
 }
 
 .observaciones-generales label {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--text-gray);
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   display: block;
-  margin-bottom: var(--sp-xs);
+  margin-bottom: var(--sp-sm);
 }
 
 .observaciones-text {
-  font-size: 0.88rem;
-  color: var(--text-secondary);
+  font-size: 0.9rem;
+  color: var(--text-primary);
   margin: 0;
   line-height: 1.5;
 }

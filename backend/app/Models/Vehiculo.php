@@ -12,6 +12,9 @@ class Vehiculo extends Model
     protected $fillable = [
         'placa',
         'tipo',
+        'categoria',
+        'tipo_combustible',
+        'metodo_seguimiento',
         'marca',
         'modelo',
         'imagen_url',

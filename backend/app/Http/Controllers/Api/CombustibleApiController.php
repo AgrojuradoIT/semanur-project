@@ -81,7 +81,7 @@ class CombustibleApiController extends Controller
     {
         try {
             return DB::transaction(function () use ($request) {
-                $empleadoId = $request->tipo_destino === 'vehiculo' ? $request->empleado_id : null;
+                $empleadoId = in_array($request->tipo_destino, ['vehiculo', 'maquinaria', 'equipo_menor']) ? $request->empleado_id : null;
 
                 $producto = $this->combustibleService->resolveCombustibleProducto($request->tipo_combustible);
 
@@ -171,6 +171,11 @@ class CombustibleApiController extends Controller
             'estacion_servicio' => ['nullable', 'string'],
             'notas' => ['nullable', 'string'],
             'labor' => ['nullable', 'string'],
+            'tipo_destino' => ['sometimes', \Illuminate\Validation\Rule::in(['vehiculo', 'empleado', 'tercero', 'equipo_menor', 'maquinaria'])],
+            'vehiculo_id' => ['nullable', 'exists:vehiculos,vehiculo_id'],
+            'empleado_id' => ['nullable', 'exists:empleados,id'],
+            'tercero_nombre' => ['nullable', 'string'],
+            'placa_manual' => ['nullable', 'string'],
         ]);
 
         $registro->update($validated);

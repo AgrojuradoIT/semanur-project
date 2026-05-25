@@ -31,7 +31,7 @@ class AnalyticsApiController extends Controller
         // Costo de repuestos (salidas de inventario vinculadas a OT)
         $totalMaintenance = DB::table('transaccion_inventarios')
             ->join('productos', 'transaccion_inventarios.producto_id', '=', 'productos.producto_id')
-            ->where('transaccion_referencia_type', 'like', '%OrdenTrabajo%')
+            ->where('transaccion_referencia_type', 'OrdenTrabajo')
             ->select(DB::raw('SUM(transaccion_cantidad * producto_precio_costo) as total'))
             ->first()->total ?? 0;
 
@@ -66,7 +66,7 @@ class AnalyticsApiController extends Controller
             ->join('productos', 'transaccion_inventarios.producto_id', '=', 'productos.producto_id')
             ->join('orden_trabajos', 'transaccion_inventarios.transaccion_referencia_id', '=', 'orden_trabajos.orden_trabajo_id')
             ->join('vehiculos', 'orden_trabajos.vehiculo_id', '=', 'vehiculos.vehiculo_id')
-            ->where('transaccion_referencia_type', 'like', '%OrdenTrabajo%')
+            ->where('transaccion_referencia_type', 'OrdenTrabajo')
             ->select(
                 'vehiculos.placa',
                 DB::raw('SUM(transaccion_cantidad * producto_precio_costo) as total_cost')

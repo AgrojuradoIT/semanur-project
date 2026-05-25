@@ -33,7 +33,7 @@ class ApiConstants {
   // Inventario
   static const String productos = '/productos';
   static const String buscarProductos = '/productos/buscar';
-  static const String importarProductos = '/productos/import';
+
 
   // Órdenes de Trabajo
   static const String ordenesTrabajo = '/ordenes-trabajo';

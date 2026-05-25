@@ -413,35 +413,6 @@ class InventoryProvider extends ChangeNotifier {
     return searchProductos(query);
   }
 
-  Future<Map<String, dynamic>> importProductos(
-    String filePath, {
-    bool skipDuplicates = false,
-  }) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
-    try {
-      final result = await _repository.importProductos(
-        filePath,
-        skipDuplicates: skipDuplicates,
-      );
-
-      if (result['inserted_count'] != null && result['inserted_count'] > 0) {
-        await fetchProductos(lowStock: _lowStockOnly);
-      } else {
-        _isLoading = false;
-        notifyListeners();
-      }
-
-      return result;
-    } catch (e) {
-      _isLoading = false;
-      _error = e.toString();
-      notifyListeners();
-      rethrow;
-    }
-  }
 
   Future<bool> updateProducto(int id, Map<String, dynamic> payload) async {
     _isLoading = true;

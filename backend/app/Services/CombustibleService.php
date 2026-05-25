@@ -56,10 +56,14 @@ class CombustibleService
         $refId = null;
         $notas = 'Tanqueo interno';
 
-        if ($tipoDestino === 'vehiculo') {
+        if (in_array($tipoDestino, ['vehiculo', 'equipo_menor'])) {
             $refType = 'Vehiculo';
             $refId = $vehiculoId;
-            $notas .= " para vehículo ID {$vehiculoId}";
+            $etiqueta = $tipoDestino === 'equipo_menor' ? 'equipo menor' : 'vehículo';
+            $notas .= " para {$etiqueta} ID {$vehiculoId}";
+            if ($tipoDestino === 'equipo_menor' && $terceroNombre) {
+                $notas .= " entregado a tercero: {$terceroNombre}";
+            }
         } elseif ($tipoDestino === 'empleado') {
             $refType = 'EmpleadoTexto';
             $notas .= " para empleado: {$terceroNombre}";

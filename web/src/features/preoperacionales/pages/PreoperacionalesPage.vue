@@ -1,32 +1,42 @@
 <template>
   <div class="preoperacionales-page">
-    <!-- Page Header -->
-    <div class="page-header">
-      <h3>INSPECCIONES PREOPERACIONALES</h3>
-      <div class="page-actions">
+    <!-- Page Header (Standard) -->
+    <div class="table-header" style="border-radius: var(--radius-lg); margin-bottom: 0;">
+      <div style="display: flex; align-items: center; gap: var(--sp-md); flex-wrap: wrap">
+        <h3 class="table-title">INSPECCIONES PREOPERACIONALES</h3>
+        <div class="filter-chips">
+          <button
+            v-for="chip in statusOptions"
+            :key="chip.value"
+            class="chip"
+            :class="{ active: selectedStatus === chip.value }"
+            @click="selectedStatus = chip.value"
+          >
+            {{ chip.label }}
+          </button>
+        </div>
+      </div>
+
+      <div class="table-actions">
         <select v-model="selectedWeek" class="filter-select">
           <option value="all">Todas las semanas</option>
           <option v-for="w in weekOptions" :key="w.value" :value="w.value">
             {{ w.label }}
           </option>
         </select>
-        <select v-model="selectedVehicle" class="filter-select">
-          <option value="all">Todos los vehiculos</option>
-          <option v-for="v in vehicles" :key="vehicleId(v)" :value="vehicleId(v)">
-            {{ v.placa || 'Sin placa' }}
-          </option>
-        </select>
-        <select v-model="selectedStatus" class="filter-select">
-          <option value="all">Todos los estados</option>
-          <option value="pendiente">Pendiente</option>
-          <option value="en_progreso">En Progreso</option>
-          <option value="completado">Completado</option>
-          <option value="fuera_servicio">Fuera Servicio</option>
-        </select>
-        <button class="btn btn-primary btn-sm" @click="openCreateModal">
-          <span class="material-icons-round" style="font-size: 18px">add_circle</span>
-          CREAR SEMANA
-        </button>
+        
+        <div class="table-search">
+          <span class="material-icons-round">search</span>
+          <input v-model="searchQuery" type="text" placeholder="Buscar placa..." />
+        </div>
+      </div>
+    </div>
+
+    <!-- Info Banner (Strict Mode) -->
+    <div class="info-banner">
+      <span class="material-icons-round">info</span>
+      <div class="banner-text">
+        <strong>Modo Auditoría:</strong> El diligenciamiento diario de los preoperacionales se realiza exclusivamente desde la App Móvil por los operadores. Este panel web es únicamente para revisión y control.
       </div>
     </div>
 
@@ -91,56 +101,7 @@
       @fuera-servicio="handleFueraServicio"
     />
 
-    <!-- Create Modal -->
-    <div v-if="showCreate" class="modal-overlay" @click.self="closeCreateModal">
-      <div class="modal modal-wide">
-        <div class="modal-header">
-          <h3>CREAR INSPECCION SEMANAL</h3>
-          <button class="modal-close" @click="closeCreateModal">
-            <span class="material-icons-round" style="font-size: 18px">close</span>
-          </button>
-        </div>
 
-        <div class="modal-body">
-          <div class="form-grid">
-            <div class="input-group full-width">
-              <label>Vehiculo</label>
-              <SearchableSelect
-                v-model="createForm.vehiculo_id"
-                :items="vehicles"
-                :label-fn="vehicleLabel"
-                :value-fn="vehicleId"
-                placeholder="Seleccionar vehiculo..."
-              />
-            </div>
-
-            <div class="input-group">
-              <label>Inspector</label>
-              <SearchableSelect
-                v-model="createForm.inspector_id"
-                :items="employees"
-                :label-fn="(e) => `${e.nombres} ${e.apellidos || ''}`.trim()"
-                placeholder="Seleccionar inspector..."
-              />
-            </div>
-
-            <div class="input-group">
-              <label>Semana (inicio)</label>
-              <input v-model="createForm.semana_inicio" type="date" class="input" />
-              <small class="input-hint">Debe ser un lunes</small>
-            </div>
-          </div>
-        </div>
-
-        <div class="modal-footer">
-          <button class="btn btn-secondary" @click="closeCreateModal">Cancelar</button>
-          <button class="btn btn-primary" :disabled="saving" @click="handleCreateSemana">
-            <span class="material-icons-round" style="font-size: 18px">save</span>
-            {{ saving ? 'GUARDANDO...' : 'CREAR SEMANA' }}
-          </button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -156,12 +117,13 @@ import SemanaDetailModal from '../components/SemanaDetailModal.vue';
 import {
   fetchTemplates,
   fetchSemanas,
-  createSemana,
+  fetchSemana,
   markFueraServicio,
 } from '../api/preoperacionalesService';
 
 const { loading, error, run } = useAsyncState('');
 const { notify: islandNotify } = useDynamicIsland();
+const catalogsStore = useCatalogsStore();
 
 const semanas = ref([]);
 const templates = ref([]);
@@ -170,21 +132,21 @@ const employees = ref([]);
 
 // Filters
 const selectedWeek = ref('all');
-const selectedVehicle = ref('all');
+const searchQuery = ref('');
 const selectedStatus = ref('all');
 
 // Modals
-const showCreate = ref(false);
 const showDetail = ref(false);
 const selectedSemana = ref(null);
 const selectedTemplate = ref(null);
-const saving = ref(false);
 
-const createForm = ref({
-  vehiculo_id: '',
-  inspector_id: '',
-  semana_inicio: '',
-});
+const statusOptions = [
+  { label: 'Todos', value: 'all' },
+  { label: 'Pendientes', value: 'pendiente' },
+  { label: 'En Progreso', value: 'en_progreso' },
+  { label: 'Completados', value: 'completado' },
+  { label: 'Fuera Servicio', value: 'fuera_servicio' }
+];
 
 onMounted(async () => {
   await loadData();
@@ -193,7 +155,6 @@ onMounted(async () => {
 async function loadData() {
   try {
     await run(async () => {
-      const catalogsStore = useCatalogsStore();
       await catalogsStore.fetchEssentialCatalogs();
 
       const [templatesData, semanasData] = await Promise.all([
@@ -225,8 +186,12 @@ const filteredSemanas = computed(() => {
     result = result.filter((s) => s.semana_inicio === selectedWeek.value);
   }
 
-  if (selectedVehicle.value !== 'all') {
-    result = result.filter((s) => String(s.vehiculo_id) === String(selectedVehicle.value));
+  if (searchQuery.value) {
+    const q = searchQuery.value.toLowerCase();
+    result = result.filter((s) => {
+      const placa = (s.vehiculo_placa || s.vehiculo?.placa || '').toLowerCase();
+      return placa.includes(q);
+    });
   }
 
   if (selectedStatus.value !== 'all') {
@@ -242,70 +207,45 @@ const pendientes = computed(() => semanas.value.filter((s) => !s.estado || s.est
 const fueraServicio = computed(() => semanas.value.filter((s) => s.estado === 'fuera_servicio').length);
 const vencidas = computed(() => semanas.value.filter((s) => s.estado === 'vencida').length);
 
+function formatWeekLabel(dateStr) {
+  if (!dateStr) return 'Semana Desconocida';
+  const d = new Date(dateStr);
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+  const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1)/7);
+  return `Semana ${weekNo}`;
+}
+
 const weekOptions = computed(() => {
   const weeks = [...new Set(semanas.value.map((s) => s.semana_inicio).filter(Boolean))];
   return weeks.map((w) => ({
     value: w,
-    label: formatDate(w),
+    label: formatWeekLabel(w),
   }));
 });
 
-function openCreateModal() {
-  showCreate.value = true;
-  createForm.value = { vehiculo_id: '', inspector_id: '', semana_inicio: '' };
-}
+const vehiclesWithAll = computed(() => {
+  return [
+    { id: 'all', placa: 'Todos los vehículos', tipo: '' },
+    ...vehicles.value,
+  ];
+});
 
-function closeCreateModal() {
-  showCreate.value = false;
-  createForm.value = { vehiculo_id: '', inspector_id: '', semana_inicio: '' };
-}
 
-async function handleCreateSemana() {
-  if (!createForm.value.vehiculo_id) {
-    islandNotify({ type: 'warning', title: 'Falta vehiculo', message: 'Seleccione el vehiculo', duration: 15000 });
-    return;
-  }
-  if (!createForm.value.inspector_id) {
-    islandNotify({ type: 'warning', title: 'Falta inspector', message: 'Seleccione el inspector', duration: 15000 });
-    return;
-  }
-  if (!createForm.value.semana_inicio) {
-    islandNotify({ type: 'warning', title: 'Falta semana', message: 'Seleccione la fecha de inicio', duration: 15000 });
-    return;
-  }
 
-  const startDate = new Date(createForm.value.semana_inicio + 'T00:00:00');
-  if (startDate.getDay() !== 1) {
-    islandNotify({ type: 'warning', title: 'Fecha invalida', message: 'La fecha de inicio debe ser un lunes', duration: 15000 });
-    return;
-  }
-
-  saving.value = true;
+async function openDetailModal(semana) {
   try {
-    const payload = {
-      vehiculo_id: Number(createForm.value.vehiculo_id),
-      inspector_id: Number(createForm.value.inspector_id),
-      semana_inicio: createForm.value.semana_inicio,
-    };
-    console.log('[Preop] Creating semana with payload:', payload);
-    const result = await createSemana(payload);
-    console.log('[Preop] Create result:', result);
-    closeCreateModal();
-    await loadData();
-    islandNotify({ type: 'success', title: 'Semana creada', message: 'La inspeccion semanal se registro correctamente', duration: 15000 });
+    islandNotify({ type: 'info', message: 'Cargando detalles...', duration: 2000 });
+    const response = await fetchSemana(semana.id);
+    const fullSemana = response?.data || response;
+    
+    selectedSemana.value = fullSemana;
+    selectedTemplate.value = fullSemana.template || templates.value.find((t) => t.id === fullSemana.template_id) || null;
+    showDetail.value = true;
   } catch (e) {
-    console.error('[Preop] Create semana error:', e);
-    const msg = e?.response?.data?.message || e?.response?.data?.errors || e?.message || 'Error al crear semana';
-    islandNotify({ type: 'error', title: 'Error al guardar', message: typeof msg === 'string' ? msg : JSON.stringify(msg), duration: 60000 });
-  } finally {
-    saving.value = false;
+    islandNotify({ type: 'error', message: 'Error cargando detalles', duration: 4000 });
+    console.error(e);
   }
-}
-
-function openDetailModal(semana) {
-  selectedSemana.value = semana;
-  selectedTemplate.value = templates.value.find((t) => t.id === semana.template_id) || null;
-  showDetail.value = true;
 }
 
 async function handleFueraServicio(semanaId) {
@@ -328,7 +268,11 @@ function vehicleId(vehicle) {
 }
 
 function vehicleLabel(vehicle) {
-  return `${vehicle?.placa || 'Sin placa'} - ${vehicle?.tipo || vehicle?.modelo || ''}`.trim();
+  if (!vehicle) return '';
+  if (vehicle.id === 'all' || vehicle.vehiculo_id === 'all' || vehicle.placa === 'Todos los vehículos') {
+    return 'Todos los vehículos';
+  }
+  return `${vehicle.placa || 'Sin placa'} - ${vehicle.tipo || vehicle.modelo || ''}`.trim();
 }
 
 function formatDate(value) {
@@ -345,42 +289,61 @@ function formatDate(value) {
   gap: var(--sp-lg);
 }
 
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--sp-md);
-}
-
-.page-header h3 {
-  font-family: 'Oswald', sans-serif;
-  font-size: 1.1rem;
-  font-weight: 700;
-  letter-spacing: 1px;
-  margin: 0;
-}
-
-.page-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-sm);
-  flex-wrap: wrap;
-}
-
 .filter-select {
-  padding: 6px 12px;
+  padding: 6px 30px 6px 12px;
   border: 1px solid var(--surface-2);
   border-radius: var(--radius-sm);
   background: var(--surface-1);
-  color: var(--text-secondary);
-  font-size: 0.82rem;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-weight: 500;
   cursor: pointer;
+  transition: all 0.2s;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 14px;
+}
+
+.filter-select:hover {
+  border-color: var(--primary-light);
+  background-color: var(--surface-2);
 }
 
 .filter-select:focus {
-  border-color: var(--primary);
   outline: none;
+  border-color: var(--primary);
+  background-color: var(--surface);
+}
+/* Removed unused vehicle search select CSS */
+
+/* Info Banner */
+.info-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  background-color: var(--surface-1);
+  border: 1px solid var(--surface-2);
+  border-left: 4px solid var(--primary);
+  padding: var(--sp-md);
+  border-radius: var(--radius-sm);
+  margin-top: -8px;
+}
+
+.info-banner .material-icons-round {
+  color: var(--primary);
+  font-size: 24px;
+}
+
+.info-banner .banner-text {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.info-banner .banner-text strong {
+  color: var(--text-main);
 }
 
 /* Summary Cards */
@@ -393,36 +356,56 @@ function formatDate(value) {
 .summary-card {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: var(--sp-md);
-  background: var(--surface);
-  border: 1px solid var(--surface-2);
-  border-radius: var(--radius-md);
-  text-align: center;
+  position: relative;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 1.5rem 1.25rem;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
 }
 
 .summary-card:hover {
-  border-color: var(--primary);
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .card-value {
-  font-family: 'Oswald', sans-serif;
-  font-size: 1.8rem;
-  font-weight: 700;
-  color: var(--text-main);
+  font-size: 2.25rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1;
+  margin-bottom: 0.5rem;
+  z-index: 2;
 }
 
 .card-label {
-  font-size: 0.72rem;
-  color: var(--text-gray);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  z-index: 2;
 }
 
 .card-icon {
-  font-size: 1rem;
-  opacity: 0.6;
+  position: absolute;
+  right: -10px;
+  bottom: -15px;
+  font-size: 80px;
+  opacity: 0.1;
+  transform: rotate(-15deg);
+  transition: all 0.3s ease;
+  z-index: 1;
+}
+
+.summary-card:hover .card-icon {
+  transform: rotate(0) scale(1.1);
+  opacity: 0.15;
 }
 
 /* Table footer standalone */
@@ -453,7 +436,8 @@ function formatDate(value) {
     flex-wrap: wrap;
   }
 
-  .filter-select {
+  .filter-select,
+  .vehicle-search-select {
     flex: 1;
     min-width: 0;
   }

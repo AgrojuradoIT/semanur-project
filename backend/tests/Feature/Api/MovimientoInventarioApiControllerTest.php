@@ -17,7 +17,10 @@ class MovimientoInventarioApiControllerTest extends TestCase
 
     public function test_transferencia_requires_origin_and_destination_bodegas(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        Sanctum::actingAs(User::factory()->create([
+            'role' => 'admin',
+            'permisos' => ['movimientos'],
+        ]));
         $producto = $this->crearProducto(10);
 
         $response = $this->postJson('/api/movimientos', [
@@ -34,7 +37,10 @@ class MovimientoInventarioApiControllerTest extends TestCase
 
     public function test_ingreso_updates_bodega_and_global_stock(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        Sanctum::actingAs(User::factory()->create([
+            'role' => 'admin',
+            'permisos' => ['movimientos'],
+        ]));
         $producto = $this->crearProducto(10);
         $bodega = Bodega::create([
             'nombre' => 'Principal',
@@ -62,7 +68,10 @@ class MovimientoInventarioApiControllerTest extends TestCase
 
     public function test_transferencia_rejects_invalid_bodega_types(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        Sanctum::actingAs(User::factory()->create([
+            'role' => 'admin',
+            'permisos' => ['movimientos'],
+        ]));
         $producto = $this->crearProducto(10);
 
         $origen = Bodega::create([

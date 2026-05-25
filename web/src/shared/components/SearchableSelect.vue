@@ -30,8 +30,16 @@
         >
           <slot name="option" :item="item">{{ getItemLabel(item) }}</slot>
         </div>
-        <div v-if="filteredItems.length === 0" class="dropdown-empty">
+        <div v-if="filteredItems.length === 0 && !allowFreeText" class="dropdown-empty">
           {{ emptyText || 'No se encontraron resultados' }}
+        </div>
+        <div
+          v-if="allowFreeText && search.trim() && !filteredItems.some(i => getItemLabel(i).toLowerCase() === search.trim().toLowerCase())"
+          class="dropdown-item"
+          :class="{ 'dropdown-item-active': searchIndex === -1 }"
+          @click="selectFreeText(search.trim())"
+        >
+          <span style="font-style: italic; opacity: 0.8;">Usar texto: </span> <b>{{ search.trim() }}</b>
         </div>
       </div>
     </div>
@@ -49,6 +57,7 @@ const props = defineProps({
   keyFn: { type: Function, default: null },
   placeholder: { type: String, default: '' },
   emptyText: { type: String, default: 'No se encontraron resultados' },
+  allowFreeText: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['update:modelValue', 'select']);
@@ -70,7 +79,9 @@ const filteredItems = computed(() => {
 const selectedLabel = computed(() => {
   if (!props.modelValue && props.modelValue !== 0) return '';
   const item = props.items.find((i) => String(getItemValue(i)) === String(props.modelValue));
-  return item ? getItemLabel(item) : '';
+  if (item) return getItemLabel(item);
+  if (props.allowFreeText) return props.modelValue;
+  return '';
 });
 
 function getItemLabel(item) {
@@ -105,6 +116,14 @@ function selectItem(item) {
   searchIndex.value = -1;
 }
 
+function selectFreeText(text) {
+  emit('update:modelValue', text);
+  emit('select', { isFreeText: true, text });
+  search.value = '';
+  isOpen.value = false;
+  searchIndex.value = -1;
+}
+
 function onKeydown(e) {
   if (e.key === 'ArrowDown') {
     e.preventDefault();
@@ -116,6 +135,8 @@ function onKeydown(e) {
     e.preventDefault();
     if (searchIndex.value >= 0 && filteredItems.value[searchIndex.value]) {
       selectItem(filteredItems.value[searchIndex.value]);
+    } else if (props.allowFreeText && search.value.trim()) {
+      selectFreeText(search.value.trim());
     }
   } else if (e.key === 'Escape') {
     isOpen.value = false;
@@ -124,6 +145,9 @@ function onKeydown(e) {
 
 function handleClickOutside(e) {
   if (dropdownRef.value && !dropdownRef.value.contains(e.target)) {
+    if (isOpen.value && props.allowFreeText && search.value.trim() && searchIndex.value === -1) {
+      selectFreeText(search.value.trim());
+    }
     isOpen.value = false;
   }
 }

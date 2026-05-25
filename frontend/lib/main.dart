@@ -160,13 +160,8 @@ void main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider(authRepository)),
         ChangeNotifierProvider(create: (_) => SyncProvider(apiClient)),
-        ChangeNotifierProxyProvider<SyncProvider, NotificationProvider>(
-          create: (ctx) => NotificationProvider(
-            apiClient: apiClient,
-            syncProvider: ctx.read<SyncProvider>(),
-          ),
-          update: (_, sync, prev) =>
-              prev ?? NotificationProvider(apiClient: apiClient, syncProvider: sync),
+        ChangeNotifierProvider(
+          create: (_) => NotificationProvider(apiClient: apiClient),
         ),
         ChangeNotifierProvider(
           create: (_) => InventoryProvider(inventoryRepository),

@@ -33,7 +33,12 @@ class AppVersionInfo {
 class VersionService {
   final Dio _dio;
 
-  VersionService({Dio? dio}) : _dio = dio ?? Dio();
+  VersionService({Dio? dio}) : _dio = dio ?? Dio(
+    BaseOptions(
+      connectTimeout: const Duration(seconds: 5),
+      receiveTimeout: const Duration(seconds: 5),
+    ),
+  );
 
   /// Obtiene la versión actual instalada en el dispositivo.
   Future<PackageInfo> getCurrentVersion() async {

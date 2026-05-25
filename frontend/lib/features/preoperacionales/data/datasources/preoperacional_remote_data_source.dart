@@ -57,12 +57,17 @@ class PreoperacionalRemoteDataSource {
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        return PreoperacionalSemana.fromJson(response.data);
+        final data = response.data['data'] ?? response.data;
+        return PreoperacionalSemana.fromJson(data);
       }
       throw Exception(
         'Failed to create semana: ${response.statusCode}',
       );
     } on DioException catch (e) {
+      if (e.response?.statusCode == 409 && e.response?.data != null) {
+        final data = e.response!.data['data'] ?? e.response!.data;
+        return PreoperacionalSemana.fromJson(data);
+      }
       final errorMsg = e.response?.data?['message'] ??
           e.response?.data?['errors']?.values?.expand((e) => e)?.first ??
           e.message ??
@@ -81,7 +86,8 @@ class PreoperacionalRemoteDataSource {
       );
 
       if (response.statusCode == 200) {
-        return PreoperacionalSemana.fromJson(response.data);
+        final data = response.data['data'] ?? response.data;
+        return PreoperacionalSemana.fromJson(data);
       }
       throw Exception('Semana not found');
     } catch (e) {
@@ -110,7 +116,9 @@ class PreoperacionalRemoteDataSource {
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        return PreoperacionalSemana.fromJson(response.data);
+        // The backend returns a PreoperacionalDailyForm in 'data'.
+        // We need to fetch and return the updated PreoperacionalSemana.
+        return await getSemana(semanaId);
       }
       throw Exception(
         'Failed to submit daily form: ${response.statusCode}',
@@ -138,7 +146,8 @@ class PreoperacionalRemoteDataSource {
       );
 
       if (response.statusCode == 200) {
-        return PreoperacionalSemana.fromJson(response.data);
+        final data = response.data['data'] ?? response.data;
+        return PreoperacionalSemana.fromJson(data);
       }
       throw Exception(
         'Failed to mark fuera de servicio: ${response.statusCode}',

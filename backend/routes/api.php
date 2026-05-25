@@ -134,7 +134,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
 
     // ─── Usuarios ──────────────────────────────────────
     Route::middleware('module:usuarios')->group(function () {
-        Route::get('/users', [AuthController::class, 'index'])->middleware('role:admin');
+        Route::get('/users', [AuthController::class, 'index']);
     });
 
     // ─── Media ─────────────────────────────────────────

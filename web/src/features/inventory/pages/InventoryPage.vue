@@ -189,6 +189,10 @@
             <input v-model="productForm.producto_alerta_stock_minimo" type="number" step="0.01" class="input" required />
           </div>
           <div class="input-group">
+            <label>Capacidad Máxima (Opcional)</label>
+            <input v-model="productForm.capacidad_maxima" type="number" step="0.01" class="input" placeholder="Ej. 10000" />
+          </div>
+          <div class="input-group">
             <label>Precio de Costo</label>
             <input v-model="productForm.producto_precio_costo" type="number" step="0.01" class="input" />
           </div>
@@ -481,6 +485,10 @@
             <span class="pd-spec-label">Ubicación</span>
             <span class="pd-spec-value">{{ normalizeLocation(selectedProduct) || '—' }}</span>
           </div>
+          <div class="pd-spec" v-if="selectedProduct.capacidad_maxima">
+            <span class="pd-spec-label">Capacidad Máx.</span>
+            <span class="pd-spec-value">{{ formatNumber(selectedProduct.capacidad_maxima) }} {{ normalizeUnit(selectedProduct) }}</span>
+          </div>
         </div>
 
         <!-- Stock Status -->
@@ -594,7 +602,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAsyncState } from '../../../shared/composables/useAsyncState';
-import { formatCurrencyCO } from '../../../shared/utils/formatters';
+import { formatCurrencyCO, formatNumber } from '../../../shared/utils/formatters';
 import SearchableSelect from '../../../shared/components/SearchableSelect.vue';
 import {
   productAlert,
@@ -674,6 +682,7 @@ const productForm = ref({
   categoria_id: '',
   producto_unidad_medida: 'unidad',
   producto_alerta_stock_minimo: 5,
+  capacidad_maxima: null,
   producto_precio_costo: 0,
   producto_ubicacion: '',
 });
@@ -830,6 +839,7 @@ function openProductModal(product = null) {
       categoria_id: product.categoria_id || product.categoria?.categoria_id || '',
       producto_unidad_medida: normalizeUnit(product) || 'unidad',
       producto_alerta_stock_minimo: normalizeAlert(product) || 5,
+      capacidad_maxima: product.capacidad_maxima || null,
       producto_precio_costo: normalizePrice(product) ? parseFloat(String(normalizePrice(product)).replace(/[^0-9.]/g, '')) : 0,
       producto_ubicacion: normalizeLocation(product) || '',
     };
@@ -842,6 +852,7 @@ function openProductModal(product = null) {
       categoria_id: '',
       producto_unidad_medida: 'unidad',
       producto_alerta_stock_minimo: 5,
+      capacidad_maxima: null,
       producto_precio_costo: 0,
       producto_ubicacion: '',
     };

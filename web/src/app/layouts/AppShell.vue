@@ -264,7 +264,6 @@ const operations = computed(() => {
 
   items.push(
     { path: '/loans', icon: 'handyman', label: 'Prestamos Herr.', modulo: 'prestamos' },
-    { path: '/checklists', icon: 'playlist_add_check', label: 'Checklists', modulo: 'checklists' },
     { path: '/preoperacionales', icon: 'assignment_turned_in', label: 'Inspecciones', modulo: 'checklists' },
     { path: '/fuel', icon: 'local_gas_station', label: 'Combustible', modulo: 'combustible' },
     { path: '/scheduler', icon: 'calendar_month', label: 'Programacion', modulo: 'personal' },

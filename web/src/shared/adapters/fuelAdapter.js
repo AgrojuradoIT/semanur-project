@@ -1,12 +1,12 @@
 import { textOrFallback } from '../utils/formatters';
 
 export function fuelId(item) {
-  return item?.combustible_id ?? item?.id ?? `${item?.fecha || ''}-${item?.valor_total || ''}`;
+  return item?.registro_id ?? item?.combustible_id ?? item?.id ?? `${item?.fecha || ''}-${item?.valor_total || ''}`;
 }
 
 export function fuelDestinationLabel(item) {
-  if (item?.tipo_destino === 'vehiculo') {
-    return textOrFallback(item?.vehiculo?.placa || item?.placa_manual);
+  if (['vehiculo', 'maquinaria', 'equipo_menor'].includes(item?.tipo_destino)) {
+    return textOrFallback(item?.vehiculo?.nombre || item?.vehiculo?.placa || item?.placa_manual);
   }
   if (item?.tipo_destino === 'empleado') {
     return textOrFallback(item?.empleado?.name || item?.usuario?.name);

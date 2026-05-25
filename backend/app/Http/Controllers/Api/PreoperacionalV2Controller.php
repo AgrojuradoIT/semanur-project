@@ -62,38 +62,41 @@ class PreoperacionalV2Controller extends Controller
         // Find all active vehicles
         $vehiculos = Vehiculo::whereNotNull('tipo')->get();
 
+        // Pre-load active templates
+        $templatesByTipo = PreoperacionalTemplate::where('activo', true)->get()->groupBy('tipo_vehiculo');
+
+        // Pre-load weeks matching the semanaInicio date
+        $semanas = PreoperacionalSemana::whereDate('semana_inicio', $semanaInicio)->get();
+        $semanaIds = $semanas->pluck('id')->toArray();
+
+        // Pre-load completed daily forms
+        $completedSemanaIds = PreoperacionalDailyForm::whereIn('semana_id', $semanaIds)
+            ->where('dia_semana', $diaSemana)
+            ->where('completado', true)
+            ->pluck('semana_id')
+            ->toArray();
+
+        // Index semanas by vehicle_id and template_id for in-memory lookup
+        $semanasIndex = $semanas->groupBy(fn($s) => $s->vehiculo_id . '-' . $s->template_id);
+
         $pendientes = [];
 
         foreach ($vehiculos as $vehiculo) {
-            // Resolve template for this vehicle
-            $template = PreoperacionalTemplate::where('activo', true)
-                ->where('tipo_vehiculo', $vehiculo->tipo)
-                ->first();
-
-            if (!$template) {
-                $template = PreoperacionalTemplate::where('activo', true)
-                    ->where('tipo_vehiculo', 'generico')
-                    ->first();
-            }
+            // Resolve template for this vehicle in memory
+            $template = $templatesByTipo->get($vehiculo->tipo)?->first()
+                ?? $templatesByTipo->get('generico')?->first();
 
             if (!$template) {
                 continue;
             }
 
-            // Check if there's a week record for this vehicle+template+week
-            $semana = PreoperacionalSemana::where('vehiculo_id', $vehiculo->vehiculo_id)
-                ->where('template_id', $template->id)
-                ->whereDate('semana_inicio', $semanaInicio)
-                ->first();
+            // Find matching week record in memory
+            $semana = $semanasIndex->get($vehiculo->vehiculo_id . '-' . $template->id)?->first();
 
-            // Check if today's daily form is already completed
+            // Check if today's daily form is already completed in memory
             $dailyCompleted = false;
             if ($semana) {
-                $dailyForm = PreoperacionalDailyForm::where('semana_id', $semana->id)
-                    ->where('dia_semana', $diaSemana)
-                    ->where('completado', true)
-                    ->exists();
-                if ($dailyForm) {
+                if (in_array($semana->id, $completedSemanaIds)) {
                     $dailyCompleted = true;
                 }
             }
@@ -344,7 +347,7 @@ class PreoperacionalV2Controller extends Controller
     public function indexSemanas(Request $request): JsonResponse
     {
         $query = PreoperacionalSemana::with([
-            'dailyForms.responses',
+            'dailyForms.responses.item',
             'template',
             'vehiculo',
             'inspector',
@@ -367,6 +370,10 @@ class PreoperacionalV2Controller extends Controller
         }
 
         $semanas = $query->orderBy('semana_inicio', 'desc')->paginate(20);
+
+        $semanas->getCollection()->transform(function ($semana) {
+            return $this->formatSemana($semana);
+        });
 
         return response()->json($semanas);
     }
@@ -435,6 +442,13 @@ class PreoperacionalV2Controller extends Controller
     private function formatSemana(PreoperacionalSemana $semana): array
     {
         $data = $semana->toArray();
+
+        // Calcular dinámicamente si la semana está vencida
+        if (!in_array($data['estado'], ['completado', 'fuera_servicio'])) {
+            if ($semana->semana_fin && $semana->semana_fin->lt(Carbon::today())) {
+                $data['estado'] = 'vencida';
+            }
+        }
 
         $data['daily_forms'] = $semana->dailyForms->map(function ($dailyForm) {
             $form = $dailyForm->toArray();

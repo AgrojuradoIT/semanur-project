@@ -15,7 +15,7 @@ class CombustibleRequest extends FormRequest
     public function rules(): array
     {
         $rules = [
-            'tipo_destino' => ['required', Rule::in(['vehiculo', 'empleado', 'tercero'])],
+            'tipo_destino' => ['required', Rule::in(['vehiculo', 'empleado', 'tercero', 'equipo_menor', 'maquinaria'])],
             'tipo_combustible' => ['required', Rule::in(['gasolina', 'acpm'])],
             'cantidad_galones' => ['required', 'numeric', 'min:0.01'],
             'valor_total' => ['nullable', 'numeric', 'min:0'],
@@ -27,9 +27,13 @@ class CombustibleRequest extends FormRequest
             'placa_manual' => ['nullable', 'string'],
         ];
 
-        if ($this->input('tipo_destino') === 'vehiculo') {
+        if (in_array($this->input('tipo_destino'), ['vehiculo', 'maquinaria'])) {
             $rules['vehiculo_id'] = ['required', 'exists:vehiculos,vehiculo_id'];
             $rules['empleado_id'] = ['required', 'exists:empleados,id'];
+        } elseif ($this->input('tipo_destino') === 'equipo_menor') {
+            $rules['vehiculo_id'] = ['required', 'exists:vehiculos,vehiculo_id'];
+            $rules['empleado_id'] = ['required_without:tercero_nombre', 'nullable', 'exists:empleados,id'];
+            $rules['tercero_nombre'] = ['required_without:empleado_id', 'nullable', 'string'];
         } elseif ($this->input('tipo_destino') === 'empleado') {
             $rules['tercero_nombre'] = ['required', 'string'];
         } elseif ($this->input('tipo_destino') === 'tercero') {

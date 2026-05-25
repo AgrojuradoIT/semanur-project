@@ -11,7 +11,7 @@ async function safeGet(path) {
 }
 
 export async function fetchHistorySources() {
-  const fallback = { movimientos: [], ordenes: [], combustible: [], prestamos: [], checklists: [] };
+  const fallback = { movimientos: [], ordenes: [], combustible: [], prestamos: [] };
   
   try {
     const { data } = await http.get('/history/all');
@@ -22,7 +22,6 @@ export async function fetchHistorySources() {
       ordenes: extractList(result.ordenes),
       combustible: extractList(result.combustible),
       prestamos: extractList(result.prestamos),
-      checklists: extractList(result.checklists),
     };
   } catch {
     return fallback;

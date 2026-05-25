@@ -58,7 +58,7 @@ class PreoperacionalSemana extends Model
 
     public function dailyForms(): HasMany
     {
-        return $this->hasMany(PreoperacionalDailyForm::class, 'semana_id')->orderBy('dia_semana');
+        return $this->hasMany(PreoperacionalDailyForm::class, 'semana_id')->orderBy('fecha');
     }
 
     public function scopeEnProgreso($query)

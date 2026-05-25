@@ -25,7 +25,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 22,
+      version: 23,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -253,6 +253,16 @@ class DatabaseHelper {
         debugPrint('v22 migration error (preoperacional tables): $e');
       }
     }
+    if (oldVersion < 23) {
+      try {
+        await db.execute(
+          'ALTER TABLE vehiculos ADD COLUMN foto_thumb_url TEXT',
+        );
+        debugPrint('v23 migration: foto_thumb_url added to vehiculos');
+      } catch (e) {
+        debugPrint('v23 migration error (foto_thumb_url): $e');
+      }
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -465,6 +475,7 @@ class DatabaseHelper {
         modelo TEXT,
         tipo TEXT,
         foto_url TEXT,
+        foto_thumb_url TEXT,
         horometro_actual REAL,
         horometro_proximo_mantenimiento REAL,
         kilometraje_actual REAL,

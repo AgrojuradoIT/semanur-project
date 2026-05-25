@@ -17,7 +17,7 @@ class ProductoSeeder extends Seeder
         // Combustibles
         if ($catCombustible) {
             Producto::firstOrCreate(
-                ['producto_sku' => 'COMB-001'],
+                ['producto_sku' => 'AL000001'],
                 [
                     'producto_nombre' => 'Gasolina Corriente',
                     'categoria_id' => $catCombustible->categoria_id,
@@ -28,7 +28,7 @@ class ProductoSeeder extends Seeder
                 ]
             );
             Producto::firstOrCreate(
-                ['producto_sku' => 'COMB-002'],
+                ['producto_sku' => 'AL000002'],
                 [
                     'producto_nombre' => 'ACPM / Diesel',
                     'categoria_id' => $catCombustible->categoria_id,

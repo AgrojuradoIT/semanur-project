@@ -12,6 +12,7 @@ import 'package:frontend/features/auth/data/models/empleado_model.dart';
 import '../providers/fuel_provider.dart';
 import 'package:frontend/core/widgets/semanur_autocomplete.dart';
 import 'package:frontend/core/widgets/local_error_msg.dart';
+import 'package:frontend/core/utils/vehicle_utils.dart';
 
 class AddFuelScreen extends StatefulWidget {
   final int? vehiculoId;
@@ -88,6 +89,8 @@ class _AddFuelScreenState extends State<AddFuelScreen> {
                   ),
                   items: const [
                     DropdownMenuItem(value: 'vehiculo', child: Text('Vehículo')),
+                    DropdownMenuItem(value: 'maquinaria', child: Text('Maquinaria Pesada')),
+                    DropdownMenuItem(value: 'equipo_menor', child: Text('Equipo Menor')),
                     DropdownMenuItem(value: 'empleado', child: Text('Empleado / Operario')),
                     DropdownMenuItem(value: 'tercero', child: Text('Tercero / Otro')),
                   ],
@@ -103,36 +106,61 @@ class _AddFuelScreenState extends State<AddFuelScreen> {
                 const SizedBox(height: 20),
               ],
 
-              if (_tipoDestino == 'vehiculo' && !isContextFixed) ...[
-                _buildSectionTitle('VEHÍCULO *'),
+              if ((_tipoDestino == 'vehiculo' || _tipoDestino == 'maquinaria' || _tipoDestino == 'equipo_menor') && !isContextFixed) ...[
+                _buildSectionTitle(_tipoDestino == 'vehiculo' ? 'VEHÍCULO *' : _tipoDestino == 'maquinaria' ? 'MAQUINARIA PESADA *' : 'EQUIPO MENOR *'),
                 Consumer<FleetProvider>(
                   builder: (context, fleet, _) {
+                    final options = fleet.vehiculos.where((v) => 
+                      _tipoDestino == 'vehiculo' ? (v.categoria == 'vehiculo' || v.categoria == null || v.categoria!.isEmpty) : v.categoria == _tipoDestino
+                    ).toList();
                     return SemanurAutocomplete<Vehiculo>(
-                      options: fleet.vehiculos,
+                      options: options,
                       initialValue: _selectedVehicle,
-                      hint: 'Seleccionar Vehículo...',
+                      hint: _tipoDestino == 'vehiculo' ? 'Seleccionar Vehículo...' : _tipoDestino == 'maquinaria' ? 'Seleccionar Maquinaria...' : 'Seleccionar Equipo Menor...',
                       displayStringForOption: (v) => '${v.placa} - ${v.marca} ${v.modelo}',
                       filterFn: (v, filter) =>
                           v.placa.toLowerCase().contains(filter) ||
                           v.marca.toLowerCase().contains(filter),
-                      onSelected: (v) => setState(() => _selectedVehicle = v),
+                      onSelected: (v) {
+                        setState(() {
+                          _selectedVehicle = v;
+                          if (v.operadorAsignado != null) {
+                            try {
+                              _selectedEmployee = context.read<EmployeeProvider>().employees.firstWhere((e) => e.id == v.operadorAsignado!.id);
+                            } catch (_) {
+                              _selectedEmployee = v.operadorAsignado;
+                            }
+                          }
+                        });
+                      },
                     );
                   },
                 ),
                 const SizedBox(height: 20),
               ],
 
-              if (_tipoDestino == 'vehiculo') ...[
-                _buildSectionTitle('RESPONSABLE (EMPLEADO) *'),
+              if (_tipoDestino == 'vehiculo' || _tipoDestino == 'maquinaria' || _tipoDestino == 'equipo_menor') ...[
+                _buildSectionTitle(_tipoDestino == 'vehiculo' || _tipoDestino == 'maquinaria' ? 'RESPONSABLE (EMPLEADO) *' : 'RESPONSABLE (EMPLEADO O TERCERO) *'),
                 Consumer<EmployeeProvider>(
                   builder: (context, employeeProvider, _) {
                     return SemanurAutocomplete<Empleado>(
                       options: employeeProvider.employees,
                       initialValue: _selectedEmployee,
-                      hint: 'Seleccionar responsable...',
+                      hint: _tipoDestino == 'vehiculo' || _tipoDestino == 'maquinaria' ? 'Seleccionar empleado responsable...' : 'Nombre del empleado o tercero...',
                       displayStringForOption: (e) => e.nombreCompleto,
                       filterFn: (e, filter) => e.nombreCompleto.toLowerCase().contains(filter),
-                      onSelected: (e) => setState(() => _selectedEmployee = e),
+                      onSelected: (e) {
+                        setState(() {
+                          _selectedEmployee = e;
+                          _terceroController.text = e.nombreCompleto;
+                        });
+                      },
+                      onChanged: (val) {
+                        _terceroController.text = val;
+                        if (_selectedEmployee != null && val != _selectedEmployee!.nombreCompleto) {
+                          setState(() => _selectedEmployee = null);
+                        }
+                      },
                     );
                   },
                 ),
@@ -253,36 +281,50 @@ class _AddFuelScreenState extends State<AddFuelScreen> {
               ),
               const SizedBox(height: 20),
 
-              if (_tipoDestino == 'vehiculo') ...[
+              if (_tipoDestino == 'vehiculo' || _tipoDestino == 'maquinaria' || _tipoDestino == 'equipo_menor') ...[
                 _buildSectionTitle('SEGUIMIENTO (OPCIONAL)'),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _horometroController,
-                        decoration: const InputDecoration(
-                          labelText: 'Horómetro',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.timer),
-                        ),
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [_decimalFormatter],
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _kilometrajeController,
-                        decoration: const InputDecoration(
-                          labelText: 'Kilometraje',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.speed),
-                        ),
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [_decimalFormatter],
-                      ),
-                    ),
-                  ],
+                Consumer<FleetProvider>(
+                  builder: (context, fleet, _) {
+                    Vehiculo? vehiculo = _selectedVehicle;
+                    if (vehiculo == null && widget.vehiculoId != null) {
+                      try {
+                        vehiculo = fleet.vehiculos.firstWhere((v) => v.id == widget.vehiculoId);
+                      } catch (_) {}
+                    }
+                    final isMach = vehiculo != null ? (vehiculo.categoria == 'maquinaria' || vehiculo.categoria == 'equipo_menor' || isMachinery(vehiculo.tipo)) : null;
+
+                    return Row(
+                      children: [
+                        if (isMach == null || isMach == true)
+                          Expanded(
+                            child: TextFormField(
+                              controller: _horometroController,
+                              decoration: const InputDecoration(
+                                labelText: 'Horómetro',
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.timer),
+                              ),
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [_decimalFormatter],
+                            ),
+                          ),
+                        if (isMach == null) const SizedBox(width: 10),
+                        if (isMach == null || isMach == false)
+                          Expanded(
+                            child: TextFormField(
+                              controller: _kilometrajeController,
+                              decoration: const InputDecoration(
+                                labelText: 'Kilometraje',
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.speed),
+                              ),
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [_decimalFormatter],
+                            ),
+                          ),
+                      ],
+                    );
+                  }
                 ),
                 const SizedBox(height: 20),
               ],
@@ -360,15 +402,19 @@ class _AddFuelScreenState extends State<AddFuelScreen> {
     }
 
     int? vehiculoId = widget.vehiculoId ?? _selectedVehicle?.id;
-    int? empleadoId = _tipoDestino == 'vehiculo' ? _selectedEmployee?.id : null;
+    int? empleadoId = (_tipoDestino == 'vehiculo' || _tipoDestino == 'maquinaria' || _tipoDestino == 'equipo_menor') ? _selectedEmployee?.id : null;
     final cantidad = _parseDouble(_cantidadController.text);
 
-    if (_tipoDestino == 'vehiculo' && vehiculoId == null) {
-      setState(() => _localError = 'Vehículo no seleccionado');
+    if ((_tipoDestino == 'vehiculo' || _tipoDestino == 'maquinaria' || _tipoDestino == 'equipo_menor') && vehiculoId == null) {
+      setState(() => _localError = _tipoDestino == 'vehiculo' ? 'Vehículo no seleccionado' : _tipoDestino == 'maquinaria' ? 'Maquinaria no seleccionada' : 'Equipo Menor no seleccionado');
       return;
     }
-    if (_tipoDestino == 'vehiculo' && empleadoId == null) {
+    if ((_tipoDestino == 'vehiculo' || _tipoDestino == 'maquinaria') && empleadoId == null) {
       setState(() => _localError = 'Empleado responsable no seleccionado');
+      return;
+    }
+    if (_tipoDestino == 'equipo_menor' && empleadoId == null && _terceroController.text.isEmpty) {
+      setState(() => _localError = 'Ingrese o seleccione el responsable (empleado o tercero)');
       return;
     }
     if (_tipoDestino == 'empleado' && _terceroController.text.isEmpty) {

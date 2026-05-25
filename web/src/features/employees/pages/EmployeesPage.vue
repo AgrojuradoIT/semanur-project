@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="table-container">
     <!-- Header -->
     <div class="table-header">
@@ -204,10 +204,6 @@
                   <div class="emp-stat-card">
                     <span class="emp-stat-label">Tanqueos</span>
                     <span class="emp-stat-value">{{ empStats.tanqueos }}</span>
-                  </div>
-                  <div class="emp-stat-card">
-                    <span class="emp-stat-label">Checklists</span>
-                    <span class="emp-stat-value">{{ empStats.checklists }}</span>
                   </div>
                 </div>
               </section>
@@ -456,7 +452,7 @@ const showDetail = ref(false);
 const selectedEmployee = ref(null);
 const loadingDetail = ref(false);
 const activeTab = ref('general');
-const empStats = ref({ ot_asignadas: 0, prestamos: 0, tanqueos: 0, checklists: 0, sesiones: 0 });
+const empStats = ref({ ot_asignadas: 0, prestamos: 0, tanqueos: 0, sesiones: 0 });
 
 // Retiro
 const showRetiro = ref(false);
@@ -532,7 +528,7 @@ async function openDetailModal(emp) {
   activeTab.value = 'general';
   showDetail.value = true;
   loadingDetail.value = true;
-  empStats.value = { ot_asignadas: 0, prestamos: 0, tanqueos: 0, checklists: 0, sesiones: 0 };
+  empStats.value = { ot_asignadas: 0, prestamos: 0, tanqueos: 0, sesiones: 0 };
 
   try {
     const detail = await fetchEmployeeDetail(emp.id);

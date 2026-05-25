@@ -16,6 +16,7 @@ class AuthUsersAccessTest extends TestCase
         $operador = User::factory()->create([
             'role' => 'operador',
             'email' => 'operador@semanur.com',
+            'permisos' => ['usuarios'],
         ]);
 
         Sanctum::actingAs($operador);
@@ -70,6 +71,7 @@ class AuthUsersAccessTest extends TestCase
         $almacenista = User::factory()->create([
             'role' => 'almacenista',
             'email' => 'almacen@semanur.com',
+            'permisos' => ['usuarios'],
         ]);
 
         Sanctum::actingAs($almacenista);

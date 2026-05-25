@@ -87,11 +87,10 @@
             <th>HOROMETRO</th>
             <th>KM</th>
             <th>REGISTRO</th>
-            <th v-if="isAdmin">ACCIONES</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="item in filteredRecords" :key="fuelId(item)">
+          <tr v-for="item in filteredRecords" :key="fuelId(item)" @click="openViewModal(item)" class="clickable-row" style="cursor: pointer;">
             <td>{{ formatDate(item.fecha || item.created_at) }}</td>
             <td>
               <span class="badge" :class="item.tipo_combustible === 'acpm' ? 'badge-warning' : 'badge-info'">
@@ -113,16 +112,6 @@
             <td>{{ item.horometro_actual ?? '-' }}</td>
             <td>{{ item.kilometraje_actual ?? '-' }}</td>
             <td>{{ item.usuario?.name || item.registrado_por?.name || '-' }}</td>
-            <td v-if="isAdmin">
-              <div style="display: flex; gap: 4px;">
-                <button class="btn-icon" title="Editar" @click.stop="openEditModal(item)">
-                  <span class="material-icons-round" style="font-size: 16px; color: var(--warning)">edit</span>
-                </button>
-                <button class="btn-icon" title="Eliminar" @click.stop="confirmDelete(item)">
-                  <span class="material-icons-round" style="font-size: 16px; color: var(--danger)">delete</span>
-                </button>
-              </div>
-            </td>
           </tr>
         </tbody>
       </table>
@@ -174,6 +163,8 @@
             <label>Tipo de Destino</label>
             <select v-model="form.tipo_destino" class="input" required>
               <option value="vehiculo">Vehiculo</option>
+              <option value="maquinaria">Maquinaria Pesada</option>
+              <option value="equipo_menor">Equipo Menor</option>
               <option value="empleado">Empleado</option>
               <option value="tercero">Tercero</option>
             </select>
@@ -187,32 +178,40 @@
             </select>
           </div>
 
-          <div v-if="form.tipo_destino === 'vehiculo'" class="input-group">
-            <label>Vehiculo</label>
+          <div v-if="['vehiculo', 'maquinaria', 'equipo_menor'].includes(form.tipo_destino)" class="input-group">
+            <label>{{ form.tipo_destino === 'vehiculo' ? 'Vehiculo' : form.tipo_destino === 'maquinaria' ? 'Maquinaria Pesada' : 'Equipo Menor' }}</label>
             <SearchableSelect
               v-model="form.vehiculo_id"
-              :items="vehicles"
+              :items="filteredVehiclesList"
               :label-fn="vehicleLabel"
               :value-fn="vehicleId"
-              placeholder="Seleccionar vehiculo..."
+              :placeholder="form.tipo_destino === 'vehiculo' ? 'Seleccionar vehiculo...' : form.tipo_destino === 'maquinaria' ? 'Seleccionar maquinaria...' : 'Seleccionar equipo...'"
             />
           </div>
 
-          <div v-if="form.tipo_destino === 'vehiculo'" class="input-group">
-            <label>A quien se le entrega (Empleado)</label>
+          <div v-if="['vehiculo', 'maquinaria', 'equipo_menor'].includes(form.tipo_destino)" class="input-group">
+            <label>{{ form.tipo_destino === 'vehiculo' || form.tipo_destino === 'maquinaria' ? 'A quien se le entrega (Empleado)' : 'Responsable (Empleado o Externo)' }}</label>
             <SearchableSelect
               v-model="form.empleado_id"
               :items="users"
               :label-fn="employeeLabel"
-              placeholder="Seleccionar empleado..."
+              placeholder="Seleccionar empleado responsable..."
               empty-text="No se encontraron empleados"
+              :allow-free-text="form.tipo_destino === 'equipo_menor'"
+              @select="onResponsableSelect"
             />
           </div>
 
-          <div v-else-if="form.tipo_destino === 'empleado'" class="input-group">
-            <label>Nombre del Empleado</label>
-            <input v-model.trim="form.tercero_nombre" class="input" type="text" required placeholder="Nombre completo" />
-          </div>
+          <template v-else-if="form.tipo_destino === 'empleado'">
+            <div class="input-group">
+              <label>Nombre del Empleado</label>
+              <input v-model.trim="form.tercero_nombre" class="input" type="text" required placeholder="Nombre completo" />
+            </div>
+            <div class="input-group">
+              <label>Placa Vehículo (Opcional)</label>
+              <input v-model.trim="form.placa_manual" class="input" type="text" placeholder="Ej. ABC-123" />
+            </div>
+          </template>
 
           <div v-else class="input-group">
             <label>Nombre del Tercero</label>
@@ -224,12 +223,12 @@
             <input v-model.number="form.cantidad_galones" class="input" type="number" min="0.1" step="0.1" required />
           </div>
 
-          <div v-if="form.tipo_destino === 'vehiculo' && isSelectedVehicleMachinery" class="input-group">
+          <div v-if="['vehiculo', 'maquinaria', 'equipo_menor'].includes(form.tipo_destino) && isSelectedVehicleMachinery" class="input-group">
             <label>Horometro Actual</label>
             <input v-model.number="form.horometro_actual" class="input" type="number" min="0" />
           </div>
 
-          <div v-if="form.tipo_destino === 'vehiculo' && !isSelectedVehicleMachinery" class="input-group">
+          <div v-if="['vehiculo', 'maquinaria', 'equipo_menor'].includes(form.tipo_destino) && !isSelectedVehicleMachinery" class="input-group">
             <label>Kilometraje Actual</label>
             <input v-model.number="form.kilometraje_actual" class="input" type="number" min="0" />
           </div>
@@ -272,27 +271,87 @@
         </div>
         <form class="form-grid" @submit.prevent="submitEdit">
           <div class="input-group">
+            <label>Tipo de Destino</label>
+            <select v-model="editForm.tipo_destino" class="input" required>
+              <option value="vehiculo">Vehiculo</option>
+              <option value="maquinaria">Maquinaria Pesada</option>
+              <option value="equipo_menor">Equipo Menor</option>
+              <option value="empleado">Empleado</option>
+              <option value="tercero">Tercero</option>
+            </select>
+          </div>
+
+          <div class="input-group">
             <label>Tipo de Combustible</label>
-            <select v-model="editForm.tipo_combustible" class="input">
+            <select v-model="editForm.tipo_combustible" class="input" required>
               <option value="gasolina">Gasolina</option>
               <option value="acpm">ACPM</option>
             </select>
           </div>
+
+          <div v-if="['vehiculo', 'maquinaria', 'equipo_menor'].includes(editForm.tipo_destino)" class="input-group">
+            <label>{{ editForm.tipo_destino === 'vehiculo' ? 'Vehiculo' : editForm.tipo_destino === 'maquinaria' ? 'Maquinaria Pesada' : 'Equipo Menor' }}</label>
+            <SearchableSelect
+              v-model="editForm.vehiculo_id"
+              :items="filteredEditVehiclesList"
+              :label-fn="vehicleLabel"
+              :value-fn="vehicleId"
+              :placeholder="editForm.tipo_destino === 'vehiculo' ? 'Seleccionar vehiculo...' : editForm.tipo_destino === 'maquinaria' ? 'Seleccionar maquinaria...' : 'Seleccionar equipo...'"
+            />
+          </div>
+
+          <div v-if="['vehiculo', 'maquinaria', 'equipo_menor'].includes(editForm.tipo_destino)" class="input-group">
+            <label>{{ editForm.tipo_destino === 'vehiculo' || editForm.tipo_destino === 'maquinaria' ? 'A quien se le entrega (Empleado)' : 'Responsable (Empleado o Externo)' }}</label>
+            <SearchableSelect
+              v-model="editForm.empleado_id"
+              :items="users"
+              :label-fn="employeeLabel"
+              placeholder="Seleccionar empleado responsable..."
+              empty-text="No se encontraron empleados"
+              :allow-free-text="editForm.tipo_destino === 'equipo_menor'"
+              @select="onEditResponsableSelect"
+            />
+          </div>
+
+          <template v-else-if="editForm.tipo_destino === 'empleado'">
+            <div class="input-group">
+              <label>Nombre del Empleado</label>
+              <input v-model.trim="editForm.tercero_nombre" class="input" type="text" required placeholder="Nombre completo" />
+            </div>
+            <div class="input-group">
+              <label>Placa Vehículo (Opcional)</label>
+              <input v-model.trim="editForm.placa_manual" class="input" type="text" placeholder="Ej. ABC-123" />
+            </div>
+          </template>
+
+          <div v-else class="input-group">
+            <label>Nombre del Tercero</label>
+            <input v-model.trim="editForm.tercero_nombre" class="input" type="text" required placeholder="Nombre completo" />
+          </div>
+
           <div class="input-group">
             <label>Cantidad (Galones)</label>
-            <input v-model.number="editForm.cantidad_galones" class="input" type="number" min="0.1" step="0.1" />
+            <input v-model.number="editForm.cantidad_galones" class="input" type="number" min="0.1" step="0.1" required />
           </div>
-          <div class="input-group">
+
+          <div v-if="['vehiculo', 'maquinaria', 'equipo_menor'].includes(editForm.tipo_destino) && isEditSelectedVehicleMachinery" class="input-group">
             <label>Horometro Actual</label>
             <input v-model.number="editForm.horometro_actual" class="input" type="number" min="0" />
           </div>
-          <div class="input-group">
+
+          <div v-if="['vehiculo', 'maquinaria', 'equipo_menor'].includes(editForm.tipo_destino) && !isEditSelectedVehicleMachinery" class="input-group">
             <label>Kilometraje Actual</label>
             <input v-model.number="editForm.kilometraje_actual" class="input" type="number" min="0" />
           </div>
+
+          <div class="input-group full-width">
+            <label>Destino o Labor</label>
+            <input v-model.trim="editForm.labor" class="input" type="text" placeholder="Ej. Guadañar lote 5, viaje a finca..." />
+          </div>
+
           <div class="input-group full-width">
             <label>Notas</label>
-            <textarea v-model.trim="editForm.notas" class="input" rows="3"></textarea>
+            <textarea v-model.trim="editForm.notas" class="input" rows="3" placeholder="Observaciones del tanqueo..."></textarea>
           </div>
         </form>
       </div>
@@ -306,12 +365,113 @@
       </div>
     </div>
   </div>
+
+  <div v-if="showView" class="modal-overlay" @click.self="closeViewModal">
+    <div class="modal modal-wide fuel-detail-modal">
+      
+      <!-- HEADER -->
+      <div class="modal-header" style="border-bottom: none; padding-bottom: 0;">
+        <h3 style="color: var(--text-gray); font-size: 0.8rem; letter-spacing: 0.5px;">DETALLE DE COMBUSTIBLE</h3>
+        <button class="modal-close" @click="closeViewModal">
+          <span class="material-icons-round" style="font-size: 18px">close</span>
+        </button>
+      </div>
+
+      <div class="modal-body" style="padding-top: 1rem;">
+        
+        <!-- PROFILE CARD LAYOUT -->
+        <div style="display: flex; gap: 20px; margin-bottom: 24px; align-items: flex-start;">
+          <!-- IMAGE (Like FleetPage fd-image-container) -->
+          <div style="flex-shrink: 0; width: 120px; height: 120px; border-radius: 12px; overflow: hidden; background: var(--surface-light); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+            <img v-if="viewItem.vehiculo?.imagen_url" :src="viewItem.vehiculo.imagen_url" style="width: 100%; height: 100%; object-fit: cover;" />
+            <span v-else class="material-icons-round" style="font-size: 40px; color: var(--text-muted);">local_gas_station</span>
+          </div>
+
+          <!-- IDENTITY INFO -->
+          <div style="flex: 1;">
+            <div style="margin-bottom: 6px;">
+              <span class="badge" :class="viewItem.tipo_combustible === 'acpm' ? 'badge-warning' : 'badge-info'">
+                {{ (viewItem.tipo_combustible || 'gasolina').toUpperCase() }}
+              </span>
+            </div>
+            <h2 style="margin: 0 0 6px 0; font-size: 1.6rem; color: var(--text-main); font-weight: 700; line-height: 1.2;">
+              {{ destinationLabel(viewItem) }}
+            </h2>
+            <div style="color: var(--text-gray); font-size: 0.9rem; display: flex; align-items: center; gap: 6px;">
+               <span class="material-icons-round" style="font-size: 16px;">calendar_today</span> 
+               {{ formatDateTime(viewItem.fecha || viewItem.created_at) }}
+            </div>
+          </div>
+        </div>
+
+      <div class="fd-highlights" style="margin-top: 0; padding: 0; margin-bottom: 24px;">
+        <div class="fd-highlight-box">
+          <span class="material-icons-round" style="color: var(--primary); font-size: 28px;">local_gas_station</span>
+          <div class="fd-hb-info">
+            <span class="fd-hb-label">Cantidad</span>
+            <span class="fd-hb-value" style="font-family: 'Oswald', sans-serif;">{{ formatGallons(viewItem.cantidad_galones) }}</span>
+          </div>
+        </div>
+        <div class="fd-highlight-box" v-if="showHorometro(viewItem)">
+          <span class="material-icons-round" style="color: var(--warning); font-size: 28px;">timer</span>
+          <div class="fd-hb-info">
+            <span class="fd-hb-label">Horómetro</span>
+            <span class="fd-hb-value">{{ viewItem.horometro_actual ?? '-' }}</span>
+          </div>
+        </div>
+        <div class="fd-highlight-box" v-if="showKilometraje(viewItem)">
+          <span class="material-icons-round" style="color: var(--info); font-size: 28px;">speed</span>
+          <div class="fd-hb-info">
+            <span class="fd-hb-label">Kilometraje</span>
+            <span class="fd-hb-value">{{ viewItem.kilometraje_actual ?? '-' }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="detail-grid">
+        <div class="detail-item">
+          <span class="detail-label"><span class="material-icons-round" style="font-size:14px; vertical-align:middle; margin-right:4px;">category</span>Destino</span>
+          <span class="detail-value">{{ destinationTypeLabel(viewItem.tipo_destino) }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label"><span class="material-icons-round" style="font-size:14px; vertical-align:middle; margin-right:4px;">person</span>Conductor / Responsable</span>
+          <span class="detail-value">{{ viewItem.empleado?.name || viewItem.empleado?.nombre || viewItem.tercero_nombre || '-' }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label"><span class="material-icons-round" style="font-size:14px; vertical-align:middle; margin-right:4px;">badge</span>Registrado por</span>
+          <span class="detail-value">{{ viewItem.usuario?.name || viewItem.registrado_por?.name || '-' }}</span>
+        </div>
+        <div class="detail-item full-width" v-if="viewItem.labor" style="background: var(--surface-light); padding: 12px; border-radius: 8px; margin-top: 8px;">
+          <span class="detail-label" style="color: var(--text-main); margin-bottom: 8px;"><span class="material-icons-round" style="font-size:16px; vertical-align:middle; margin-right:6px; color: var(--primary);">work</span>Labor / Destino</span>
+          <span class="detail-value" style="font-weight: normal;">{{ viewItem.labor }}</span>
+        </div>
+        <div class="detail-item full-width" v-if="viewItem.notas" style="background: rgba(255, 193, 7, 0.05); padding: 12px; border-radius: 8px; border: 1px solid rgba(255, 193, 7, 0.2); margin-top: 8px;">
+          <span class="detail-label" style="color: var(--warning); margin-bottom: 8px;"><span class="material-icons-round" style="font-size:16px; vertical-align:middle; margin-right:6px;">note</span>Notas</span>
+          <span class="detail-value" style="font-weight: normal;">{{ viewItem.notas }}</span>
+        </div>
+      </div>
+      
+      </div>
+
+      <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; gap: 8px;">
+          <button v-if="isAdmin" class="btn btn-secondary" style="color: var(--warning); border-color: var(--warning);" @click="editFromView(viewItem)">
+            <span class="material-icons-round" style="font-size: 18px; margin-right: 4px;">edit</span> Editar
+          </button>
+          <button v-if="isAdmin" class="btn btn-secondary" style="color: var(--danger); border-color: var(--danger);" @click="deleteFromView(viewItem)">
+            <span class="material-icons-round" style="font-size: 18px; margin-right: 4px;">delete</span> Eliminar
+          </button>
+        </div>
+        <button class="btn btn-primary" @click="closeViewModal">Cerrar</button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { formatCurrencyCO, formatDateCO } from '../../../shared/utils/formatters';
+import { formatCurrencyCO, formatDateCO, formatDateTimeCO } from '../../../shared/utils/formatters';
 import { useAsyncState } from '../../../shared/composables/useAsyncState';
 import { useRefresh } from '../../../shared/composables/useRefresh';
 import { fuelDestinationLabel, fuelId as mapFuelId } from '../../../shared/adapters/fuelAdapter';
@@ -353,10 +513,12 @@ const filterHasta = ref('');
 
 const showCreate = ref(false);
 const showEdit = ref(false);
+const showView = ref(false);
 const saving = ref(false);
 const formError = ref('');
 const form = ref(defaultForm());
 const editForm = ref({});
+const viewItem = ref({});
 const editingId = ref(null);
 
 // Pagination
@@ -365,13 +527,93 @@ const totalPages = ref(1);
 const totalItems = ref(0);
 const summary = ref(null);
 
+const filteredVehiclesList = computed(() => {
+  if (form.value.tipo_destino === 'vehiculo') {
+    return vehicles.value.filter(v => v.categoria === 'vehiculo' || !v.categoria);
+  }
+  if (form.value.tipo_destino === 'maquinaria') {
+    return vehicles.value.filter(v => v.categoria === 'maquinaria');
+  }
+  if (form.value.tipo_destino === 'equipo_menor') {
+    return vehicles.value.filter(v => v.categoria === 'equipo_menor');
+  }
+  return vehicles.value;
+});
+
 const isSelectedVehicleMachinery = computed(() => {
-  if (form.value.tipo_destino !== 'vehiculo' || !form.value.vehiculo_id) return false;
+  if (!['vehiculo', 'maquinaria', 'equipo_menor'].includes(form.value.tipo_destino) || !form.value.vehiculo_id) return false;
   const v = vehicles.value.find(v => vehicleId(v) == form.value.vehiculo_id);
   if (!v) return false;
+  if (v.categoria === 'maquinaria' || v.categoria === 'equipo_menor') return true;
   const t = (v.tipo || '').toLowerCase();
   return t.includes('tractor') || t.includes('maquinaria') || t.includes('pesada') || t.includes('volqueta');
 });
+
+const filteredEditVehiclesList = computed(() => {
+  if (editForm.value.tipo_destino === 'vehiculo') {
+    return vehicles.value.filter(v => v.categoria === 'vehiculo' || !v.categoria);
+  }
+  if (editForm.value.tipo_destino === 'maquinaria') {
+    return vehicles.value.filter(v => v.categoria === 'maquinaria');
+  }
+  if (editForm.value.tipo_destino === 'equipo_menor') {
+    return vehicles.value.filter(v => v.categoria === 'equipo_menor');
+  }
+  return vehicles.value;
+});
+
+const isEditSelectedVehicleMachinery = computed(() => {
+  if (!['vehiculo', 'maquinaria', 'equipo_menor'].includes(editForm.value.tipo_destino) || !editForm.value.vehiculo_id) return false;
+  const v = vehicles.value.find(v => vehicleId(v) == editForm.value.vehiculo_id);
+  if (!v) return false;
+  if (v.categoria === 'maquinaria' || v.categoria === 'equipo_menor') return true;
+  const t = (v.tipo || '').toLowerCase();
+  return t.includes('tractor') || t.includes('maquinaria') || t.includes('pesada') || t.includes('volqueta');
+});
+
+function onResponsableSelect(item) {
+  if (item.isFreeText) {
+    form.value.tercero_nombre = item.text;
+    form.value.empleado_id = item.text;
+  } else {
+    form.value.empleado_id = item.id;
+    form.value.tercero_nombre = '';
+  }
+}
+
+function onEditResponsableSelect(item) {
+  if (item.isFreeText) {
+    editForm.value.tercero_nombre = item.text;
+    editForm.value.empleado_id = item.text;
+  } else {
+    editForm.value.empleado_id = item.id;
+    editForm.value.tercero_nombre = '';
+  }
+}
+
+watch(
+  () => form.value.vehiculo_id,
+  (newVal) => {
+    if (newVal) {
+      const v = vehicles.value.find(v => vehicleId(v) == newVal);
+      if (v && v.operador_asignado_id) {
+        form.value.empleado_id = v.operador_asignado_id;
+      }
+    }
+  }
+);
+
+watch(
+  () => editForm.value.vehiculo_id,
+  (newVal) => {
+    if (newVal) {
+      const v = vehicles.value.find(v => vehicleId(v) == newVal);
+      if (v && v.operador_asignado_id && !editForm.value.empleado_id) {
+        editForm.value.empleado_id = v.operador_asignado_id;
+      }
+    }
+  }
+);
 
 onMounted(async () => {
   await loadData();
@@ -515,6 +757,8 @@ function isCreateValid() {
   if (!form.value.tipo_combustible) return false;
   if (!form.value.cantidad_galones) return false;
   if (form.value.tipo_destino === 'vehiculo' && (!form.value.vehiculo_id || !form.value.empleado_id)) return false;
+  if (form.value.tipo_destino === 'maquinaria' && (!form.value.vehiculo_id || !form.value.empleado_id)) return false;
+  if (form.value.tipo_destino === 'equipo_menor' && (!form.value.vehiculo_id || (!form.value.empleado_id && !form.value.tercero_nombre))) return false;
   if (form.value.tipo_destino === 'empleado' && !form.value.tercero_nombre) return false;
   if (form.value.tipo_destino === 'tercero' && !form.value.tercero_nombre) return false;
   return true;
@@ -533,11 +777,19 @@ function buildCreatePayload() {
   if (form.value.kilometraje_actual) payload.kilometraje_actual = Number(form.value.kilometraje_actual);
   if (form.value.labor) payload.labor = form.value.labor;
 
-  if (form.value.tipo_destino === 'vehiculo') {
+  if (['vehiculo', 'maquinaria', 'equipo_menor'].includes(form.value.tipo_destino)) {
     payload.vehiculo_id = Number(form.value.vehiculo_id);
-    payload.empleado_id = Number(form.value.empleado_id);
+    if (form.value.empleado_id && !isNaN(Number(form.value.empleado_id))) {
+      payload.empleado_id = Number(form.value.empleado_id);
+    }
+    if (form.value.tipo_destino === 'equipo_menor' && form.value.tercero_nombre) {
+      payload.tercero_nombre = form.value.tercero_nombre;
+    }
   }
-  if (form.value.tipo_destino === 'empleado') payload.tercero_nombre = form.value.tercero_nombre;
+  if (form.value.tipo_destino === 'empleado') {
+    payload.tercero_nombre = form.value.tercero_nombre;
+    if (form.value.placa_manual) payload.placa_manual = form.value.placa_manual;
+  }
   if (form.value.tipo_destino === 'tercero') payload.tercero_nombre = form.value.tercero_nombre;
 
   return payload;
@@ -555,6 +807,7 @@ function defaultForm() {
     kilometraje_actual: null,
     labor: '',
     notas: '',
+    placa_manual: '',
   };
 }
 
@@ -562,11 +815,17 @@ function openEditModal(item) {
   editingId.value = fuelId(item);
   formError.value = '';
   editForm.value = {
+    tipo_destino: item.tipo_destino || 'vehiculo',
+    vehiculo_id: item.vehiculo_id || '',
+    empleado_id: item.empleado_id || '',
+    tercero_nombre: item.tercero_nombre || '',
+    labor: item.labor || '',
     tipo_combustible: item.tipo_combustible || 'gasolina',
     cantidad_galones: item.cantidad_galones,
     horometro_actual: item.horometro_actual,
     kilometraje_actual: item.kilometraje_actual,
     notas: item.notas || '',
+    placa_manual: item.placa_manual || '',
   };
   showEdit.value = true;
 }
@@ -575,6 +834,26 @@ function closeEditModal() {
   showEdit.value = false;
   editingId.value = null;
   formError.value = '';
+}
+
+function openViewModal(item) {
+  viewItem.value = item;
+  showView.value = true;
+}
+
+function closeViewModal() {
+  showView.value = false;
+  viewItem.value = {};
+}
+
+function editFromView(item) {
+  closeViewModal();
+  openEditModal(item);
+}
+
+function deleteFromView(item) {
+  closeViewModal();
+  confirmDelete(item);
 }
 
 async function submitEdit() {
@@ -618,6 +897,8 @@ function destinationTypeClass(type) {
 
 function destinationTypeLabel(type) {
   if (type === 'vehiculo') return 'Vehiculo';
+  if (type === 'maquinaria') return 'Maquinaria Pesada';
+  if (type === 'equipo_menor') return 'Equipo Menor';
   if (type === 'empleado') return 'Empleado';
   return 'Tercero';
 }
@@ -630,9 +911,29 @@ function formatDate(value) {
   return formatDateCO(value);
 }
 
+function formatDateTime(value) {
+  return formatDateTimeCO(value);
+}
+
 function formatGallons(value) {
   const n = Number(value || 0);
   return `${n.toFixed(1)} gal`;
+}
+
+function showHorometro(item) {
+  if (!['vehiculo', 'maquinaria', 'equipo_menor'].includes(item.tipo_destino)) return false;
+  if (item.vehiculo?.metodo_seguimiento) {
+    return item.vehiculo.metodo_seguimiento === 'horometro' || item.vehiculo.metodo_seguimiento === 'ambos';
+  }
+  return item.horometro_actual != null && Number(item.horometro_actual) > 0;
+}
+
+function showKilometraje(item) {
+  if (!['vehiculo', 'maquinaria', 'equipo_menor'].includes(item.tipo_destino)) return false;
+  if (item.vehiculo?.metodo_seguimiento) {
+    return item.vehiculo.metodo_seguimiento === 'kilometraje' || item.vehiculo.metodo_seguimiento === 'ambos';
+  }
+  return item.kilometraje_actual != null && Number(item.kilometraje_actual) > 0;
 }
 
 function formatCurrency(value) {
@@ -775,5 +1076,82 @@ function productLabel(product) {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+tbody tr.clickable-row:hover {
+  background-color: var(--surface-light, rgba(255, 255, 255, 0.05));
+}
+
+/* Detail Modal */
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+.detail-item {
+  display: flex;
+  flex-direction: column;
+}
+.detail-item.full-width {
+  grid-column: 1 / -1;
+}
+.detail-label {
+  font-size: 0.75rem;
+  color: var(--text-gray);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.detail-value {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text-main);
+}
+
+/* Premium Fuel Detail Modal */
+.fuel-detail-modal {
+  padding: 0 !important;
+  background: var(--surface);
+}
+.fuel-detail-modal .modal-header {
+  padding: 20px 24px 0 24px;
+}
+.fuel-detail-modal .modal-body {
+  padding: 24px;
+}
+.fuel-detail-modal .modal-footer {
+  padding: 16px 24px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+.fd-highlights {
+  display: flex;
+  gap: 12px;
+}
+.fd-highlight-box {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+.fd-hb-info {
+  display: flex;
+  flex-direction: column;
+}
+.fd-hb-label {
+  font-size: 0.65rem;
+  color: var(--text-gray);
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+.fd-hb-value {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-main);
 }
 </style>

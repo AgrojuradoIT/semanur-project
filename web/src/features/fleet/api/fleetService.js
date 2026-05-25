@@ -31,10 +31,6 @@ export async function getVehicleHourMeters(vehicleId) {
   return data;
 }
 
-export async function getVehiclePreoperacionales(vehicleId) {
-  const { data } = await http.get(`/checklists/history?vehiculo_id=${vehicleId}`);
-  return extractList(data);
-}
 
 export async function getVehicleDocuments(vehicleId) {
   const { data } = await http.get(`/vehiculos/${vehicleId}/documentos`);

@@ -83,6 +83,7 @@ class ApiClient {
   }
 
   Dio get dio => _dio;
+  String get baseUrl => ApiConstants.baseUrl;
 
   bool _shouldAttemptRefresh(DioException e) {
     final statusCode = e.response?.statusCode;
